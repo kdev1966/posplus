@@ -1,0 +1,14 @@
+{
+  "resolveFullPaths": true,
+  "replacers": {
+    "ignoreModules": [
+      "electron",
+      "electron-log",
+      "better-sqlite3",
+      "bcrypt",
+      "node-thermal-printer",
+      "path",
+      "fs"
+    ]
+  }
+}
