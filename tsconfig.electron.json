@@ -1,18 +1,27 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
+    "target": "ES2020",
     "module": "CommonJS",
-    "noEmit": false,
-    "outDir": "dist/electron",
     "lib": ["ES2020"],
+    "moduleResolution": "node",
+    "outDir": "dist/main",
+    "noEmit": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
     "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@shared/*": ["src/shared/*"],
-      "@electron/*": ["src/electron/*"]
+      "@shared/*": ["src/shared/*"]
     }
   },
-  "include": ["src/electron", "src/shared"],
-  "exclude": ["src/renderer", "node_modules"]
+  "include": ["src/main-process", "src/shared"],
+  "exclude": ["src/renderer", "node_modules", "**/*.test.ts"]
 }

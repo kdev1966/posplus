@@ -1,10 +1,12 @@
 import DatabaseService from '../db'
 import { User, CreateUserDTO, UpdateUserDTO } from '@shared/types'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import log from 'electron-log'
 
 export class UserRepository {
-  private db = DatabaseService.getInstance().getDatabase()
+  private get db() {
+    return DatabaseService.getInstance().getDatabase()
+  }
 
   findAll(): User[] {
     try {
@@ -232,4 +234,22 @@ export class UserRepository {
   }
 }
 
-export default new UserRepository()
+let instance: UserRepository | null = null
+export default {
+  get instance() {
+    if (!instance) {
+      instance = new UserRepository()
+    }
+    return instance
+  },
+  findAll: function() { return this.instance.findAll() },
+  findById: function(id: number) { return this.instance.findById(id) },
+  findByUsername: function(username: string) { return this.instance.findByUsername(username) },
+  findByEmail: function(email: string) { return this.instance.findByEmail(email) },
+  create: function(data: CreateUserDTO) { return this.instance.create(data) },
+  update: function(data: UpdateUserDTO) { return this.instance.update(data) },
+  delete: function(id: number) { return this.instance.delete(id) },
+  verifyPassword: function(username: string, password: string) { return this.instance.verifyPassword(username, password) },
+  changePassword: function(userId: number, newPassword: string) { return this.instance.changePassword(userId, newPassword) },
+  updateLastLogin: function(userId: number) { return this.instance.updateLastLogin(userId) }
+}

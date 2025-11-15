@@ -34,6 +34,7 @@ export interface Category {
   name: string
   description?: string
   parentId?: number
+  displayOrder?: number
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -184,6 +185,7 @@ export interface CreateTicketDTO {
     productId: number
     quantity: number
     unitPrice: number
+    taxRate?: number
     discountAmount?: number
   }[]
   payments: {

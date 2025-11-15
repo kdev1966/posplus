@@ -1,4 +1,4 @@
-import { UserRepository } from '../database/repositories/UserRepository'
+import UserRepository from '../database/repositories/UserRepository'
 import { User, LoginCredentials, AuthResponse } from '@shared/types'
 import log from 'electron-log'
 
@@ -98,7 +98,7 @@ class AuthService {
     return this.currentUser
   }
 
-  hasPermission(permission: string): boolean {
+  hasPermission(_permission: string): boolean {
     if (!this.currentUser) {
       return false
     }

@@ -1,4 +1,4 @@
-import { TicketRepository } from '../database/repositories/TicketRepository'
+import TicketRepository from '../database/repositories/TicketRepository'
 import { Ticket, CreateTicketDTO } from '@shared/types'
 import log from 'electron-log'
 

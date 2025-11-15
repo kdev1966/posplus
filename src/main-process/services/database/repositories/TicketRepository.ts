@@ -3,7 +3,9 @@ import { Ticket, TicketLine, Payment, CreateTicketDTO } from '@shared/types'
 import log from 'electron-log'
 
 export class TicketRepository {
-  private db = DatabaseService.getInstance().getDatabase()
+  private get db() {
+    return DatabaseService.getInstance().getDatabase()
+  }
 
   findAll(filters?: { startDate?: string; endDate?: string; status?: string }): Ticket[] {
     try {
@@ -315,4 +317,21 @@ export class TicketRepository {
   }
 }
 
-export default new TicketRepository()
+let instance: TicketRepository | null = null
+export default {
+  get instance() {
+    if (!instance) {
+      instance = new TicketRepository()
+    }
+    return instance
+  },
+  findAll: function(filters?: any) { return this.instance.findAll(filters) },
+  findById: function(id: number) { return this.instance.findById(id) },
+  findByTicketNumber: function(ticketNumber: string) { return this.instance.findByTicketNumber(ticketNumber) },
+  findBySession: function(sessionId: number) { return this.instance.findBySession(sessionId) },
+  create: function(data: CreateTicketDTO) { return this.instance.create(data) },
+  cancel: function(id: number, reason: string) { return this.instance.cancel(id, reason) },
+  refund: function(id: number, reason: string) { return this.instance.refund(id, reason) },
+  getDailySales: function(date?: string) { return this.instance.getDailySales(date) },
+  getTopProducts: function(limit?: number) { return this.instance.getTopProducts(limit) }
+}

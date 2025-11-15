@@ -1,7 +1,6 @@
 import React from 'react'
 import { useCartStore } from '../../store/cartStore'
 import { Button } from '../ui/Button'
-import { Badge } from '../ui/Badge'
 
 interface CartProps {
   onCheckout: () => void

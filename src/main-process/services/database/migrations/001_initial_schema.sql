@@ -356,16 +356,6 @@ BEGIN
   DELETE FROM products_fts WHERE rowid = OLD.id;
 END;
 
--- Auto-calculate ticket totals
-CREATE TRIGGER IF NOT EXISTS calculate_ticket_line_total
-BEFORE INSERT ON ticket_lines
-BEGIN
-  SELECT CASE
-    WHEN NEW.total_amount IS NULL OR NEW.total_amount = 0 THEN
-      (SELECT (NEW.quantity * NEW.unit_price * (1 + NEW.tax_rate)) - NEW.discount_amount)
-  END INTO NEW.total_amount;
-END;
-
 -- Log stock changes on product updates
 CREATE TRIGGER IF NOT EXISTS log_stock_on_product_update
 AFTER UPDATE OF stock ON products
@@ -467,7 +457,7 @@ VALUES (
   1,
   'admin',
   'admin@posplus.local',
-  '$2b$10$rKvVPXxHJ5EzY5X5xJ5xqeK5Y5xJ5xqeK5Y5xJ5xqeK5Y5xJ5xqe',
+  '$2b$10$KBL5osZy1v5efMvTVeJ/SOzrJHIDIOOBsRKYcgKMm83dlEKE425eS',
   'System',
   'Administrator',
   1,

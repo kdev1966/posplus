@@ -7,16 +7,12 @@ import log from 'electron-log'
 class DatabaseService {
   private static instance: DatabaseService
   private db: Database.Database | null = null
-  private readonly dbPath: string
-  private readonly migrationsPath: string
+  private dbPath: string = ''
+  private migrationsPath: string = ''
+  private isInitialized: boolean = false
 
   private constructor() {
-    const userDataPath = app.getPath('userData')
-    this.dbPath = path.join(userDataPath, 'posplus.db')
-    this.migrationsPath = path.join(__dirname, 'migrations')
-
-    log.info(`Database path: ${this.dbPath}`)
-    log.info(`Migrations path: ${this.migrationsPath}`)
+    // Don't initialize paths here - wait for app.whenReady()
   }
 
   public static getInstance(): DatabaseService {
@@ -27,8 +23,21 @@ class DatabaseService {
   }
 
   public initialize(): void {
+    if (this.isInitialized) {
+      log.info('Database already initialized')
+      return
+    }
+
     try {
       log.info('Initializing database...')
+
+      // Initialize paths now that app is ready
+      const userDataPath = app.getPath('userData')
+      this.dbPath = path.join(userDataPath, 'posplus.db')
+      this.migrationsPath = path.join(__dirname, 'migrations')
+
+      log.info(`Database path: ${this.dbPath}`)
+      log.info(`Migrations path: ${this.migrationsPath}`)
 
       // Ensure the directory exists
       const dbDir = path.dirname(this.dbPath)
@@ -49,6 +58,7 @@ class DatabaseService {
       // Run migrations
       this.runMigrations()
 
+      this.isInitialized = true
       log.info('Database initialized successfully')
     } catch (error) {
       log.error('Failed to initialize database:', error)
@@ -142,17 +152,17 @@ class DatabaseService {
     }
   }
 
-  public backup(backupPath: string): void {
+  public async backup(backupPath: string): Promise<void> {
     if (!this.db) {
       throw new Error('Database not initialized')
     }
 
     try {
       log.info(`Creating backup at: ${backupPath}`)
-      const backup = this.db.backup(backupPath)
+      const backup = this.db.backup(backupPath) as any
 
       return new Promise<void>((resolve, reject) => {
-        backup.on('progress', ({ totalPages, remainingPages }) => {
+        backup.on('progress', ({ totalPages, remainingPages }: any) => {
           log.debug(`Backup progress: ${totalPages - remainingPages}/${totalPages}`)
         })
 
@@ -161,7 +171,7 @@ class DatabaseService {
           resolve()
         })
 
-        backup.on('error', (error) => {
+        backup.on('error', (error: any) => {
           log.error('Backup failed:', error)
           reject(error)
         })

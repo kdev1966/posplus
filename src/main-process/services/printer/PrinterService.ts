@@ -1,4 +1,4 @@
-import { TicketRepository } from '../database/repositories/TicketRepository'
+import TicketRepository from '../database/repositories/TicketRepository'
 import log from 'electron-log'
 import { ThermalPrinter, PrinterTypes } from 'node-thermal-printer'
 
@@ -16,7 +16,7 @@ class PrinterService {
       this.printer = new ThermalPrinter({
         type: PrinterTypes.EPSON,
         interface: 'printer:auto', // Auto-detect printer
-        characterSet: 'SLOVENIA',
+        characterSet: 'SLOVENIA' as any,
         removeSpecialCharacters: false,
         lineCharacter: '=',
         options: {

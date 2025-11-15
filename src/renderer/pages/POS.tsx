@@ -4,7 +4,6 @@ import { ProductGrid } from '../components/pos/ProductGrid'
 import { Cart } from '../components/pos/Cart'
 import { PaymentModal } from '../components/pos/PaymentModal'
 import { Input } from '../components/ui/Input'
-import { Badge } from '../components/ui/Badge'
 import { useProductStore } from '../store/productStore'
 import { useCartStore } from '../store/cartStore'
 import { useSessionStore } from '../store/sessionStore'
@@ -14,7 +13,7 @@ import { Product } from '@shared/types'
 export const POS: React.FC = () => {
   const { user } = useAuthStore()
   const { currentSession, isSessionOpen } = useSessionStore()
-  const { products, categories, fetchProducts, fetchCategories, getFilteredProducts, setSelectedCategory, setSearchQuery, selectedCategory, searchQuery } = useProductStore()
+  const { categories, fetchProducts, fetchCategories, getFilteredProducts, setSelectedCategory, setSearchQuery, selectedCategory, searchQuery } = useProductStore()
   const { addItem, total, items, clearCart } = useCartStore()
 
   const [showPayment, setShowPayment] = useState(false)

@@ -80,13 +80,13 @@ export const Settings: React.FC = () => {
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Opening Cash</p>
                     <p className="text-lg font-bold text-white">
-                      €{currentSession.openingCash.toFixed(2)}
+                      €{currentSession?.openingCash.toFixed(2) ?? '0.00'}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Started At</p>
                     <p className="text-lg font-bold text-white">
-                      {new Date(currentSession.startedAt).toLocaleTimeString()}
+                      {currentSession ? new Date(currentSession.startedAt).toLocaleTimeString() : '-'}
                     </p>
                   </div>
                   <div>

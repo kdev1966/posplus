@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import path from 'path'
 import log from 'electron-log'
 import { db } from './services/database/db'
@@ -6,16 +6,6 @@ import { db } from './services/database/db'
 // Configure logging
 log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
-
-// Import handlers
-import './handlers/authHandlers'
-import './handlers/userHandlers'
-import './handlers/productHandlers'
-import './handlers/categoryHandlers'
-import './handlers/ticketHandlers'
-import './handlers/sessionHandlers'
-import './handlers/printerHandlers'
-import './handlers/stockHandlers'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -76,6 +66,17 @@ app.whenReady().then(() => {
     app.quit()
     return
   }
+
+  // Import handlers after app is ready
+  require('./handlers/authHandlers')
+  require('./handlers/userHandlers')
+  require('./handlers/productHandlers')
+  require('./handlers/categoryHandlers')
+  require('./handlers/ticketHandlers')
+  require('./handlers/sessionHandlers')
+  require('./handlers/printerHandlers')
+  require('./handlers/stockHandlers')
+  log.info('IPC handlers registered')
 
   createWindow()
 
