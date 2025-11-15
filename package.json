@@ -12,7 +12,7 @@
     "dev:electron": "wait-on http://localhost:5173 && cross-env NODE_ENV=development electron ./dist/main/main-process/main.js",
     "build": "npm run build:vite && npm run build:electron",
     "build:vite": "tsc && vite build",
-    "build:electron": "tsc -p tsconfig.electron.json && tsc-alias -p tsconfig.electron.json --dir dist/main && find dist/main -name '*.js' -exec sed -i '' -E 's|require\\(\"(\\.\\./)+electron\"\\)|require(\"electron\")|g' {} + && mkdir -p dist/main/main-process/services/database/migrations && cp src/main-process/services/database/migrations/*.sql dist/main/main-process/services/database/migrations/",
+    "build:electron": "tsc -p tsconfig.electron.json && tsc-alias -p tsconfig.electron.json --dir dist/main && node scripts/fix-electron-imports.js && mkdir -p dist/main/main-process/services/database/migrations && cp src/main-process/services/database/migrations/*.sql dist/main/main-process/services/database/migrations/",
     "package": "npm run build && electron-builder",
     "package:win": "npm run build && electron-builder --win",
     "package:mac": "npm run build && electron-builder --mac",

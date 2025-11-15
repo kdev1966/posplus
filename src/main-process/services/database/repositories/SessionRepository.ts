@@ -3,7 +3,9 @@ import { CashSession } from '@shared/types'
 import log from 'electron-log'
 
 export class SessionRepository {
-  private db = DatabaseService.getInstance().getDatabase()
+  private get db() {
+    return DatabaseService.getInstance().getDatabase()
+  }
 
   findAll(): CashSession[] {
     try {
@@ -96,14 +98,25 @@ export class SessionRepository {
         }
 
         // Calculate expected cash from tickets
-        const ticketsStmt = this.db.prepare(`
+        // Sum cash payments from completed tickets
+        const completedStmt = this.db.prepare(`
           SELECT COALESCE(SUM(p.amount), 0) as total_cash
           FROM payments p
           JOIN tickets t ON p.ticket_id = t.id
           WHERE t.session_id = ? AND p.method = 'cash' AND t.status = 'completed'
         `)
-        const result = ticketsStmt.get(sessionId) as { total_cash: number }
-        const expectedCash = session.openingCash + result.total_cash
+        const completedResult = completedStmt.get(sessionId) as { total_cash: number }
+
+        // Subtract cash refunded/cancelled (cash returned to customers)
+        const refundedStmt = this.db.prepare(`
+          SELECT COALESCE(SUM(p.amount), 0) as total_refunded
+          FROM payments p
+          JOIN tickets t ON p.ticket_id = t.id
+          WHERE t.session_id = ? AND p.method = 'cash' AND t.status IN ('cancelled', 'refunded')
+        `)
+        const refundedResult = refundedStmt.get(sessionId) as { total_refunded: number }
+
+        const expectedCash = session.openingCash + completedResult.total_cash - refundedResult.total_refunded
 
         const difference = closingCash - expectedCash
 

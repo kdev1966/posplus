@@ -76,6 +76,7 @@ app.whenReady().then(() => {
   require('./handlers/sessionHandlers')
   require('./handlers/printerHandlers')
   require('./handlers/stockHandlers')
+  require('./handlers/syncHandlers')
   log.info('IPC handlers registered')
 
   createWindow()

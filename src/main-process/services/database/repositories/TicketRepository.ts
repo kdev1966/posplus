@@ -88,14 +88,22 @@ export class TicketRepository {
         // Generate ticket number
         const ticketNumber = this.generateTicketNumber()
 
-        // Calculate totals
+        // Calculate totals - need to get tax rate from products first
         let subtotal = 0
         let taxAmount = 0
         let discountAmount = 0
 
+        // Pre-fetch product data to calculate correct totals
+        const productStmt = this.db.prepare('SELECT tax_rate FROM products WHERE id = ?')
+
         data.lines.forEach((line) => {
+          const product = productStmt.get(line.productId) as any
+          if (!product) {
+            throw new Error(`Product not found: ${line.productId}`)
+          }
+
           const lineSubtotal = line.quantity * line.unitPrice
-          const lineTax = lineSubtotal * (data.lines[0]?.['taxRate'] || 0)
+          const lineTax = lineSubtotal * product.tax_rate
           const lineDiscount = line.discountAmount || 0
 
           subtotal += lineSubtotal
@@ -136,9 +144,20 @@ export class TicketRepository {
         `)
 
         for (const line of data.lines) {
-          // Get product details
-          const productStmt = this.db.prepare('SELECT name, sku, tax_rate FROM products WHERE id = ?')
+          // Get product details including current stock
+          const productStmt = this.db.prepare('SELECT name, sku, tax_rate, stock FROM products WHERE id = ?')
           const product = productStmt.get(line.productId) as any
+
+          if (!product) {
+            throw new Error(`Product not found: ${line.productId}`)
+          }
+
+          // Check if sufficient stock is available
+          if (product.stock < line.quantity) {
+            throw new Error(
+              `Insufficient stock for product "${product.name}". Available: ${product.stock}, Required: ${line.quantity}`
+            )
+          }
 
           const lineSubtotal = line.quantity * line.unitPrice
           const lineTax = lineSubtotal * product.tax_rate
@@ -157,9 +176,17 @@ export class TicketRepository {
             lineTotal
           )
 
-          // Update product stock
-          const updateStockStmt = this.db.prepare('UPDATE products SET stock = stock - ? WHERE id = ?')
-          updateStockStmt.run(line.quantity, line.productId)
+          // Update product stock with additional safety check
+          const updateStockStmt = this.db.prepare(
+            'UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?'
+          )
+          const result = updateStockStmt.run(line.quantity, line.productId, line.quantity)
+
+          if (result.changes === 0) {
+            throw new Error(
+              `Failed to update stock for product "${product.name}". Stock may have changed during transaction.`
+            )
+          }
         }
 
         // Insert payments

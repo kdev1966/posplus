@@ -1,18 +1,16 @@
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '@shared/types'
 import StockRepository from '../services/database/repositories/StockRepository'
-import AuthService from '../services/auth/AuthService'
+import { requirePermission, getCurrentUser } from './handlerUtils'
 import log from 'electron-log'
 
 ipcMain.handle(IPC_CHANNELS.STOCK_ADJUST, async (_event, productId, quantity, type, notes) => {
   try {
-    const user = AuthService.getCurrentUser()
-    if (!user) {
-      throw new Error('Not authenticated')
-    }
+    requirePermission('product.update')
+    const user = getCurrentUser()
 
-    StockRepository.adjust(productId, quantity, type, user.id, undefined, notes)
-    return true
+    const result = StockRepository.adjust(productId, quantity, type, user.id, undefined, notes)
+    return !!result
   } catch (error) {
     log.error('STOCK_ADJUST handler error:', error)
     throw error
@@ -21,6 +19,7 @@ ipcMain.handle(IPC_CHANNELS.STOCK_ADJUST, async (_event, productId, quantity, ty
 
 ipcMain.handle(IPC_CHANNELS.STOCK_GET_LOGS, async (_event, productId) => {
   try {
+    requirePermission('product.read')
     if (productId) {
       return StockRepository.findByProduct(productId)
     }
