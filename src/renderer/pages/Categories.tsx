@@ -2,11 +2,19 @@ import React, { useEffect, useState } from 'react'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { Modal } from '../components/ui/Modal'
+import { Input } from '../components/ui/Input'
 import { Category } from '@shared/types'
 
 export const Categories: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    displayOrder: '',
+  })
 
   useEffect(() => {
     loadCategories()
@@ -23,6 +31,34 @@ export const Categories: React.FC = () => {
     setLoading(false)
   }
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const newCategory = {
+        name: formData.name,
+        description: formData.description || undefined,
+        displayOrder: formData.displayOrder ? parseInt(formData.displayOrder) : undefined,
+        isActive: true,
+      }
+
+      await window.api.createCategory(newCategory)
+      setIsModalOpen(false)
+      setFormData({
+        name: '',
+        description: '',
+        displayOrder: '',
+      })
+      loadCategories()
+    } catch (error) {
+      console.error('Failed to create category:', error)
+    }
+  }
+
   return (
     <Layout>
       <div className="space-y-6 fade-in">
@@ -31,7 +67,7 @@ export const Categories: React.FC = () => {
             <h1 className="text-3xl font-bold text-white mb-2">Categories</h1>
             <p className="text-gray-400">Manage product categories</p>
           </div>
-          <Button variant="primary">
+          <Button variant="primary" onClick={() => setIsModalOpen(true)}>
             + Add Category
           </Button>
         </div>
@@ -73,6 +109,45 @@ export const Categories: React.FC = () => {
             </div>
           </Card>
         )}
+
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title="Add New Category"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={handleSubmit}>
+                Add Category
+              </Button>
+            </>
+          }
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Category Name"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+            />
+            <Input
+              label="Description"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+            />
+            <Input
+              label="Display Order"
+              name="displayOrder"
+              type="number"
+              value={formData.displayOrder}
+              onChange={handleInputChange}
+            />
+          </form>
+        </Modal>
       </div>
     </Layout>
   )

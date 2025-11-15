@@ -3,11 +3,22 @@ import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
+import { Modal } from '../components/ui/Modal'
+import { Input } from '../components/ui/Input'
 import { User } from '@shared/types'
 
 export const Users: React.FC = () => {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    roleId: '1',
+  })
 
   useEffect(() => {
     loadUsers()
@@ -35,6 +46,39 @@ export const Users: React.FC = () => {
     }
   }
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const newUser = {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        roleId: parseInt(formData.roleId),
+      }
+
+      await window.api.createUser(newUser)
+      setIsModalOpen(false)
+      setFormData({
+        username: '',
+        email: '',
+        password: '',
+        firstName: '',
+        lastName: '',
+        roleId: '1',
+      })
+      loadUsers()
+    } catch (error) {
+      console.error('Failed to create user:', error)
+    }
+  }
+
   return (
     <Layout>
       <div className="space-y-6 fade-in">
@@ -43,7 +87,7 @@ export const Users: React.FC = () => {
             <h1 className="text-3xl font-bold text-white mb-2">Users</h1>
             <p className="text-gray-400">Manage system users and permissions</p>
           </div>
-          <Button variant="primary">
+          <Button variant="primary" onClick={() => setIsModalOpen(true)}>
             + Add User
           </Button>
         </div>
@@ -117,6 +161,78 @@ export const Users: React.FC = () => {
             </div>
           </Card>
         )}
+
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title="Add New User"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={handleSubmit}>
+                Add User
+              </Button>
+            </>
+          }
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="First Name"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleInputChange}
+                required
+              />
+              <Input
+                label="Last Name"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <Input
+              label="Username"
+              name="username"
+              value={formData.username}
+              onChange={handleInputChange}
+              required
+            />
+            <Input
+              label="Email"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              required
+            />
+            <Input
+              label="Password"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              required
+            />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-300">Role</label>
+              <select
+                name="roleId"
+                value={formData.roleId}
+                onChange={handleInputChange}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                required
+              >
+                <option value="1">Cashier</option>
+                <option value="2">Manager</option>
+                <option value="3">Admin</option>
+              </select>
+            </div>
+          </form>
+        </Modal>
       </div>
     </Layout>
   )
