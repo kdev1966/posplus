@@ -8,6 +8,10 @@ import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { POS } from './pages/POS'
 import { Products } from './pages/Products'
+import { Categories } from './pages/Categories'
+import { Stock } from './pages/Stock'
+import { History } from './pages/History'
+import { Users } from './pages/Users'
 import { Settings } from './pages/Settings'
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -63,6 +67,38 @@ export const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <Products />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/categories"
+          element={
+            <ProtectedRoute>
+              <Categories />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/stock"
+          element={
+            <ProtectedRoute>
+              <Stock />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/history"
+          element={
+            <ProtectedRoute>
+              <History />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute>
+              <Users />
             </ProtectedRoute>
           }
         />

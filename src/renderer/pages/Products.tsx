@@ -3,11 +3,24 @@ import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
+import { Modal } from '../components/ui/Modal'
+import { Input } from '../components/ui/Input'
 import { Product } from '@shared/types'
 
 export const Products: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    sku: '',
+    price: '',
+    stock: '',
+    minStock: '',
+    unit: 'pcs',
+    categoryId: '',
+  })
 
   useEffect(() => {
     loadProducts()
@@ -24,6 +37,44 @@ export const Products: React.FC = () => {
     setLoading(false)
   }
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const newProduct = {
+        name: formData.name,
+        description: formData.description,
+        sku: formData.sku,
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock),
+        minStock: parseInt(formData.minStock),
+        unit: formData.unit,
+        categoryId: formData.categoryId,
+        isActive: true,
+      }
+
+      await window.api.createProduct(newProduct)
+      setIsModalOpen(false)
+      setFormData({
+        name: '',
+        description: '',
+        sku: '',
+        price: '',
+        stock: '',
+        minStock: '',
+        unit: 'pcs',
+        categoryId: '',
+      })
+      loadProducts()
+    } catch (error) {
+      console.error('Failed to create product:', error)
+    }
+  }
+
   return (
     <Layout>
       <div className="space-y-6 fade-in">
@@ -32,7 +83,7 @@ export const Products: React.FC = () => {
             <h1 className="text-3xl font-bold text-white mb-2">Products</h1>
             <p className="text-gray-400">Manage your product catalog</p>
           </div>
-          <Button variant="primary">
+          <Button variant="primary" onClick={() => setIsModalOpen(true)}>
             + Add Product
           </Button>
         </div>
@@ -96,6 +147,90 @@ export const Products: React.FC = () => {
             </div>
           </Card>
         )}
+
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title="Add New Product"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={handleSubmit}>
+                Add Product
+              </Button>
+            </>
+          }
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Product Name"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                required
+              />
+              <Input
+                label="SKU"
+                name="sku"
+                value={formData.sku}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <Input
+              label="Description"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Price (€)"
+                name="price"
+                type="number"
+                step="0.01"
+                value={formData.price}
+                onChange={handleInputChange}
+                required
+              />
+              <Input
+                label="Category ID"
+                name="categoryId"
+                value={formData.categoryId}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <Input
+                label="Stock"
+                name="stock"
+                type="number"
+                value={formData.stock}
+                onChange={handleInputChange}
+                required
+              />
+              <Input
+                label="Min Stock"
+                name="minStock"
+                type="number"
+                value={formData.minStock}
+                onChange={handleInputChange}
+                required
+              />
+              <Input
+                label="Unit"
+                name="unit"
+                value={formData.unit}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+          </form>
+        </Modal>
       </div>
     </Layout>
   )
