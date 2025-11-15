@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "noEmit": false,
+    "outDir": "dist/electron",
+    "lib": ["ES2020"],
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@shared/*": ["src/shared/*"],
+      "@electron/*": ["src/electron/*"]
+    }
+  },
+  "include": ["src/electron", "src/shared"],
+  "exclude": ["src/renderer", "node_modules"]
+}
