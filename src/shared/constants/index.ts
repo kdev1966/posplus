@@ -59,6 +59,12 @@ export const PERMISSIONS = {
   SYSTEM_ADMIN: 'system:admin',
 } as const
 
+export const ROLE_IDS = {
+  ADMIN: 1,
+  MANAGER: 2,
+  CASHIER: 3,
+} as const
+
 export const DEFAULT_ROLES = {
   ADMIN: {
     name: 'Administrator',

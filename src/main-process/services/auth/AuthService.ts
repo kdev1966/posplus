@@ -1,5 +1,6 @@
 import UserRepository from '../database/repositories/UserRepository'
 import { User, LoginCredentials, AuthResponse } from '@shared/types'
+import { ROLE_IDS } from '@shared/constants'
 import log from 'electron-log'
 
 class AuthService {
@@ -98,17 +99,39 @@ class AuthService {
     return this.currentUser
   }
 
-  hasPermission(_permission: string): boolean {
+  hasPermission(permission: string): boolean {
     if (!this.currentUser) {
       return false
     }
 
     // Admin has all permissions
-    if (this.currentUser.roleId === 1) {
+    if (this.currentUser.roleId === ROLE_IDS.ADMIN) {
       return true
     }
 
-    // TODO: Check specific permissions
+    // Check if user has the specific permission
+    // Permission format in DB: "resource.action" (e.g., "product.create")
+    if (this.currentUser.permissions && Array.isArray(this.currentUser.permissions)) {
+      // Parse permissions if they're stored as JSON string
+      let permissions = this.currentUser.permissions
+      if (typeof permissions === 'string') {
+        try {
+          permissions = JSON.parse(permissions)
+        } catch (error) {
+          log.error('Failed to parse user permissions:', error)
+          return false
+        }
+      }
+
+      return permissions.some((p: any) => {
+        if (!p || !p.resource || !p.action) {
+          return false
+        }
+        const permissionString = `${p.resource}.${p.action}`
+        return permissionString === permission
+      })
+    }
+
     return false
   }
 }

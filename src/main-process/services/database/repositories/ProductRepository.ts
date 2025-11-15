@@ -3,7 +3,9 @@ import { Product, CreateProductDTO, UpdateProductDTO } from '@shared/types'
 import log from 'electron-log'
 
 export class ProductRepository {
-  private db = DatabaseService.getInstance().getDatabase()
+  private get db() {
+    return DatabaseService.getInstance().getDatabase()
+  }
 
   findAll(): Product[] {
     try {
