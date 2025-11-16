@@ -7,6 +7,53 @@ export class TicketRepository {
     return DatabaseService.getInstance().getDatabase()
   }
 
+  private mapTicketFromDb(dbTicket: any): Ticket {
+    return {
+      id: dbTicket.id,
+      ticketNumber: dbTicket.ticket_number,
+      userId: dbTicket.user_id,
+      customerId: dbTicket.customer_id,
+      subtotal: dbTicket.subtotal,
+      taxAmount: dbTicket.tax_amount,
+      discountAmount: dbTicket.discount_amount,
+      totalAmount: dbTicket.total_amount,
+      status: dbTicket.status,
+      sessionId: dbTicket.session_id,
+      createdAt: dbTicket.created_at,
+      updatedAt: dbTicket.updated_at,
+      lines: [],
+      payments: [],
+    }
+  }
+
+  private mapTicketLineFromDb(dbLine: any): TicketLine {
+    return {
+      id: dbLine.id,
+      ticketId: dbLine.ticket_id,
+      productId: dbLine.product_id,
+      productName: dbLine.product_name,
+      productSku: dbLine.product_sku,
+      quantity: dbLine.quantity,
+      unitPrice: dbLine.unit_price,
+      taxRate: dbLine.tax_rate,
+      discountRate: dbLine.discount_rate || 0,
+      discountAmount: dbLine.discount_amount,
+      totalAmount: dbLine.total_amount,
+      createdAt: dbLine.created_at,
+    }
+  }
+
+  private mapPaymentFromDb(dbPayment: any): Payment {
+    return {
+      id: dbPayment.id,
+      ticketId: dbPayment.ticket_id,
+      method: dbPayment.method,
+      amount: dbPayment.amount,
+      reference: dbPayment.reference,
+      createdAt: dbPayment.created_at,
+    }
+  }
+
   findAll(filters?: { startDate?: string; endDate?: string; status?: string }): Ticket[] {
     try {
       let sql = 'SELECT * FROM tickets WHERE 1=1'
@@ -286,20 +333,21 @@ export class TicketRepository {
     return transaction()
   }
 
-  private loadTicketDetails(ticket: Ticket): Ticket {
+  private loadTicketDetails(dbTicket: any): Ticket {
+    // Map the ticket from DB format to TypeScript format
+    const ticket = this.mapTicketFromDb(dbTicket)
+
     // Load ticket lines
     const linesStmt = this.db.prepare('SELECT * FROM ticket_lines WHERE ticket_id = ?')
-    const lines = linesStmt.all(ticket.id) as TicketLine[]
+    const dbLines = linesStmt.all(ticket.id) as any[]
+    ticket.lines = dbLines.map((line) => this.mapTicketLineFromDb(line))
 
     // Load payments
     const paymentsStmt = this.db.prepare('SELECT * FROM payments WHERE ticket_id = ?')
-    const payments = paymentsStmt.all(ticket.id) as Payment[]
+    const dbPayments = paymentsStmt.all(ticket.id) as any[]
+    ticket.payments = dbPayments.map((payment) => this.mapPaymentFromDb(payment))
 
-    return {
-      ...ticket,
-      lines,
-      payments,
-    }
+    return ticket
   }
 
   private generateTicketNumber(): string {
