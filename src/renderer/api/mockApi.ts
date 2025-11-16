@@ -18,6 +18,12 @@ const mockUser: User = {
 let currentUser: typeof mockUser | null = null
 let currentSession: import('@shared/types').CashSession | null = null
 let sessionIdCounter = 1
+let ticketIdCounter = 1
+let ticketLineIdCounter = 1
+let paymentIdCounter = 1
+
+// Mock tickets database
+const mockTickets: import('@shared/types').Ticket[] = []
 
 // Mock products database
 const mockProducts: import('@shared/types').Product[] = [
@@ -438,12 +444,112 @@ export const createMockApi = (): IPCApi => ({
   },
 
   // Ticket handlers (mock)
-  createTicket: async () => ({} as any),
-  getTicketById: async () => null,
-  getAllTickets: async () => [],
-  getTicketsBySession: async () => [],
-  cancelTicket: async () => false,
-  refundTicket: async () => false,
+  createTicket: async (data: import('@shared/types').CreateTicketDTO) => {
+    console.log('[Mock API] Creating ticket:', data)
+
+    // Generate ticket number
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const sequence = String(ticketIdCounter).padStart(4, '0')
+    const ticketNumber = `TK${year}${month}${day}-${sequence}`
+
+    // Calculate totals
+    let subtotal = 0
+    let taxAmount = 0
+    let discountAmount = 0
+
+    const lines: import('@shared/types').TicketLine[] = data.lines.map((line) => {
+      const product = mockProducts.find(p => p.id === line.productId)
+      const productName = product?.name || `Product ${line.productId}`
+      const productSku = product?.sku || `SKU-${line.productId}`
+      const productTaxRate = product?.taxRate || 0
+
+      const lineSubtotal = line.quantity * line.unitPrice
+      const lineTax = lineSubtotal * (productTaxRate / 100)
+      const lineDiscount = line.discountAmount || 0
+      const lineTotal = lineSubtotal + lineTax - lineDiscount
+
+      subtotal += lineSubtotal
+      taxAmount += lineTax
+      discountAmount += lineDiscount
+
+      return {
+        id: ticketLineIdCounter++,
+        ticketId: ticketIdCounter,
+        productId: line.productId,
+        productName,
+        productSku,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        taxRate: productTaxRate,
+        discountRate: 0,
+        discountAmount: lineDiscount,
+        totalAmount: lineTotal,
+        createdAt: now.toISOString(),
+      }
+    })
+
+    const totalAmount = subtotal + taxAmount - discountAmount
+
+    const payments: import('@shared/types').Payment[] = data.payments.map((p) => ({
+      id: paymentIdCounter++,
+      ticketId: ticketIdCounter,
+      method: p.method,
+      amount: p.amount,
+      reference: p.reference,
+      createdAt: now.toISOString(),
+    }))
+
+    const ticket: import('@shared/types').Ticket = {
+      id: ticketIdCounter++,
+      ticketNumber,
+      userId: data.userId,
+      customerId: data.customerId,
+      subtotal,
+      taxAmount,
+      discountAmount,
+      totalAmount,
+      status: 'completed',
+      sessionId: data.sessionId,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+      lines,
+      payments,
+    }
+
+    mockTickets.push(ticket)
+    console.log(`[Mock API] Ticket created: ${ticket.ticketNumber} (ID: ${ticket.id})`)
+    return ticket
+  },
+  getTicketById: async (id: number) => {
+    return mockTickets.find(t => t.id === id) || null
+  },
+  getAllTickets: async () => {
+    return mockTickets
+  },
+  getTicketsBySession: async (sessionId: number) => {
+    return mockTickets.filter(t => t.sessionId === sessionId)
+  },
+  cancelTicket: async (id: number) => {
+    const ticket = mockTickets.find(t => t.id === id)
+    if (ticket) {
+      ticket.status = 'cancelled'
+      ticket.updatedAt = new Date().toISOString()
+      return true
+    }
+    return false
+  },
+  refundTicket: async (id: number) => {
+    const ticket = mockTickets.find(t => t.id === id)
+    if (ticket) {
+      ticket.status = 'refunded'
+      ticket.updatedAt = new Date().toISOString()
+      return true
+    }
+    return false
+  },
 
   // Cash session handlers (mock)
   openSession: async (userId: number, openingCash: number) => {
