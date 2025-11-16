@@ -6,8 +6,10 @@ import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
 import { Input } from '../components/ui/Input'
 import { Product } from '@shared/types'
+import { useLanguageStore } from '../store/languageStore'
 
 export const Stock: React.FC = () => {
+  const { t } = useLanguageStore()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -34,14 +36,21 @@ export const Stock: React.FC = () => {
   }
 
   const getStockStatus = (product: Product) => {
-    if (product.stock === 0) return { label: 'Out of Stock', variant: 'danger' as const }
-    if (product.stock <= product.minStock) return { label: 'Low Stock', variant: 'warning' as const }
-    return { label: 'In Stock', variant: 'success' as const }
+    if (product.stock === 0) return { label: t('outOfStock'), variant: 'danger' as const }
+    if (product.stock <= product.minStock) return { label: t('lowStock'), variant: 'warning' as const }
+    return { label: t('inStock'), variant: 'success' as const }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const openAdjustModal = (productId?: number) => {
+    if (productId) {
+      setFormData(prev => ({ ...prev, productId: productId.toString() }))
+    }
+    setIsModalOpen(true)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,24 +80,24 @@ export const Stock: React.FC = () => {
       <div className="space-y-6 fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Stock Management</h1>
-            <p className="text-gray-400">Monitor and manage inventory levels</p>
+            <h1 className="text-3xl font-bold text-white mb-2">{t('stockTitle')}</h1>
+            <p className="text-gray-400">{t('monitorInventory')}</p>
           </div>
-          <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-            + Adjust Stock
+          <Button variant="primary" onClick={() => openAdjustModal()}>
+            + {t('adjustStock')}
           </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <div className="p-6">
-              <div className="text-gray-400 mb-2">Total Products</div>
+              <div className="text-gray-400 mb-2">{t('totalProducts')}</div>
               <div className="text-3xl font-bold text-white">{products.length}</div>
             </div>
           </Card>
           <Card>
             <div className="p-6">
-              <div className="text-gray-400 mb-2">Low Stock Items</div>
+              <div className="text-gray-400 mb-2">{t('lowStockProducts')}</div>
               <div className="text-3xl font-bold text-yellow-400">
                 {products.filter(p => p.stock <= p.minStock && p.stock > 0).length}
               </div>
@@ -96,7 +105,7 @@ export const Stock: React.FC = () => {
           </Card>
           <Card>
             <div className="p-6">
-              <div className="text-gray-400 mb-2">Out of Stock</div>
+              <div className="text-gray-400 mb-2">{t('outOfStockProducts')}</div>
               <div className="text-3xl font-bold text-red-400">
                 {products.filter(p => p.stock === 0).length}
               </div>
@@ -114,13 +123,13 @@ export const Stock: React.FC = () => {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Product</th>
-                    <th>SKU</th>
-                    <th>Current Stock</th>
-                    <th>Min Stock</th>
-                    <th>Unit</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th>{t('product')}</th>
+                    <th>{t('sku')}</th>
+                    <th>{t('currentStock')}</th>
+                    <th>{t('minStock')}</th>
+                    <th>{t('unit')}</th>
+                    <th>{t('status')}</th>
+                    <th>{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -145,7 +154,12 @@ export const Stock: React.FC = () => {
                         </td>
                         <td>
                           <div className="flex gap-2">
-                            <button className="text-primary-400 hover:text-primary-300">Adjust</button>
+                            <button
+                              className="text-primary-400 hover:text-primary-300"
+                              onClick={() => openAdjustModal(product.id)}
+                            >
+                              {t('adjustStock')}
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -160,21 +174,21 @@ export const Stock: React.FC = () => {
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title="Adjust Stock"
+          title={t('adjustStock')}
           footer={
             <>
               <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button variant="primary" onClick={handleSubmit}>
-                Adjust Stock
+                {t('adjustStock')}
               </Button>
             </>
           }
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Product</label>
+              <label className="block text-sm font-medium text-gray-300">{t('product')}</label>
               <select
                 name="productId"
                 value={formData.productId}
@@ -182,17 +196,17 @@ export const Stock: React.FC = () => {
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
                 required
               >
-                <option value="">Select a product</option>
+                <option value="">{t('selectProduct')}</option>
                 {products.map((product) => (
                   <option key={product.id} value={product.id}>
-                    {product.name} ({product.sku}) - Current: {product.stock} {product.unit}
+                    {product.name} ({product.sku}) - {t('current')}: {product.stock} {product.unit}
                   </option>
                 ))}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Quantity"
+                label={t('quantity')}
                 name="quantity"
                 type="number"
                 value={formData.quantity}
@@ -200,7 +214,7 @@ export const Stock: React.FC = () => {
                 required
               />
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-300">Type</label>
+                <label className="block text-sm font-medium text-gray-300">{t('stockType')}</label>
                 <select
                   name="type"
                   value={formData.type}
@@ -208,16 +222,16 @@ export const Stock: React.FC = () => {
                   className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
                   required
                 >
-                  <option value="in">Stock In</option>
-                  <option value="out">Stock Out</option>
-                  <option value="adjustment">Adjustment</option>
-                  <option value="sale">Sale</option>
-                  <option value="return">Return</option>
+                  <option value="in">{t('stockIn')}</option>
+                  <option value="out">{t('stockOut')}</option>
+                  <option value="adjustment">{t('adjustment')}</option>
+                  <option value="sale">{t('sale')}</option>
+                  <option value="return">{t('return')}</option>
                 </select>
               </div>
             </div>
             <Input
-              label="Notes (optional)"
+              label={t('notesOptional')}
               name="notes"
               value={formData.notes}
               onChange={handleInputChange}

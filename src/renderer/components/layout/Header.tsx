@@ -1,18 +1,21 @@
 import React from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useSessionStore } from '../../store/sessionStore'
+import { useLanguageStore } from '../../store/languageStore'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { formatCurrency } from '../../utils/currency'
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuthStore()
   const { currentSession, isSessionOpen } = useSessionStore()
+  const { t } = useLanguageStore()
 
   return (
     <header className="h-16 glass border-b border-white/10 flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
         <div>
-          <p className="text-sm text-gray-400">Welcome back,</p>
+          <p className="text-sm text-gray-400">{t('welcomeBack')},</p>
           <p className="font-semibold text-white">
             {user?.firstName} {user?.lastName}
           </p>
@@ -23,15 +26,15 @@ export const Header: React.FC = () => {
         {/* Session Status */}
         {isSessionOpen && currentSession && (
           <div className="flex items-center gap-2">
-            <Badge variant="success">Session Open</Badge>
+            <Badge variant="success">{t('sessionOpen')}</Badge>
             <span className="text-sm text-gray-400">
-              Opening: €{currentSession.openingCash.toFixed(2)}
+              {t('openingCash')}: {formatCurrency(currentSession.openingCash)}
             </span>
           </div>
         )}
 
         {!isSessionOpen && (
-          <Badge variant="warning">No Session</Badge>
+          <Badge variant="warning">{t('noSession')}</Badge>
         )}
 
         {/* User menu */}
@@ -42,7 +45,7 @@ export const Header: React.FC = () => {
           </div>
 
           <Button variant="ghost" onClick={logout}>
-            Logout
+            {t('logout')}
           </Button>
         </div>
       </div>
