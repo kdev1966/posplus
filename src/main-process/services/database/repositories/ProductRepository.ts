@@ -132,8 +132,8 @@ export class ProductRepository {
       const stmt = this.db.prepare(`
         INSERT INTO products (
           sku, barcode, name, description, category_id,
-          price, cost, tax_rate, stock, min_stock, max_stock, unit, image_url
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          price, cost, tax_rate, discount_rate, stock, min_stock, max_stock, unit, image_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
 
       const result = stmt.run(
@@ -145,6 +145,7 @@ export class ProductRepository {
         data.price,
         data.cost,
         data.taxRate,
+        data.discountRate || 0,
         data.stock,
         data.minStock,
         data.maxStock || null,
@@ -201,6 +202,10 @@ export class ProductRepository {
       if (data.taxRate !== undefined) {
         fields.push('tax_rate = ?')
         values.push(data.taxRate)
+      }
+      if (data.discountRate !== undefined) {
+        fields.push('discount_rate = ?')
+        values.push(data.discountRate)
       }
       if (data.stock !== undefined) {
         fields.push('stock = ?')

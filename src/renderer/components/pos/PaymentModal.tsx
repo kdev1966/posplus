@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
+import { useLanguageStore } from '../../store/languageStore'
+import { formatCurrency } from '../../utils/currency'
 
 interface PaymentModalProps {
   isOpen: boolean
@@ -16,6 +18,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   total,
   onConfirm,
 }) => {
+  const { t } = useLanguageStore()
   const [cashAmount, setCashAmount] = useState(total.toString())
   const [cardAmount, setCardAmount] = useState('0')
   const [selectedMethod, setSelectedMethod] = useState<'cash' | 'card' | 'mixed'>('cash')
@@ -42,11 +45,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Payment">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('payment')}>
       <div className="space-y-6">
         <div className="text-center p-6 glass rounded-lg">
-          <p className="text-sm text-gray-400 mb-2">Total Amount</p>
-          <p className="text-4xl font-bold text-primary-300">€{total.toFixed(2)}</p>
+          <p className="text-sm text-gray-400 mb-2">{t('totalAmount')}</p>
+          <p className="text-4xl font-bold text-primary-300">{formatCurrency(total)}</p>
         </div>
 
         <div className="flex gap-3">
@@ -59,7 +62,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             }`}
           >
             <div className="text-3xl mb-2">💵</div>
-            <div className="font-semibold">Cash</div>
+            <div className="font-semibold">{t('cash')}</div>
           </button>
 
           <button
@@ -71,7 +74,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             }`}
           >
             <div className="text-3xl mb-2">💳</div>
-            <div className="font-semibold">Card</div>
+            <div className="font-semibold">{t('card')}</div>
           </button>
 
           <button
@@ -83,48 +86,48 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             }`}
           >
             <div className="text-3xl mb-2">💰</div>
-            <div className="font-semibold">Mixed</div>
+            <div className="font-semibold">{t('mixed')}</div>
           </button>
         </div>
 
         {(selectedMethod === 'cash' || selectedMethod === 'mixed') && (
           <Input
-            label="Cash Amount"
+            label={t('cashAmount')}
             type="number"
-            step="0.01"
+            step="0.001"
             value={cashAmount}
             onChange={(e) => setCashAmount(e.target.value)}
-            placeholder="0.00"
+            placeholder="0.000"
           />
         )}
 
         {(selectedMethod === 'card' || selectedMethod === 'mixed') && (
           <Input
-            label="Card Amount"
+            label={t('cardAmount')}
             type="number"
-            step="0.01"
+            step="0.001"
             value={cardAmount}
             onChange={(e) => setCardAmount(e.target.value)}
-            placeholder="0.00"
+            placeholder="0.000"
           />
         )}
 
         {totalPaid > 0 && (
           <div className="p-4 glass rounded-lg space-y-2">
             <div className="flex justify-between text-gray-400">
-              <span>Total Paid:</span>
-              <span className="font-semibold">€{totalPaid.toFixed(2)}</span>
+              <span>{t('totalPaid')}:</span>
+              <span className="font-semibold">{formatCurrency(totalPaid)}</span>
             </div>
             {change >= 0 && (
               <div className="flex justify-between text-lg font-bold text-green-300">
-                <span>Change:</span>
-                <span>€{change.toFixed(2)}</span>
+                <span>{t('change')}:</span>
+                <span>{formatCurrency(change)}</span>
               </div>
             )}
             {change < 0 && (
               <div className="flex justify-between text-lg font-bold text-red-300">
-                <span>Remaining:</span>
-                <span>€{Math.abs(change).toFixed(2)}</span>
+                <span>{t('remaining')}:</span>
+                <span>{formatCurrency(Math.abs(change))}</span>
               </div>
             )}
           </div>
@@ -133,7 +136,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
       <div className="flex gap-3 mt-6">
         <Button variant="ghost" onClick={onClose} className="flex-1">
-          Cancel
+          {t('cancel')}
         </Button>
         <Button
           variant="success"
@@ -141,7 +144,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           disabled={totalPaid < total}
           className="flex-1"
         >
-          Confirm Payment
+          {t('confirmPayment')}
         </Button>
       </div>
     </Modal>
