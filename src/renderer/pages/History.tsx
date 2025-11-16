@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
+import { Modal } from '../components/ui/Modal'
 import { Ticket } from '@shared/types'
 import { useLanguageStore } from '../store/languageStore'
 import { formatCurrency } from '../utils/currency'
@@ -10,6 +11,9 @@ export const History: React.FC = () => {
   const { t } = useLanguageStore()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [loadingTicket, setLoadingTicket] = useState(false)
 
   useEffect(() => {
     loadHistory()
@@ -74,6 +78,28 @@ export const History: React.FC = () => {
     }
   }
 
+  const handleViewTicket = async (ticketId: number) => {
+    setLoadingTicket(true)
+    try {
+      const ticket = await window.api.getTicketById(ticketId)
+      if (ticket) {
+        setSelectedTicket(ticket)
+        setIsModalOpen(true)
+      } else {
+        alert('Ticket non trouvé')
+      }
+    } catch (error) {
+      console.error('Failed to load ticket details:', error)
+      alert('Erreur lors du chargement du ticket')
+    }
+    setLoadingTicket(false)
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setSelectedTicket(null)
+  }
+
   return (
     <Layout>
       <div className="space-y-6 fade-in">
@@ -130,7 +156,13 @@ export const History: React.FC = () => {
                       </td>
                       <td>
                         <div className="flex gap-2">
-                          <button className="text-primary-400 hover:text-primary-300">{t('view')}</button>
+                          <button
+                            className="text-primary-400 hover:text-primary-300"
+                            onClick={() => handleViewTicket(ticket.id)}
+                            disabled={loadingTicket}
+                          >
+                            {t('view')}
+                          </button>
                           <button
                             className="text-gray-400 hover:text-gray-300"
                             onClick={() => handlePrintTicket(ticket.id)}
@@ -157,6 +189,115 @@ export const History: React.FC = () => {
           </Card>
         )}
       </div>
+
+      {/* Modal de visualisation du ticket */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={selectedTicket ? `Ticket #${selectedTicket.ticketNumber}` : 'Détails du ticket'}
+        footer={
+          <button
+            onClick={closeModal}
+            className="btn btn-secondary"
+          >
+            {t('close')}
+          </button>
+        }
+      >
+        {selectedTicket && (
+          <div className="space-y-4">
+            {/* Informations générales */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-gray-400 text-sm">{t('date')}</p>
+                <p className="text-white font-medium">{formatDate(selectedTicket.createdAt)}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">{t('status')}</p>
+                <Badge
+                  variant={
+                    selectedTicket.status === 'completed'
+                      ? 'success'
+                      : selectedTicket.status === 'cancelled'
+                      ? 'danger'
+                      : 'warning'
+                  }
+                >
+                  {getStatusTranslation(selectedTicket.status)}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Articles */}
+            <div>
+              <h3 className="text-white font-semibold mb-2">{t('items')}</h3>
+              <div className="bg-dark-700 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-dark-600">
+                    <tr>
+                      <th className="text-left p-2 text-gray-400">{t('product')}</th>
+                      <th className="text-center p-2 text-gray-400">{t('quantity')}</th>
+                      <th className="text-right p-2 text-gray-400">{t('unitPrice')}</th>
+                      <th className="text-right p-2 text-gray-400">{t('total')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedTicket.lines && selectedTicket.lines.map((line) => (
+                      <tr key={line.id} className="border-t border-dark-600">
+                        <td className="p-2 text-white">{line.productName}</td>
+                        <td className="p-2 text-center text-gray-300">{line.quantity}</td>
+                        <td className="p-2 text-right text-gray-300">{formatCurrency(line.unitPrice)}</td>
+                        <td className="p-2 text-right text-white font-medium">{formatCurrency(line.totalAmount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Totaux */}
+            <div className="bg-dark-700 rounded-lg p-3 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">{t('subtotal')}</span>
+                <span className="text-gray-300">{formatCurrency(selectedTicket.subtotal)}</span>
+              </div>
+              {selectedTicket.taxAmount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">{t('tax')}</span>
+                  <span className="text-gray-300">{formatCurrency(selectedTicket.taxAmount)}</span>
+                </div>
+              )}
+              {selectedTicket.discountAmount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">{t('discount')}</span>
+                  <span className="text-red-400">-{formatCurrency(selectedTicket.discountAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-lg font-bold border-t border-dark-600 pt-2">
+                <span className="text-white">{t('total')}</span>
+                <span className="text-primary-300">{formatCurrency(selectedTicket.totalAmount)}</span>
+              </div>
+            </div>
+
+            {/* Paiements */}
+            {selectedTicket.payments && selectedTicket.payments.length > 0 && (
+              <div>
+                <h3 className="text-white font-semibold mb-2">{t('paymentMethod')}</h3>
+                <div className="bg-dark-700 rounded-lg p-3 space-y-2">
+                  {selectedTicket.payments.map((payment) => (
+                    <div key={payment.id} className="flex justify-between text-sm">
+                      <span className="text-gray-400 capitalize">
+                        {getPaymentMethodTranslation(payment.method)}
+                      </span>
+                      <span className="text-gray-300">{formatCurrency(payment.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </Layout>
   )
 }
