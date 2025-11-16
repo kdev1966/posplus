@@ -23,8 +23,28 @@ function walkSync(dir, callback) {
 
 function fixElectronImports(filePath) {
   let content = fs.readFileSync(filePath, 'utf8')
-  const regex = /require\(["'](\.\.\/)+(electron)["']\)/g
-  const modified = content.replace(regex, 'require("electron")')
+  let modified = content
+
+  // Fix relative electron imports
+  const relativeRegex = /require\(["'](\.\.\/)+(electron)["']\)/g
+  modified = modified.replace(relativeRegex, 'require("electron")')
+
+  // Fix esModuleInterop issue: replace electron_1.default with direct require
+  // Pattern: const electron_1 = __importDefault(require("electron"));
+  // followed by: const { app, BrowserWindow } = electron_1.default;
+  // Replace the destructuring to use direct require
+  if (modified.includes('electron_1.default')) {
+    // Replace destructuring from electron_1.default with direct require
+    modified = modified.replace(
+      /const\s*\{\s*([\w\s,]+)\s*\}\s*=\s*electron_1\.default;?/g,
+      'const { $1 } = require("electron");'
+    )
+    // Remove the __importDefault line for electron if it exists
+    modified = modified.replace(
+      /const\s+electron_1\s*=\s*__importDefault\(require\("electron"\)\);?\n?/g,
+      ''
+    )
+  }
 
   if (content !== modified) {
     fs.writeFileSync(filePath, modified, 'utf8')

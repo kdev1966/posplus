@@ -119,15 +119,15 @@ export const Users: React.FC = () => {
                             👤
                           </div>
                           <div>
-                            <div className="font-semibold text-white">{user.name}</div>
+                            <div className="font-semibold text-white">{user.firstName} {user.lastName}</div>
                             <div className="text-xs text-gray-400">{user.email}</div>
                           </div>
                         </div>
                       </td>
                       <td className="font-mono text-sm">{user.username}</td>
                       <td>
-                        <Badge variant={getRoleBadgeVariant(user.role)}>
-                          {user.role}
+                        <Badge variant={getRoleBadgeVariant(user.roleName || 'Cashier')}>
+                          {user.roleName || 'Cashier'}
                         </Badge>
                       </td>
                       <td>
@@ -136,7 +136,7 @@ export const Users: React.FC = () => {
                         </Badge>
                       </td>
                       <td className="text-sm text-gray-400">
-                        {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString('fr-FR') : 'Never'}
+                        {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString('fr-FR') : 'Never'}
                       </td>
                       <td>
                         <div className="flex gap-2">

@@ -7,7 +7,6 @@ import { useSessionStore } from '../store/sessionStore'
 import { useAuthStore } from '../store/authStore'
 import { useLanguageStore } from '../store/languageStore'
 import { formatCurrency } from '../utils/currency'
-import { Language } from '../i18n/translations'
 
 export const Settings: React.FC = () => {
   const { user } = useAuthStore()

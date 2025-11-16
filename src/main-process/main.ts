@@ -1,5 +1,4 @@
-import electron from 'electron'
-const { app, BrowserWindow } = electron
+import { app, BrowserWindow } from 'electron'
 import path from 'path'
 import log from 'electron-log'
 import { db } from './services/database/db'
@@ -8,7 +7,7 @@ import { db } from './services/database/db'
 log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
 
-let mainWindow: InstanceType<typeof BrowserWindow> | null = null
+let mainWindow: BrowserWindow | null = null
 
 const isDevelopment = process.env.NODE_ENV === 'development'
 
