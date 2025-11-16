@@ -34,9 +34,9 @@ CREATE TABLE IF NOT EXISTS products_new (
   FOREIGN KEY (category_id) REFERENCES categories(id)
 );
 
--- Copy data from old table (excluding tax_rate)
+-- Copy data from old table (excluding tax_rate, defaulting discount_rate to 0 if not exists)
 INSERT INTO products_new (id, sku, barcode, name, description, category_id, price, cost, discount_rate, stock, min_stock, max_stock, unit, is_active, image_url, created_at, updated_at)
-SELECT id, sku, barcode, name, description, category_id, price, cost, discount_rate, stock, min_stock, max_stock, unit, is_active, image_url, created_at, updated_at
+SELECT id, sku, barcode, name, description, category_id, price, cost, 0, stock, min_stock, max_stock, unit, is_active, image_url, created_at, updated_at
 FROM products;
 
 -- Drop old table
@@ -128,9 +128,9 @@ CREATE TABLE IF NOT EXISTS ticket_lines_new (
   FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
--- Copy data from old table (excluding tax_rate)
+-- Copy data from old table (excluding tax_rate, defaulting discount_rate to 0 if not exists)
 INSERT INTO ticket_lines_new (id, ticket_id, product_id, product_name, product_sku, quantity, unit_price, discount_rate, discount_amount, total_amount, created_at)
-SELECT id, ticket_id, product_id, product_name, product_sku, quantity, unit_price, discount_rate, discount_amount, total_amount, created_at
+SELECT id, ticket_id, product_id, product_name, product_sku, quantity, unit_price, 0, discount_amount, total_amount, created_at
 FROM ticket_lines;
 
 -- Drop old table
