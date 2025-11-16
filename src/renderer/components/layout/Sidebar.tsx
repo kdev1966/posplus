@@ -1,19 +1,22 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useLanguageStore } from '../../store/languageStore'
+import { TranslationKey } from '../../i18n/translations'
 
-const menuItems = [
-  { path: '/dashboard', icon: '📊', label: 'Dashboard' },
-  { path: '/pos', icon: '🛒', label: 'Point of Sale' },
-  { path: '/products', icon: '📦', label: 'Products' },
-  { path: '/categories', icon: '🏷️', label: 'Categories' },
-  { path: '/stock', icon: '📈', label: 'Stock' },
-  { path: '/history', icon: '📜', label: 'History' },
-  { path: '/users', icon: '👥', label: 'Users' },
-  { path: '/settings', icon: '⚙️', label: 'Settings' },
+const menuItems: { path: string; icon: string; labelKey: TranslationKey }[] = [
+  { path: '/dashboard', icon: '📊', labelKey: 'dashboard' },
+  { path: '/pos', icon: '🛒', labelKey: 'pos' },
+  { path: '/products', icon: '📦', labelKey: 'products' },
+  { path: '/categories', icon: '🏷️', labelKey: 'categories' },
+  { path: '/stock', icon: '📈', labelKey: 'stock' },
+  { path: '/history', icon: '📜', labelKey: 'history' },
+  { path: '/users', icon: '👥', labelKey: 'users' },
+  { path: '/settings', icon: '⚙️', labelKey: 'settings' },
 ]
 
 export const Sidebar: React.FC = () => {
   const location = useLocation()
+  const t = useLanguageStore((state) => state.t)
 
   return (
     <aside className="w-64 glass border-r border-white/10 flex flex-col">
@@ -21,7 +24,7 @@ export const Sidebar: React.FC = () => {
         <h1 className="text-3xl font-bold text-gradient glow-text">
           POSPlus
         </h1>
-        <p className="text-xs text-gray-400 mt-1">Point of Sale System</p>
+        <p className="text-xs text-gray-400 mt-1">{t('posSystem')}</p>
       </div>
 
       <nav className="flex-1 px-3 space-y-1">
@@ -38,7 +41,7 @@ export const Sidebar: React.FC = () => {
               }`}
             >
               <span className="text-xl">{item.icon}</span>
-              <span className="font-medium">{item.label}</span>
+              <span className="font-medium">{t(item.labelKey)}</span>
             </Link>
           )
         })}

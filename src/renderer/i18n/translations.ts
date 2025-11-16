@@ -183,6 +183,10 @@ export const translations = {
     loginSubtitle: 'Connectez-vous à votre compte',
     signIn: 'Se connecter',
     invalidCredentials: 'Identifiants invalides',
+    enterUsername: 'Entrez votre nom d\'utilisateur',
+    enterPassword: 'Entrez votre mot de passe',
+    defaultCredentials: 'Identifiants par défaut : admin / admin123',
+    posSystem: 'Système de Point de Vente',
 
     // Errors
     error: 'Erreur',
@@ -375,6 +379,10 @@ export const translations = {
     loginSubtitle: 'سجل دخولك إلى حسابك',
     signIn: 'دخول',
     invalidCredentials: 'بيانات غير صحيحة',
+    enterUsername: 'أدخل اسم المستخدم',
+    enterPassword: 'أدخل كلمة المرور',
+    defaultCredentials: 'البيانات الافتراضية: admin / admin123',
+    posSystem: 'نظام نقاط البيع',
 
     // Errors
     error: 'خطأ',

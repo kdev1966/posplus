@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { useLanguageStore } from '../store/languageStore'
 import { Input } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
 
@@ -12,6 +13,7 @@ export const Login: React.FC = () => {
 
   const navigate = useNavigate()
   const login = useAuthStore((state) => state.login)
+  const t = useLanguageStore((state) => state.t)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,7 +25,7 @@ export const Login: React.FC = () => {
     if (success) {
       navigate('/dashboard')
     } else {
-      setError('Invalid username or password')
+      setError(t('invalidCredentials'))
     }
 
     setIsLoading(false)
@@ -36,29 +38,29 @@ export const Login: React.FC = () => {
           <h1 className="text-5xl font-bold text-gradient glow-text mb-2">
             POSPlus
           </h1>
-          <p className="text-gray-400">Point of Sale System</p>
+          <p className="text-gray-400">{t('posSystem')}</p>
         </div>
 
         <div className="card scale-in">
-          <h2 className="text-2xl font-bold mb-6 text-white">Sign In</h2>
+          <h2 className="text-2xl font-bold mb-6 text-white">{t('login')}</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
-              label="Username"
+              label={t('username')}
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
+              placeholder={t('enterUsername')}
               autoFocus
               required
             />
 
             <Input
-              label="Password"
+              label={t('password')}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder={t('enterPassword')}
               required
             />
 
@@ -74,12 +76,12 @@ export const Login: React.FC = () => {
               isLoading={isLoading}
               className="w-full"
             >
-              Sign In
+              {t('signIn')}
             </Button>
           </form>
 
           <div className="mt-6 pt-6 border-t border-white/10 text-center text-sm text-gray-400">
-            Default credentials: admin / admin123
+            {t('defaultCredentials')}
           </div>
         </div>
       </div>
