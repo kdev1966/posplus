@@ -13,6 +13,8 @@ export interface User {
   isActive: boolean
   createdAt: string
   updatedAt: string
+  permissions?: Permission[] | string // Can be array or JSON string from DB
+  roleName?: string // Optional role name from joins
 }
 
 export interface Role {
