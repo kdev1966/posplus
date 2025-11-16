@@ -50,6 +50,7 @@ export interface Product {
   price: number
   cost: number
   taxRate: number
+  discountRate: number
   stock: number
   minStock: number
   maxStock: number
@@ -82,9 +83,11 @@ export interface TicketLine {
   ticketId: number
   productId: number
   productName: string
+  productSku: string
   quantity: number
   unitPrice: number
   taxRate: number
+  discountRate: number
   discountAmount: number
   totalAmount: number
   createdAt: string
@@ -166,6 +169,7 @@ export interface CreateProductDTO {
   price: number
   cost: number
   taxRate: number
+  discountRate: number
   stock: number
   minStock: number
   maxStock?: number

@@ -5,13 +5,13 @@ export interface CartItem {
   product: Product
   quantity: number
   discount: number
+  discountRate: number
   total: number
 }
 
 interface CartState {
   items: CartItem[]
   subtotal: number
-  tax: number
   discount: number
   total: number
   addItem: (product: Product, quantity?: number) => void
@@ -25,7 +25,6 @@ interface CartState {
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   subtotal: 0,
-  tax: 0,
   discount: 0,
   total: 0,
 
@@ -39,12 +38,15 @@ export const useCartStore = create<CartState>((set, get) => ({
       newItems[existingItemIndex].quantity += quantity
       set({ items: newItems })
     } else {
-      // Add new item
+      // Add new item with discount from product
+      const itemSubtotal = product.price * quantity
+      const itemDiscount = itemSubtotal * (product.discountRate || 0)
       const newItem: CartItem = {
         product,
         quantity,
-        discount: 0,
-        total: product.price * quantity * (1 + product.taxRate),
+        discount: itemDiscount,
+        discountRate: product.discountRate || 0,
+        total: itemSubtotal - itemDiscount,
       }
       set({ items: [...items, newItem] })
     }
@@ -80,29 +82,31 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   clearCart: () => {
-    set({ items: [], subtotal: 0, tax: 0, discount: 0, total: 0 })
+    set({ items: [], subtotal: 0, discount: 0, total: 0 })
   },
 
   calculateTotals: () => {
     const items = get().items
     let subtotal = 0
-    let tax = 0
     let discount = 0
 
     items.forEach((item) => {
+      // Price is TTC (tax included), no separate tax calculation
       const itemSubtotal = item.product.price * item.quantity
-      const itemTax = itemSubtotal * item.product.taxRate
+      // Apply product discount rate
+      const itemDiscount = itemSubtotal * (item.product.discountRate || 0)
 
       subtotal += itemSubtotal
-      tax += itemTax
-      discount += item.discount
+      discount += itemDiscount
 
-      // Update item total
-      item.total = itemSubtotal + itemTax - item.discount
+      // Update item discount and total
+      item.discount = itemDiscount
+      item.discountRate = item.product.discountRate || 0
+      item.total = itemSubtotal - itemDiscount
     })
 
-    const total = subtotal + tax - discount
+    const total = subtotal - discount
 
-    set({ subtotal, tax, discount, total })
+    set({ subtotal, discount, total })
   },
 }))

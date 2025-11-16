@@ -8,6 +8,7 @@ import { useProductStore } from '../store/productStore'
 import { useCartStore } from '../store/cartStore'
 import { useSessionStore } from '../store/sessionStore'
 import { useAuthStore } from '../store/authStore'
+import { useLanguageStore } from '../store/languageStore'
 import { Product } from '@shared/types'
 
 export const POS: React.FC = () => {
@@ -15,6 +16,7 @@ export const POS: React.FC = () => {
   const { currentSession, isSessionOpen } = useSessionStore()
   const { categories, fetchProducts, fetchCategories, getFilteredProducts, setSelectedCategory, setSearchQuery, selectedCategory, searchQuery } = useProductStore()
   const { addItem, total, items, clearCart } = useCartStore()
+  const { t } = useLanguageStore()
 
   const [showPayment, setShowPayment] = useState(false)
   const [barcode, setBarcode] = useState('')
@@ -40,22 +42,22 @@ export const POS: React.FC = () => {
         addItem(product, 1)
         setBarcode('')
       } else {
-        alert('Product not found or out of stock')
+        alert(t('productNotFound'))
       }
     } catch (error) {
       console.error('Failed to find product:', error)
-      alert('Product not found')
+      alert(t('productNotFound'))
     }
   }
 
   const handleCheckout = () => {
     if (!isSessionOpen) {
-      alert('Please open a cash session first')
+      alert(t('pleaseOpenSession'))
       return
     }
 
     if (items.length === 0) {
-      alert('Cart is empty')
+      alert(t('cartEmpty'))
       return
     }
 
@@ -74,6 +76,7 @@ export const POS: React.FC = () => {
           productId: item.product.id,
           quantity: item.quantity,
           unitPrice: item.product.price,
+          taxRate: 0, // TTC pricing
           discountAmount: item.discount,
         })),
         payments: payments.map(p => ({
@@ -91,10 +94,10 @@ export const POS: React.FC = () => {
       clearCart()
       setShowPayment(false)
 
-      alert(`Sale completed! Ticket #${ticket.ticketNumber}`)
+      alert(`${t('saleCompleted')} ${t('ticket')} #${ticket.ticketNumber}`)
     } catch (error) {
       console.error('Failed to complete sale:', error)
-      alert('Failed to complete sale')
+      alert(t('failedToCompleteSale'))
     }
   }
 
@@ -106,8 +109,8 @@ export const POS: React.FC = () => {
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <div className="text-6xl mb-4">⚠️</div>
-            <h2 className="text-2xl font-bold text-white mb-2">No Active Session</h2>
-            <p className="text-gray-400 mb-6">Please open a cash session to start selling</p>
+            <h2 className="text-2xl font-bold text-white mb-2">{t('noActiveSession')}</h2>
+            <p className="text-gray-400 mb-6">{t('pleaseOpenSession')}</p>
           </div>
         </div>
       </Layout>
@@ -123,7 +126,7 @@ export const POS: React.FC = () => {
           <div className="mb-4 space-y-3">
             <form onSubmit={handleBarcodeSubmit}>
               <Input
-                placeholder="Scan barcode or search products..."
+                placeholder={t('scanBarcode')}
                 value={barcode || searchQuery}
                 onChange={(e) => {
                   setBarcode(e.target.value)
@@ -142,7 +145,7 @@ export const POS: React.FC = () => {
                     : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                 }`}
               >
-                All Products
+                {t('allProducts')}
               </button>
               {categories.filter(c => c.isActive).map((category) => (
                 <button

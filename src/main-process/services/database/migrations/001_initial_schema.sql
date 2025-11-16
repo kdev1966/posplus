@@ -94,7 +94,8 @@ CREATE TABLE IF NOT EXISTS products (
   category_id INTEGER NOT NULL,
   price REAL NOT NULL CHECK(price >= 0),
   cost REAL NOT NULL DEFAULT 0 CHECK(cost >= 0),
-  tax_rate REAL NOT NULL DEFAULT 0.2 CHECK(tax_rate >= 0 AND tax_rate <= 1),
+  tax_rate REAL NOT NULL DEFAULT 0 CHECK(tax_rate >= 0 AND tax_rate <= 1),
+  discount_rate REAL NOT NULL DEFAULT 0 CHECK(discount_rate >= 0 AND discount_rate <= 1),
   stock INTEGER NOT NULL DEFAULT 0 CHECK(stock >= 0),
   min_stock INTEGER DEFAULT 0 CHECK(min_stock >= 0),
   max_stock INTEGER CHECK(max_stock IS NULL OR max_stock >= min_stock),
@@ -186,6 +187,7 @@ CREATE TABLE IF NOT EXISTS ticket_lines (
   quantity REAL NOT NULL CHECK(quantity > 0),
   unit_price REAL NOT NULL CHECK(unit_price >= 0),
   tax_rate REAL NOT NULL DEFAULT 0 CHECK(tax_rate >= 0 AND tax_rate <= 1),
+  discount_rate REAL NOT NULL DEFAULT 0 CHECK(discount_rate >= 0 AND discount_rate <= 1),
   discount_amount REAL NOT NULL DEFAULT 0 CHECK(discount_amount >= 0),
   total_amount REAL NOT NULL CHECK(total_amount >= 0),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -464,10 +466,6 @@ VALUES (
   1
 );
 
--- Insert default category
-INSERT OR IGNORE INTO categories (id, name, description, is_active) VALUES
-  (1, 'General', 'Default category', 1);
-
 -- Insert default settings
 INSERT OR IGNORE INTO settings (key, value, type, description) VALUES
   ('company_name', 'POSPlus Store', 'string', 'Company name'),
@@ -475,10 +473,13 @@ INSERT OR IGNORE INTO settings (key, value, type, description) VALUES
   ('company_phone', '', 'string', 'Company phone'),
   ('company_email', '', 'string', 'Company email'),
   ('tax_id', '', 'string', 'Tax identification number'),
-  ('currency', 'EUR', 'string', 'Currency code'),
-  ('timezone', 'Europe/Paris', 'string', 'Timezone'),
-  ('receipt_header', 'Thank you for your purchase!', 'string', 'Receipt header text'),
-  ('receipt_footer', 'Please come again', 'string', 'Receipt footer text'),
+  ('currency', 'TND', 'string', 'Currency code'),
+  ('currency_symbol', 'DT', 'string', 'Currency symbol'),
+  ('country', 'Tunisia', 'string', 'Country'),
+  ('timezone', 'Africa/Tunis', 'string', 'Timezone'),
+  ('language', 'fr', 'string', 'Default language'),
+  ('receipt_header', 'Merci pour votre achat !', 'string', 'Receipt header text'),
+  ('receipt_footer', 'À bientôt', 'string', 'Receipt footer text'),
   ('low_stock_alert', 'true', 'boolean', 'Enable low stock alerts'),
   ('auto_print_receipt', 'true', 'boolean', 'Auto-print receipts');
 

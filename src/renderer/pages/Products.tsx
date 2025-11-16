@@ -6,8 +6,11 @@ import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
 import { Input } from '../components/ui/Input'
 import { Product } from '@shared/types'
+import { useLanguageStore } from '../store/languageStore'
+import { formatCurrency } from '../utils/currency'
 
 export const Products: React.FC = () => {
+  const { t } = useLanguageStore()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -20,6 +23,7 @@ export const Products: React.FC = () => {
     minStock: '',
     unit: 'pcs',
     categoryId: '',
+    discountRate: '',
   })
 
   useEffect(() => {
@@ -50,11 +54,13 @@ export const Products: React.FC = () => {
         description: formData.description,
         sku: formData.sku,
         price: parseFloat(formData.price),
+        cost: 0,
+        taxRate: 0, // TTC pricing, no separate tax
+        discountRate: formData.discountRate ? parseFloat(formData.discountRate) / 100 : 0,
         stock: parseInt(formData.stock),
         minStock: parseInt(formData.minStock),
         unit: formData.unit,
-        categoryId: formData.categoryId,
-        isActive: true,
+        categoryId: parseInt(formData.categoryId),
       }
 
       await window.api.createProduct(newProduct)
@@ -68,10 +74,12 @@ export const Products: React.FC = () => {
         minStock: '',
         unit: 'pcs',
         categoryId: '',
+        discountRate: '',
       })
       loadProducts()
     } catch (error) {
       console.error('Failed to create product:', error)
+      alert(t('errorOccurred'))
     }
   }
 
@@ -80,11 +88,11 @@ export const Products: React.FC = () => {
       <div className="space-y-6 fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Products</h1>
-            <p className="text-gray-400">Manage your product catalog</p>
+            <h1 className="text-3xl font-bold text-white mb-2">{t('productsTitle')}</h1>
+            <p className="text-gray-400">{t('manageProductCatalog')}</p>
           </div>
           <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-            + Add Product
+            + {t('addProduct')}
           </Button>
         </div>
 
@@ -98,13 +106,14 @@ export const Products: React.FC = () => {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Product</th>
-                    <th>SKU</th>
-                    <th>Category</th>
-                    <th>Price</th>
+                    <th>{t('product')}</th>
+                    <th>{t('sku')}</th>
+                    <th>{t('category')}</th>
+                    <th>{t('price')}</th>
+                    <th>{t('remise')}</th>
                     <th>Stock</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th>{t('status')}</th>
+                    <th>{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -123,7 +132,16 @@ export const Products: React.FC = () => {
                       </td>
                       <td className="font-mono text-sm">{product.sku}</td>
                       <td className="text-sm">{product.categoryId}</td>
-                      <td className="font-semibold text-primary-300">€{product.price.toFixed(2)}</td>
+                      <td className="font-semibold text-primary-300">{formatCurrency(product.price)}</td>
+                      <td>
+                        {product.discountRate > 0 ? (
+                          <Badge variant="success">
+                            {(product.discountRate * 100).toFixed(0)}%
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
                       <td>
                         <span className={product.stock <= product.minStock ? 'text-yellow-400' : ''}>
                           {product.stock} {product.unit}
@@ -131,13 +149,13 @@ export const Products: React.FC = () => {
                       </td>
                       <td>
                         <Badge variant={product.isActive ? 'success' : 'danger'}>
-                          {product.isActive ? 'Active' : 'Inactive'}
+                          {product.isActive ? t('active') : t('inactive')}
                         </Badge>
                       </td>
                       <td>
                         <div className="flex gap-2">
-                          <button className="text-primary-400 hover:text-primary-300">Edit</button>
-                          <button className="text-red-400 hover:text-red-300">Delete</button>
+                          <button className="text-primary-400 hover:text-primary-300">{t('edit')}</button>
+                          <button className="text-red-400 hover:text-red-300">{t('delete')}</button>
                         </div>
                       </td>
                     </tr>
@@ -151,14 +169,14 @@ export const Products: React.FC = () => {
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title="Add New Product"
+          title={t('addNewProduct')}
           footer={
             <>
               <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button variant="primary" onClick={handleSubmit}>
-                Add Product
+                {t('addProduct')}
               </Button>
             </>
           }
@@ -166,14 +184,14 @@ export const Products: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Product Name"
+                label={t('productName')}
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
                 required
               />
               <Input
-                label="SKU"
+                label={t('sku')}
                 name="sku"
                 value={formData.sku}
                 onChange={handleInputChange}
@@ -181,32 +199,49 @@ export const Products: React.FC = () => {
               />
             </div>
             <Input
-              label="Description"
+              label={t('description')}
               name="description"
               value={formData.description}
               onChange={handleInputChange}
             />
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Price (€)"
+                label={`${t('priceTTC')} (DT)`}
                 name="price"
                 type="number"
-                step="0.01"
+                step="0.001"
                 value={formData.price}
                 onChange={handleInputChange}
                 required
               />
               <Input
-                label="Category ID"
+                label={t('categoryId')}
                 name="categoryId"
+                type="number"
                 value={formData.categoryId}
                 onChange={handleInputChange}
                 required
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label={t('remise')}
+                name="discountRate"
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                value={formData.discountRate}
+                onChange={handleInputChange}
+                placeholder="0"
+              />
+              <div className="text-xs text-gray-400 flex items-end pb-2">
+                {t('remiseHelp')}
+              </div>
+            </div>
             <div className="grid grid-cols-3 gap-4">
               <Input
-                label="Stock"
+                label={t('stockQuantity')}
                 name="stock"
                 type="number"
                 value={formData.stock}
@@ -214,7 +249,7 @@ export const Products: React.FC = () => {
                 required
               />
               <Input
-                label="Min Stock"
+                label={t('minStock')}
                 name="minStock"
                 type="number"
                 value={formData.minStock}
@@ -222,7 +257,7 @@ export const Products: React.FC = () => {
                 required
               />
               <Input
-                label="Unit"
+                label={t('unit')}
                 name="unit"
                 value={formData.unit}
                 onChange={handleInputChange}
