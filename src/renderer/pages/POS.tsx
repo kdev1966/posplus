@@ -76,7 +76,6 @@ export const POS: React.FC = () => {
           productId: item.product.id,
           quantity: item.quantity,
           unitPrice: item.product.price,
-          taxRate: 0, // TTC pricing
           discountAmount: item.discount,
         })),
         payments: payments.map(p => ({

@@ -14,7 +14,6 @@ export class TicketRepository {
       userId: dbTicket.user_id,
       customerId: dbTicket.customer_id,
       subtotal: dbTicket.subtotal,
-      taxAmount: dbTicket.tax_amount,
       discountAmount: dbTicket.discount_amount,
       totalAmount: dbTicket.total_amount,
       status: dbTicket.status,
@@ -35,7 +34,6 @@ export class TicketRepository {
       productSku: dbLine.product_sku,
       quantity: dbLine.quantity,
       unitPrice: dbLine.unit_price,
-      taxRate: dbLine.tax_rate,
       discountRate: dbLine.discount_rate || 0,
       discountAmount: dbLine.discount_amount,
       totalAmount: dbLine.total_amount,
@@ -135,37 +133,26 @@ export class TicketRepository {
         // Generate ticket number
         const ticketNumber = this.generateTicketNumber()
 
-        // Calculate totals - need to get tax rate from products first
+        // Calculate totals - TTC pricing (tax included)
         let subtotal = 0
-        let taxAmount = 0
         let discountAmount = 0
 
-        // Pre-fetch product data to calculate correct totals
-        const productStmt = this.db.prepare('SELECT tax_rate FROM products WHERE id = ?')
-
         data.lines.forEach((line) => {
-          const product = productStmt.get(line.productId) as any
-          if (!product) {
-            throw new Error(`Product not found: ${line.productId}`)
-          }
-
           const lineSubtotal = line.quantity * line.unitPrice
-          const lineTax = lineSubtotal * product.tax_rate
           const lineDiscount = line.discountAmount || 0
 
           subtotal += lineSubtotal
-          taxAmount += lineTax
           discountAmount += lineDiscount
         })
 
-        const totalAmount = subtotal + taxAmount - discountAmount
+        const totalAmount = subtotal - discountAmount
 
         // Insert ticket
         const ticketStmt = this.db.prepare(`
           INSERT INTO tickets (
             ticket_number, user_id, customer_id, session_id,
-            subtotal, tax_amount, discount_amount, total_amount, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            subtotal, discount_amount, total_amount, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `)
 
         const ticketResult = ticketStmt.run(
@@ -174,7 +161,6 @@ export class TicketRepository {
           data.customerId || null,
           data.sessionId,
           subtotal,
-          taxAmount,
           discountAmount,
           totalAmount,
           'completed'
@@ -186,13 +172,13 @@ export class TicketRepository {
         const lineStmt = this.db.prepare(`
           INSERT INTO ticket_lines (
             ticket_id, product_id, product_name, product_sku,
-            quantity, unit_price, tax_rate, discount_amount, total_amount
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            quantity, unit_price, discount_amount, total_amount
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `)
 
         for (const line of data.lines) {
           // Get product details including current stock
-          const productStmt = this.db.prepare('SELECT name, sku, tax_rate, stock FROM products WHERE id = ?')
+          const productStmt = this.db.prepare('SELECT name, sku, stock FROM products WHERE id = ?')
           const product = productStmt.get(line.productId) as any
 
           if (!product) {
@@ -207,9 +193,8 @@ export class TicketRepository {
           }
 
           const lineSubtotal = line.quantity * line.unitPrice
-          const lineTax = lineSubtotal * product.tax_rate
           const lineDiscount = line.discountAmount || 0
-          const lineTotal = lineSubtotal + lineTax - lineDiscount
+          const lineTotal = lineSubtotal - lineDiscount
 
           lineStmt.run(
             ticketId,
@@ -218,7 +203,6 @@ export class TicketRepository {
             product.sku,
             line.quantity,
             line.unitPrice,
-            product.tax_rate,
             lineDiscount,
             lineTotal
           )

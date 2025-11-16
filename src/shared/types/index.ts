@@ -51,7 +51,6 @@ export interface Product {
   categoryId: number
   price: number
   cost: number
-  taxRate: number
   discountRate: number
   stock: number
   minStock: number
@@ -69,7 +68,6 @@ export interface Ticket {
   userId: number
   customerId?: number
   subtotal: number
-  taxAmount: number
   discountAmount: number
   totalAmount: number
   status: 'pending' | 'completed' | 'cancelled' | 'refunded'
@@ -88,7 +86,6 @@ export interface TicketLine {
   productSku: string
   quantity: number
   unitPrice: number
-  taxRate: number
   discountRate: number
   discountAmount: number
   totalAmount: number
@@ -121,7 +118,6 @@ export interface ZReport {
   sessionId: number
   userId: number
   totalSales: number
-  totalTax: number
   totalDiscount: number
   totalCash: number
   totalCard: number
@@ -170,7 +166,6 @@ export interface CreateProductDTO {
   categoryId: number
   price: number
   cost: number
-  taxRate: number
   discountRate: number
   stock: number
   minStock: number
@@ -191,7 +186,6 @@ export interface CreateTicketDTO {
     productId: number
     quantity: number
     unitPrice: number
-    taxRate?: number
     discountAmount?: number
   }[]
   payments: {

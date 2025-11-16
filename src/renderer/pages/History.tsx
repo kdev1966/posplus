@@ -261,12 +261,6 @@ export const History: React.FC = () => {
                 <span className="text-gray-400">{t('subtotal')}</span>
                 <span className="text-gray-300">{formatCurrency(selectedTicket.subtotal)}</span>
               </div>
-              {selectedTicket.taxAmount > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">{t('tax')}</span>
-                  <span className="text-gray-300">{formatCurrency(selectedTicket.taxAmount)}</span>
-                </div>
-              )}
               {selectedTicket.discountAmount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">{t('discount')}</span>

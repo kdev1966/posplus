@@ -75,7 +75,6 @@ export const Products: React.FC = () => {
         sku: formData.sku,
         price: parseFloat(formData.price),
         cost: 0,
-        taxRate: 0, // TTC pricing, no separate tax
         discountRate: formData.discountRate ? parseFloat(formData.discountRate) / 100 : 0,
         stock: parseInt(formData.stock),
         minStock: parseInt(formData.minStock),
@@ -131,7 +130,6 @@ export const Products: React.FC = () => {
         sku: editFormData.sku,
         price: parseFloat(editFormData.price),
         cost: editingProduct.cost,
-        taxRate: editingProduct.taxRate,
         discountRate: editFormData.discountRate ? parseFloat(editFormData.discountRate) / 100 : 0,
         stock: parseInt(editFormData.stock),
         minStock: parseInt(editFormData.minStock),

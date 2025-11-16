@@ -96,13 +96,6 @@ export const DEFAULT_ROLES = {
   },
 } as const
 
-export const TAX_RATES = {
-  STANDARD: 0.2, // 20%
-  REDUCED: 0.055, // 5.5%
-  SUPER_REDUCED: 0.021, // 2.1%
-  ZERO: 0, // 0%
-} as const
-
 export const PAYMENT_METHODS = {
   CASH: 'cash',
   CARD: 'card',
