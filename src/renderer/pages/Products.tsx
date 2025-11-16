@@ -14,7 +14,22 @@ export const Products: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null)
   const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    sku: '',
+    price: '',
+    stock: '',
+    minStock: '',
+    unit: 'pcs',
+    categoryId: '',
+    discountRate: '',
+  })
+  const [editFormData, setEditFormData] = useState({
     name: '',
     description: '',
     sku: '',
@@ -44,6 +59,11 @@ export const Products: React.FC = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setEditFormData(prev => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -79,6 +99,71 @@ export const Products: React.FC = () => {
       loadProducts()
     } catch (error) {
       console.error('Failed to create product:', error)
+      alert(t('errorOccurred'))
+    }
+  }
+
+  const handleEditClick = (product: Product) => {
+    setEditingProduct(product)
+    setEditFormData({
+      name: product.name,
+      description: product.description || '',
+      sku: product.sku,
+      price: product.price.toString(),
+      stock: product.stock.toString(),
+      minStock: product.minStock.toString(),
+      unit: product.unit,
+      categoryId: product.categoryId.toString(),
+      discountRate: (product.discountRate * 100).toString(),
+    })
+    setIsEditModalOpen(true)
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingProduct) return
+
+    try {
+      const updatedProduct = {
+        id: editingProduct.id,
+        name: editFormData.name,
+        description: editFormData.description,
+        sku: editFormData.sku,
+        price: parseFloat(editFormData.price),
+        cost: editingProduct.cost,
+        taxRate: editingProduct.taxRate,
+        discountRate: editFormData.discountRate ? parseFloat(editFormData.discountRate) / 100 : 0,
+        stock: parseInt(editFormData.stock),
+        minStock: parseInt(editFormData.minStock),
+        unit: editFormData.unit,
+        categoryId: parseInt(editFormData.categoryId),
+      }
+
+      await window.api.updateProduct(updatedProduct)
+      setIsEditModalOpen(false)
+      setEditingProduct(null)
+      loadProducts()
+    } catch (error) {
+      console.error('Failed to update product:', error)
+      alert(t('errorOccurred'))
+    }
+  }
+
+  const handleDeleteClick = (product: Product) => {
+    setDeletingProduct(product)
+    setIsDeleteModalOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!deletingProduct) return
+
+    try {
+      await window.api.deleteProduct(deletingProduct.id)
+      setIsDeleteModalOpen(false)
+      setDeletingProduct(null)
+      loadProducts()
+    } catch (error) {
+      console.error('Failed to delete product:', error)
       alert(t('errorOccurred'))
     }
   }
@@ -154,8 +239,18 @@ export const Products: React.FC = () => {
                       </td>
                       <td>
                         <div className="flex gap-2">
-                          <button className="text-primary-400 hover:text-primary-300">{t('edit')}</button>
-                          <button className="text-red-400 hover:text-red-300">{t('delete')}</button>
+                          <button
+                            className="text-primary-400 hover:text-primary-300"
+                            onClick={() => handleEditClick(product)}
+                          >
+                            {t('edit')}
+                          </button>
+                          <button
+                            className="text-red-400 hover:text-red-300"
+                            onClick={() => handleDeleteClick(product)}
+                          >
+                            {t('delete')}
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -166,6 +261,7 @@ export const Products: React.FC = () => {
           </Card>
         )}
 
+        {/* Add Product Modal */}
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
@@ -265,6 +361,145 @@ export const Products: React.FC = () => {
               />
             </div>
           </form>
+        </Modal>
+
+        {/* Edit Product Modal */}
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false)
+            setEditingProduct(null)
+          }}
+          title={t('editProduct')}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => {
+                setIsEditModalOpen(false)
+                setEditingProduct(null)
+              }}>
+                {t('cancel')}
+              </Button>
+              <Button variant="primary" onClick={handleEditSubmit}>
+                {t('save')}
+              </Button>
+            </>
+          }
+        >
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label={t('productName')}
+                name="name"
+                value={editFormData.name}
+                onChange={handleEditInputChange}
+                required
+              />
+              <Input
+                label={t('sku')}
+                name="sku"
+                value={editFormData.sku}
+                onChange={handleEditInputChange}
+                required
+              />
+            </div>
+            <Input
+              label={t('description')}
+              name="description"
+              value={editFormData.description}
+              onChange={handleEditInputChange}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label={`${t('priceTTC')} (DT)`}
+                name="price"
+                type="number"
+                step="0.001"
+                value={editFormData.price}
+                onChange={handleEditInputChange}
+                required
+              />
+              <Input
+                label={t('categoryId')}
+                name="categoryId"
+                type="number"
+                value={editFormData.categoryId}
+                onChange={handleEditInputChange}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label={t('remise')}
+                name="discountRate"
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                value={editFormData.discountRate}
+                onChange={handleEditInputChange}
+                placeholder="0"
+              />
+              <div className="text-xs text-gray-400 flex items-end pb-2">
+                {t('remiseHelp')}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <Input
+                label={t('stockQuantity')}
+                name="stock"
+                type="number"
+                value={editFormData.stock}
+                onChange={handleEditInputChange}
+                required
+              />
+              <Input
+                label={t('minStock')}
+                name="minStock"
+                type="number"
+                value={editFormData.minStock}
+                onChange={handleEditInputChange}
+                required
+              />
+              <Input
+                label={t('unit')}
+                name="unit"
+                value={editFormData.unit}
+                onChange={handleEditInputChange}
+                required
+              />
+            </div>
+          </form>
+        </Modal>
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false)
+            setDeletingProduct(null)
+          }}
+          title={t('deleteProduct')}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => {
+                setIsDeleteModalOpen(false)
+                setDeletingProduct(null)
+              }}>
+                {t('cancel')}
+              </Button>
+              <Button variant="danger" onClick={confirmDelete}>
+                {t('delete')}
+              </Button>
+            </>
+          }
+        >
+          <div className="text-center py-4">
+            <div className="text-5xl mb-4">⚠️</div>
+            <p className="text-gray-300 mb-2">{t('confirmDeleteProduct')}</p>
+            {deletingProduct && (
+              <p className="text-white font-semibold">{deletingProduct.name}</p>
+            )}
+          </div>
         </Modal>
       </div>
     </Layout>
