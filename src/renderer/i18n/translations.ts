@@ -136,7 +136,7 @@ export const translations = {
 
     // Stock
     stockTitle: 'Gestion du Stock',
-    monitorInventory: 'Surveiller votre inventaire',
+    monitorInventory: 'Surveiller et gérer les niveaux de stock',
     totalProducts: 'Total Produits',
     lowStockProducts: 'Produits en stock faible',
     outOfStockProducts: 'Produits en rupture',
@@ -148,6 +148,14 @@ export const translations = {
     adjustment: 'Ajustement',
     sale: 'Vente',
     return: 'Retour',
+    selectProduct: 'Sélectionner un produit',
+    quantity: 'Quantité',
+    notesOptional: 'Notes (optionnel)',
+    inStock: 'En stock',
+    current: 'Actuel',
+    welcomeBack: 'Bienvenue',
+    sessionOpen: 'Session ouverte',
+    noSession: 'Pas de session',
 
     // History
     historyTitle: 'Historique des Ventes',
@@ -346,7 +354,7 @@ export const translations = {
 
     // Stock
     stockTitle: 'إدارة المخزون',
-    monitorInventory: 'مراقبة المخزون',
+    monitorInventory: 'مراقبة وإدارة مستويات المخزون',
     totalProducts: 'إجمالي المنتجات',
     lowStockProducts: 'منتجات منخفضة المخزون',
     outOfStockProducts: 'منتجات نفذت',
@@ -358,6 +366,14 @@ export const translations = {
     adjustment: 'تعديل',
     sale: 'بيع',
     return: 'إرجاع',
+    selectProduct: 'اختر منتج',
+    quantity: 'الكمية',
+    notesOptional: 'ملاحظات (اختياري)',
+    inStock: 'متوفر',
+    current: 'الحالي',
+    welcomeBack: 'مرحبا بعودتك',
+    sessionOpen: 'الجلسة مفتوحة',
+    noSession: 'لا توجد جلسة',
 
     // History
     historyTitle: 'سجل المبيعات',
