@@ -36,7 +36,6 @@ const mockProducts: import('@shared/types').Product[] = [
     categoryId: 1,
     price: 2.50,
     cost: 1.20,
-    taxRate: 20,
     discountRate: 0,
     stock: 150,
     minStock: 20,
@@ -56,7 +55,6 @@ const mockProducts: import('@shared/types').Product[] = [
     categoryId: 1,
     price: 1.50,
     cost: 0.60,
-    taxRate: 5.5,
     discountRate: 0,
     stock: 200,
     minStock: 30,
@@ -76,7 +74,6 @@ const mockProducts: import('@shared/types').Product[] = [
     categoryId: 2,
     price: 3.20,
     cost: 1.50,
-    taxRate: 20,
     discountRate: 0,
     stock: 80,
     minStock: 15,
@@ -96,7 +93,6 @@ const mockProducts: import('@shared/types').Product[] = [
     categoryId: 2,
     price: 2.80,
     cost: 1.30,
-    taxRate: 20,
     discountRate: 0,
     stock: 60,
     minStock: 10,
@@ -116,7 +112,6 @@ const mockProducts: import('@shared/types').Product[] = [
     categoryId: 3,
     price: 2.90,
     cost: 1.00,
-    taxRate: 5.5,
     discountRate: 0,
     stock: 40,
     minStock: 5,
@@ -136,7 +131,6 @@ const mockProducts: import('@shared/types').Product[] = [
     categoryId: 3,
     price: 1.80,
     cost: 0.70,
-    taxRate: 5.5,
     discountRate: 0,
     stock: 30,
     minStock: 5,
@@ -156,7 +150,6 @@ const mockProducts: import('@shared/types').Product[] = [
     categoryId: 4,
     price: 1.40,
     cost: 0.80,
-    taxRate: 5.5,
     discountRate: 0,
     stock: 100,
     minStock: 20,
@@ -176,7 +169,6 @@ const mockProducts: import('@shared/types').Product[] = [
     categoryId: 4,
     price: 2.10,
     cost: 0.90,
-    taxRate: 5.5,
     discountRate: 0,
     stock: 120,
     minStock: 25,
@@ -196,7 +188,6 @@ const mockProducts: import('@shared/types').Product[] = [
     categoryId: 5,
     price: 4.50,
     cost: 2.20,
-    taxRate: 5.5,
     discountRate: 0,
     stock: 45,
     minStock: 10,
@@ -216,7 +207,6 @@ const mockProducts: import('@shared/types').Product[] = [
     categoryId: 5,
     price: 3.80,
     cost: 1.90,
-    taxRate: 5.5,
     discountRate: 0,
     stock: 35,
     minStock: 8,
@@ -455,24 +445,20 @@ export const createMockApi = (): IPCApi => ({
     const sequence = String(ticketIdCounter).padStart(4, '0')
     const ticketNumber = `TK${year}${month}${day}-${sequence}`
 
-    // Calculate totals
+    // Calculate totals - TTC pricing (tax included)
     let subtotal = 0
-    let taxAmount = 0
     let discountAmount = 0
 
     const lines: import('@shared/types').TicketLine[] = data.lines.map((line) => {
       const product = mockProducts.find(p => p.id === line.productId)
       const productName = product?.name || `Product ${line.productId}`
       const productSku = product?.sku || `SKU-${line.productId}`
-      const productTaxRate = product?.taxRate || 0
 
       const lineSubtotal = line.quantity * line.unitPrice
-      const lineTax = lineSubtotal * (productTaxRate / 100)
       const lineDiscount = line.discountAmount || 0
-      const lineTotal = lineSubtotal + lineTax - lineDiscount
+      const lineTotal = lineSubtotal - lineDiscount
 
       subtotal += lineSubtotal
-      taxAmount += lineTax
       discountAmount += lineDiscount
 
       return {
@@ -483,7 +469,6 @@ export const createMockApi = (): IPCApi => ({
         productSku,
         quantity: line.quantity,
         unitPrice: line.unitPrice,
-        taxRate: productTaxRate,
         discountRate: 0,
         discountAmount: lineDiscount,
         totalAmount: lineTotal,
@@ -491,7 +476,7 @@ export const createMockApi = (): IPCApi => ({
       }
     })
 
-    const totalAmount = subtotal + taxAmount - discountAmount
+    const totalAmount = subtotal - discountAmount
 
     const payments: import('@shared/types').Payment[] = data.payments.map((p) => ({
       id: paymentIdCounter++,
@@ -508,7 +493,6 @@ export const createMockApi = (): IPCApi => ({
       userId: data.userId,
       customerId: data.customerId,
       subtotal,
-      taxAmount,
       discountAmount,
       totalAmount,
       status: 'completed',

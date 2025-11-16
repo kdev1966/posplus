@@ -87,7 +87,7 @@ class PrinterService {
       for (const line of ticket.lines) {
         this.printer.println(`${line.productName}`)
         this.printer.println(
-          `  ${line.quantity} x €${line.unitPrice.toFixed(2)} = €${line.totalAmount.toFixed(2)}`
+          `  ${line.quantity} x ${line.unitPrice.toFixed(3)} DT = ${line.totalAmount.toFixed(3)} DT`
         )
       }
 
@@ -96,17 +96,16 @@ class PrinterService {
 
       // Totals
       this.printer.alignRight()
-      this.printer.println(`Subtotal: €${ticket.subtotal.toFixed(2)}`)
-      this.printer.println(`Tax: €${ticket.taxAmount.toFixed(2)}`)
+      this.printer.println(`Subtotal: ${ticket.subtotal.toFixed(3)} DT`)
 
       if (ticket.discountAmount > 0) {
-        this.printer.println(`Discount: -€${ticket.discountAmount.toFixed(2)}`)
+        this.printer.println(`Discount: -${ticket.discountAmount.toFixed(3)} DT`)
       }
 
       this.printer.newLine()
       this.printer.bold(true)
       this.printer.setTextSize(1, 1)
-      this.printer.println(`TOTAL: €${ticket.totalAmount.toFixed(2)}`)
+      this.printer.println(`TOTAL: ${ticket.totalAmount.toFixed(3)} DT`)
       this.printer.bold(false)
       this.printer.setTextNormal()
 
@@ -118,7 +117,7 @@ class PrinterService {
       this.printer.println('Payments:')
       for (const payment of ticket.payments) {
         this.printer.println(
-          `  ${payment.method.toUpperCase()}: €${payment.amount.toFixed(2)}`
+          `  ${payment.method.toUpperCase()}: ${payment.amount.toFixed(3)} DT`
         )
       }
 

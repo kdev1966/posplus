@@ -75,7 +75,6 @@ export class ZReportRepository {
           SELECT
             COUNT(DISTINCT t.id) as ticket_count,
             COALESCE(SUM(t.subtotal), 0) as total_sales,
-            COALESCE(SUM(t.tax_amount), 0) as total_tax,
             COALESCE(SUM(t.discount_amount), 0) as total_discount,
             COALESCE(SUM(CASE WHEN p.method = 'cash' THEN p.amount ELSE 0 END), 0) as total_cash,
             COALESCE(SUM(CASE WHEN p.method = 'card' THEN p.amount ELSE 0 END), 0) as total_card,
@@ -92,17 +91,16 @@ export class ZReportRepository {
         // Insert Z Report
         const insertStmt = this.db.prepare(`
           INSERT INTO z_reports (
-            session_id, user_id, total_sales, total_tax, total_discount,
+            session_id, user_id, total_sales, total_discount,
             total_cash, total_card, total_transfer, total_check, total_other,
             ticket_count, report_date
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE('now'))
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE('now'))
         `)
 
         const result = insertStmt.run(
           sessionId,
           userId,
           totals.total_sales,
-          totals.total_tax,
           totals.total_discount,
           totals.total_cash,
           totals.total_card,
@@ -135,7 +133,6 @@ export class ZReportRepository {
           COUNT(*) as report_count,
           SUM(ticket_count) as total_tickets,
           SUM(total_sales) as total_sales,
-          SUM(total_tax) as total_tax,
           SUM(total_discount) as total_discount,
           SUM(total_cash) as total_cash,
           SUM(total_card) as total_card,
