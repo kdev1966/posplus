@@ -4,6 +4,7 @@ import { useSessionStore } from '../../store/sessionStore'
 import { useLanguageStore } from '../../store/languageStore'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { ThemeToggleButton } from '../ui/ThemeToggle'
 import { formatCurrency } from '../../utils/currency'
 
 export const Header: React.FC = () => {
@@ -12,11 +13,11 @@ export const Header: React.FC = () => {
   const { t } = useLanguageStore()
 
   return (
-    <header className="h-16 glass border-b border-white/10 flex items-center justify-between px-6">
+    <header className="h-16 glass border-b border-gray-200 dark:border-white/10 flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
         <div>
-          <p className="text-sm text-gray-400">{t('welcomeBack')},</p>
-          <p className="font-semibold text-white">
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('welcomeBack')},</p>
+          <p className="font-semibold text-gray-900 dark:text-white">
             {user?.firstName} {user?.lastName}
           </p>
         </div>
@@ -27,7 +28,7 @@ export const Header: React.FC = () => {
         {isSessionOpen && currentSession && (
           <div className="flex items-center gap-2">
             <Badge variant="success">{t('sessionOpen')}</Badge>
-            <span className="text-sm text-gray-400">
+            <span className="text-sm text-gray-500 dark:text-gray-400">
               {t('openingCash')}: {formatCurrency(currentSession.openingCash)}
             </span>
           </div>
@@ -36,6 +37,9 @@ export const Header: React.FC = () => {
         {!isSessionOpen && (
           <Badge variant="warning">{t('noSession')}</Badge>
         )}
+
+        {/* Theme Toggle */}
+        <ThemeToggleButton />
 
         {/* User menu */}
         <div className="flex items-center gap-3">
