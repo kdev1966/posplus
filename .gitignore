@@ -44,3 +44,7 @@ coverage/
 # Misc
 *.tsbuildinfo
 .eslintcache
+
+# Source archives
+*.tar.gz
+*.zip

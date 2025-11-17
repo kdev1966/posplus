@@ -53,7 +53,7 @@
     "canvas": "^3.2.0",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
-    "electron": "^30.0.1",
+    "electron": "^29.4.6",
     "electron-builder": "^24.9.1",
     "electron-icon-builder": "^2.0.1",
     "electron-rebuild": "^3.2.9",
@@ -115,6 +115,7 @@
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico"
     },
+    "npmRebuild": false,
     "extraResources": [
       {
         "from": "assets/",
