@@ -6,11 +6,15 @@ import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
 import { Input } from '../components/ui/Input'
 import { User } from '@shared/types'
+import { useLanguageStore } from '../store/languageStore'
 
 export const Users: React.FC = () => {
+  const { t } = useLanguageStore()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editingUserId, setEditingUserId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -35,14 +39,26 @@ export const Users: React.FC = () => {
     setLoading(false)
   }
 
-  const getRoleBadgeVariant = (role: string) => {
-    switch (role) {
-      case 'admin':
+  const getRoleBadgeVariant = (roleId: number) => {
+    switch (roleId) {
+      case 3: // Admin
         return 'danger' as const
-      case 'manager':
+      case 2: // Manager
         return 'warning' as const
-      default:
+      default: // Cashier
         return 'info' as const
+    }
+  }
+
+  const getRoleName = (roleId: number) => {
+    switch (roleId) {
+      case 3:
+        return t('administrator')
+      case 2:
+        return t('manager')
+      case 1:
+      default:
+        return t('cashier')
     }
   }
 
@@ -51,19 +67,86 @@ export const Users: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  const handleAddClick = () => {
+    setIsEditMode(false)
+    setEditingUserId(null)
+    setFormData({
+      username: '',
+      email: '',
+      password: '',
+      firstName: '',
+      lastName: '',
+      roleId: '1',
+    })
+    setIsModalOpen(true)
+  }
+
+  const handleEditClick = (user: User) => {
+    setIsEditMode(true)
+    setEditingUserId(user.id)
+    setFormData({
+      username: user.username,
+      email: user.email,
+      password: '', // Don't populate password for security
+      firstName: user.firstName,
+      lastName: user.lastName,
+      roleId: user.roleId?.toString() || '1',
+    })
+    setIsModalOpen(true)
+  }
+
+  const handleDeleteClick = async (userId: number, username: string) => {
+    if (!confirm(`${t('confirm')} ${t('delete')} ${username}?`)) {
+      return
+    }
+
+    try {
+      await window.api.deleteUser(userId)
+      alert(`Utilisateur ${username} supprimé avec succès`)
+      loadUsers()
+    } catch (error: any) {
+      console.error('Failed to delete user:', error)
+      alert(`Erreur: ${error?.message || 'Échec de la suppression'}`)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
     try {
-      const newUser = {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        roleId: parseInt(formData.roleId),
+      if (isEditMode && editingUserId) {
+        // Update user
+        const updateData: any = {
+          id: editingUserId,
+          username: formData.username,
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          roleId: parseInt(formData.roleId),
+        }
+
+        // Only include password if it was changed
+        if (formData.password.trim()) {
+          updateData.password = formData.password
+        }
+
+        await window.api.updateUser(updateData)
+        alert('Utilisateur modifié avec succès')
+      } else {
+        // Create new user
+        const newUser = {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          roleId: parseInt(formData.roleId),
+        }
+
+        await window.api.createUser(newUser)
+        alert('Utilisateur créé avec succès')
       }
 
-      await window.api.createUser(newUser)
       setIsModalOpen(false)
       setFormData({
         username: '',
@@ -74,8 +157,9 @@ export const Users: React.FC = () => {
         roleId: '1',
       })
       loadUsers()
-    } catch (error) {
-      console.error('Failed to create user:', error)
+    } catch (error: any) {
+      console.error('Failed to save user:', error)
+      alert(`Erreur: ${error?.message || 'Échec de l\'enregistrement'}`)
     }
   }
 
@@ -84,11 +168,11 @@ export const Users: React.FC = () => {
       <div className="space-y-6 fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Users</h1>
-            <p className="text-gray-400">Manage system users and permissions</p>
+            <h1 className="text-3xl font-bold text-white mb-2">{t('usersTitle')}</h1>
+            <p className="text-gray-400">{t('manageUserAccounts')}</p>
           </div>
-          <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-            + Add User
+          <Button variant="primary" onClick={handleAddClick}>
+            + {t('addUser')}
           </Button>
         </div>
 
@@ -102,12 +186,12 @@ export const Users: React.FC = () => {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>User</th>
-                    <th>Username</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Last Login</th>
-                    <th>Actions</th>
+                    <th>{t('firstName')}</th>
+                    <th>{t('username')}</th>
+                    <th>{t('role')}</th>
+                    <th>{t('status')}</th>
+                    <th>{t('lastLogin')}</th>
+                    <th>{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -126,22 +210,32 @@ export const Users: React.FC = () => {
                       </td>
                       <td className="font-mono text-sm">{user.username}</td>
                       <td>
-                        <Badge variant={getRoleBadgeVariant(user.roleName || 'Cashier')}>
-                          {user.roleName || 'Cashier'}
+                        <Badge variant={getRoleBadgeVariant(user.roleId || 1)}>
+                          {getRoleName(user.roleId || 1)}
                         </Badge>
                       </td>
                       <td>
                         <Badge variant={user.isActive ? 'success' : 'danger'}>
-                          {user.isActive ? 'Active' : 'Inactive'}
+                          {user.isActive ? t('active') : t('inactive')}
                         </Badge>
                       </td>
                       <td className="text-sm text-gray-400">
-                        {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString('fr-FR') : 'Never'}
+                        {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString('fr-FR') : '-'}
                       </td>
                       <td>
                         <div className="flex gap-2">
-                          <button className="text-primary-400 hover:text-primary-300">Edit</button>
-                          <button className="text-red-400 hover:text-red-300">Delete</button>
+                          <button
+                            className="text-primary-400 hover:text-primary-300"
+                            onClick={() => handleEditClick(user)}
+                          >
+                            {t('edit')}
+                          </button>
+                          <button
+                            className="text-red-400 hover:text-red-300"
+                            onClick={() => handleDeleteClick(user.id, user.username)}
+                          >
+                            {t('delete')}
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -156,8 +250,8 @@ export const Users: React.FC = () => {
           <Card>
             <div className="text-center py-12">
               <div className="text-6xl mb-4">👥</div>
-              <h3 className="text-xl font-semibold text-white mb-2">No users found</h3>
-              <p className="text-gray-400">Add users to manage access to the system</p>
+              <h3 className="text-xl font-semibold text-white mb-2">Aucun utilisateur trouvé</h3>
+              <p className="text-gray-400">Ajoutez des utilisateurs pour gérer l'accès au système</p>
             </div>
           </Card>
         )}
@@ -165,14 +259,14 @@ export const Users: React.FC = () => {
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title="Add New User"
+          title={isEditMode ? `${t('edit')} ${t('usersTitle')}` : t('addUser')}
           footer={
             <>
               <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button variant="primary" onClick={handleSubmit}>
-                Add User
+                {isEditMode ? t('save') : t('add')}
               </Button>
             </>
           }
@@ -180,14 +274,14 @@ export const Users: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="First Name"
+                label={t('firstName')}
                 name="firstName"
                 value={formData.firstName}
                 onChange={handleInputChange}
                 required
               />
               <Input
-                label="Last Name"
+                label={t('lastName')}
                 name="lastName"
                 value={formData.lastName}
                 onChange={handleInputChange}
@@ -195,14 +289,14 @@ export const Users: React.FC = () => {
               />
             </div>
             <Input
-              label="Username"
+              label={t('username')}
               name="username"
               value={formData.username}
               onChange={handleInputChange}
               required
             />
             <Input
-              label="Email"
+              label={t('email')}
               name="email"
               type="email"
               value={formData.email}
@@ -210,15 +304,15 @@ export const Users: React.FC = () => {
               required
             />
             <Input
-              label="Password"
+              label={`${t('password')}${isEditMode ? ' (laisser vide pour ne pas changer)' : ''}`}
               name="password"
               type="password"
               value={formData.password}
               onChange={handleInputChange}
-              required
+              required={!isEditMode}
             />
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Role</label>
+              <label className="block text-sm font-medium text-gray-300">{t('role')}</label>
               <select
                 name="roleId"
                 value={formData.roleId}
@@ -226,9 +320,9 @@ export const Users: React.FC = () => {
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
                 required
               >
-                <option value="1">Cashier</option>
-                <option value="2">Manager</option>
-                <option value="3">Admin</option>
+                <option value="1">{t('cashier')}</option>
+                <option value="2">{t('manager')}</option>
+                <option value="3">{t('administrator')}</option>
               </select>
             </div>
           </form>

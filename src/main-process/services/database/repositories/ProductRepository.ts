@@ -17,7 +17,18 @@ export class ProductRepository {
         LEFT JOIN categories c ON p.category_id = c.id
         ORDER BY p.name
       `)
-      return stmt.all() as Product[]
+      const results = stmt.all() as any[]
+      return results.map(result => ({
+        ...result,
+        isActive: Boolean(result.is_active),
+        categoryId: result.category_id,
+        discountRate: result.discount_rate,
+        minStock: result.min_stock,
+        maxStock: result.max_stock,
+        imageUrl: result.image_url,
+        createdAt: result.created_at,
+        updatedAt: result.updated_at
+      }))
     } catch (error) {
       log.error('ProductRepository.findAll failed:', error)
       throw error
@@ -34,7 +45,20 @@ export class ProductRepository {
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.id = ?
       `)
-      return (stmt.get(id) as Product) || null
+      const result = stmt.get(id) as any
+      if (!result) return null
+
+      return {
+        ...result,
+        isActive: Boolean(result.is_active),
+        categoryId: result.category_id,
+        discountRate: result.discount_rate,
+        minStock: result.min_stock,
+        maxStock: result.max_stock,
+        imageUrl: result.image_url,
+        createdAt: result.created_at,
+        updatedAt: result.updated_at
+      }
     } catch (error) {
       log.error('ProductRepository.findById failed:', error)
       throw error
@@ -51,7 +75,20 @@ export class ProductRepository {
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.barcode = ?
       `)
-      return (stmt.get(barcode) as Product) || null
+      const result = stmt.get(barcode) as any
+      if (!result) return null
+
+      return {
+        ...result,
+        isActive: Boolean(result.is_active),
+        categoryId: result.category_id,
+        discountRate: result.discount_rate,
+        minStock: result.min_stock,
+        maxStock: result.max_stock,
+        imageUrl: result.image_url,
+        createdAt: result.created_at,
+        updatedAt: result.updated_at
+      }
     } catch (error) {
       log.error('ProductRepository.findByBarcode failed:', error)
       throw error
@@ -68,7 +105,20 @@ export class ProductRepository {
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.sku = ?
       `)
-      return (stmt.get(sku) as Product) || null
+      const result = stmt.get(sku) as any
+      if (!result) return null
+
+      return {
+        ...result,
+        isActive: Boolean(result.is_active),
+        categoryId: result.category_id,
+        discountRate: result.discount_rate,
+        minStock: result.min_stock,
+        maxStock: result.max_stock,
+        imageUrl: result.image_url,
+        createdAt: result.created_at,
+        updatedAt: result.updated_at
+      }
     } catch (error) {
       log.error('ProductRepository.findBySku failed:', error)
       throw error
@@ -92,7 +142,18 @@ export class ProductRepository {
       `)
       const searchTerm = `${query}*`
       const likeTerm = `%${query}%`
-      return stmt.all(searchTerm, likeTerm) as Product[]
+      const results = stmt.all(searchTerm, likeTerm) as any[]
+      return results.map(result => ({
+        ...result,
+        isActive: Boolean(result.is_active),
+        categoryId: result.category_id,
+        discountRate: result.discount_rate,
+        minStock: result.min_stock,
+        maxStock: result.max_stock,
+        imageUrl: result.image_url,
+        createdAt: result.created_at,
+        updatedAt: result.updated_at
+      }))
     } catch (error) {
       log.error('ProductRepository.search failed:', error)
       throw error
@@ -110,7 +171,18 @@ export class ProductRepository {
         WHERE p.category_id = ?
         ORDER BY p.name
       `)
-      return stmt.all(categoryId) as Product[]
+      const results = stmt.all(categoryId) as any[]
+      return results.map(result => ({
+        ...result,
+        isActive: Boolean(result.is_active),
+        categoryId: result.category_id,
+        discountRate: result.discount_rate,
+        minStock: result.min_stock,
+        maxStock: result.max_stock,
+        imageUrl: result.image_url,
+        createdAt: result.created_at,
+        updatedAt: result.updated_at
+      }))
     } catch (error) {
       log.error('ProductRepository.findByCategory failed:', error)
       throw error
@@ -120,7 +192,18 @@ export class ProductRepository {
   findLowStock(): Product[] {
     try {
       const stmt = this.db.prepare('SELECT * FROM v_low_stock_products')
-      return stmt.all() as Product[]
+      const results = stmt.all() as any[]
+      return results.map(result => ({
+        ...result,
+        isActive: Boolean(result.is_active),
+        categoryId: result.category_id,
+        discountRate: result.discount_rate,
+        minStock: result.min_stock,
+        maxStock: result.max_stock,
+        imageUrl: result.image_url,
+        createdAt: result.created_at,
+        updatedAt: result.updated_at
+      }))
     } catch (error) {
       log.error('ProductRepository.findLowStock failed:', error)
       throw error

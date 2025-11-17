@@ -26,7 +26,38 @@ export class UserRepository {
         LEFT JOIN permissions p ON rp.permission_id = p.id
         GROUP BY u.id
       `)
-      return stmt.all() as User[]
+      const results = stmt.all() as any[]
+
+      return results.map((result) => {
+        const user: User = {
+          id: result.id,
+          username: result.username,
+          email: result.email,
+          firstName: result.first_name,
+          lastName: result.last_name,
+          roleId: result.role_id,
+          isActive: Boolean(result.is_active), // Convert SQLite integer to boolean
+          createdAt: result.created_at,
+          updatedAt: result.updated_at,
+          permissions: result.permissions
+        }
+
+        // Parse and filter permissions
+        if (typeof user.permissions === 'string') {
+          try {
+            const parsed = JSON.parse(user.permissions)
+            // Filter out null permissions (when user has no permissions)
+            user.permissions = Array.isArray(parsed)
+              ? parsed.filter((p: any) => p.id !== null)
+              : []
+          } catch (error) {
+            log.error('Failed to parse permissions:', error)
+            user.permissions = []
+          }
+        }
+
+        return user
+      })
     } catch (error) {
       log.error('UserRepository.findAll failed:', error)
       throw error
@@ -52,7 +83,41 @@ export class UserRepository {
         WHERE u.id = ?
         GROUP BY u.id
       `)
-      return (stmt.get(id) as User) || null
+      const result = stmt.get(id) as any
+
+      if (!result) {
+        return null
+      }
+
+      // Convert SQLite result to User type
+      const user: User = {
+        id: result.id,
+        username: result.username,
+        email: result.email,
+        firstName: result.first_name,
+        lastName: result.last_name,
+        roleId: result.role_id,
+        isActive: Boolean(result.is_active), // Convert SQLite integer to boolean
+        createdAt: result.created_at,
+        updatedAt: result.updated_at,
+        permissions: result.permissions
+      }
+
+      // Parse and filter permissions
+      if (typeof user.permissions === 'string') {
+        try {
+          const parsed = JSON.parse(user.permissions)
+          // Filter out null permissions (when user has no permissions)
+          user.permissions = Array.isArray(parsed)
+            ? parsed.filter((p: any) => p.id !== null)
+            : []
+        } catch (error) {
+          log.error('Failed to parse permissions:', error)
+          user.permissions = []
+        }
+      }
+
+      return user
     } catch (error) {
       log.error('UserRepository.findById failed:', error)
       throw error
@@ -78,7 +143,42 @@ export class UserRepository {
         WHERE u.username = ?
         GROUP BY u.id
       `)
-      return (stmt.get(username) as User) || null
+      const result = stmt.get(username) as any
+
+      if (!result) {
+        return null
+      }
+
+      // Convert SQLite result to User type
+      const user: User = {
+        id: result.id,
+        username: result.username,
+        email: result.email,
+        firstName: result.first_name,
+        lastName: result.last_name,
+        roleId: result.role_id,
+        isActive: Boolean(result.is_active), // Convert SQLite integer to boolean
+        createdAt: result.created_at,
+        updatedAt: result.updated_at,
+        permissions: result.permissions
+      }
+
+      // Parse and filter permissions
+      if (typeof user.permissions === 'string') {
+        try {
+          const parsed = JSON.parse(user.permissions)
+          // Filter out null permissions (when user has no permissions)
+          user.permissions = Array.isArray(parsed)
+            ? parsed.filter((p: any) => p.id !== null)
+            : []
+        } catch (error) {
+          log.error('Failed to parse permissions:', error)
+          user.permissions = []
+        }
+      }
+
+      log.info(`findByUsername result - User: ${user.username}, isActive: ${user.isActive} (type: ${typeof user.isActive})`)
+      return user
     } catch (error) {
       log.error('UserRepository.findByUsername failed:', error)
       throw error

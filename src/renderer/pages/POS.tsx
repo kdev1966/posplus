@@ -89,6 +89,9 @@ export const POS: React.FC = () => {
       // Print ticket
       await window.api.printTicket(ticket.id)
 
+      // Refresh product list to update stock quantities
+      await fetchProducts()
+
       // Clear cart and close modal
       clearCart()
       setShowPayment(false)

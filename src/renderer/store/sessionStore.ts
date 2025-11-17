@@ -42,9 +42,11 @@ export const useSessionStore = create<SessionState>((set) => ({
         isLoading: false,
       })
       return true
-    } catch (error) {
-      set({ error: 'Failed to open session', isLoading: false })
-      return false
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Failed to open session'
+      set({ error: errorMessage, isLoading: false })
+      console.error('Failed to open session:', error)
+      throw error // Re-throw so Settings.tsx can catch it
     }
   },
 
@@ -58,9 +60,11 @@ export const useSessionStore = create<SessionState>((set) => ({
         isLoading: false,
       })
       return true
-    } catch (error) {
-      set({ error: 'Failed to close session', isLoading: false })
-      return false
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Failed to close session'
+      set({ error: errorMessage, isLoading: false })
+      console.error('Failed to close session:', error)
+      throw error // Re-throw so Settings.tsx can catch it
     }
   },
 

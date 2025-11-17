@@ -81,3 +81,8 @@ const api: IPCApi = {
 
 // Expose API to window
 contextBridge.exposeInMainWorld('api', api)
+
+// Also expose electron marker so renderer knows we're in Electron
+contextBridge.exposeInMainWorld('electron', { isElectron: true })
+
+console.log('[PRELOAD] Preload script loaded successfully - Electron APIs exposed')

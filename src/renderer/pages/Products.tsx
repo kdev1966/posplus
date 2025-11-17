@@ -108,12 +108,12 @@ export const Products: React.FC = () => {
       name: product.name,
       description: product.description || '',
       sku: product.sku,
-      price: product.price.toString(),
-      stock: product.stock.toString(),
-      minStock: product.minStock.toString(),
-      unit: product.unit,
-      categoryId: product.categoryId.toString(),
-      discountRate: (product.discountRate * 100).toString(),
+      price: (product.price ?? 0).toString(),
+      stock: (product.stock ?? 0).toString(),
+      minStock: (product.minStock ?? 0).toString(),
+      unit: product.unit || '',
+      categoryId: (product.categoryId ?? 0).toString(),
+      discountRate: ((product.discountRate ?? 0) * 100).toString(),
     })
     setIsEditModalOpen(true)
   }

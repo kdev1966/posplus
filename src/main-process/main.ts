@@ -24,7 +24,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true,
+      sandbox: false, // Disable sandbox to allow preload script to load modules
       webSecurity: true,
     },
     titleBarStyle: 'default',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
@@ -10,11 +10,16 @@ import { formatCurrency } from '../utils/currency'
 
 export const Settings: React.FC = () => {
   const { user } = useAuthStore()
-  const { currentSession, isSessionOpen, openSession, closeSession } = useSessionStore()
+  const { currentSession, isSessionOpen, openSession, closeSession, fetchCurrentSession } = useSessionStore()
   const { t, currentLanguage, setLanguage } = useLanguageStore()
 
   const [openingCash, setOpeningCash] = useState('100.000')
   const [closingCash, setClosingCash] = useState('0.000')
+
+  // Fetch current session on component mount
+  useEffect(() => {
+    fetchCurrentSession()
+  }, [])
 
   const handleOpenSession = async () => {
     if (!user) return
@@ -25,9 +30,13 @@ export const Settings: React.FC = () => {
       return
     }
 
-    const success = await openSession(user.id, amount)
-    if (success) {
+    try {
+      await openSession(user.id, amount)
       alert('Session ouverte avec succès')
+    } catch (error: any) {
+      const errorMsg = error?.message || 'Échec de l\'ouverture de session'
+      alert(`Erreur: ${errorMsg}`)
+      console.error('Error opening session:', error)
     }
   }
 
@@ -40,9 +49,13 @@ export const Settings: React.FC = () => {
       return
     }
 
-    const success = await closeSession(currentSession.id, amount)
-    if (success) {
+    try {
+      await closeSession(currentSession.id, amount)
       alert('Session fermée avec succès')
+    } catch (error: any) {
+      const errorMsg = error?.message || 'Échec de la fermeture de session'
+      alert(`Erreur: ${errorMsg}`)
+      console.error('Error closing session:', error)
     }
   }
 

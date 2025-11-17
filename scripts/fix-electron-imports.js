@@ -46,6 +46,41 @@ function fixElectronImports(filePath) {
     )
   }
 
+  // Fix namespace import: const electron_1 = require("electron");
+  // Replace with destructuring of commonly used exports
+  // This handles files like main.js that use electron_1.app, electron_1.BrowserWindow, etc.
+  if (modified.includes('const electron_1 = require("electron")')) {
+    // Find all electron_1.XXXX usages in the file
+    const electronUsages = [...modified.matchAll(/electron_1\.(\w+)/g)]
+    const uniqueExports = [...new Set(electronUsages.map(m => m[1]))]
+
+    if (uniqueExports.length > 0) {
+      // Replace the import line with destructuring
+      modified = modified.replace(
+        /const electron_1 = require\("electron"\);?/,
+        `const { ${uniqueExports.join(', ')} } = require("electron");`
+      )
+
+      // Replace all electron_1.XXXX with just XXXX
+      uniqueExports.forEach(exportName => {
+        const regex = new RegExp(`electron_1\\.${exportName}`, 'g')
+        modified = modified.replace(regex, exportName)
+      })
+    }
+  }
+
+  // Fix shared types import in preload (must use correct relative path)
+  // preload.js is in dist/main/main-process/preload.js
+  // shared types is in dist/main/shared/types/index.js
+  // From main-process/ we need ../shared/types/index
+  if (filePath.includes('preload.js')) {
+    // Fix import to use explicit index.js
+    modified = modified.replace(
+      /require\(["']\.\.\/shared\/types["']\)/g,
+      'require("../shared/types/index")'
+    )
+  }
+
   if (content !== modified) {
     fs.writeFileSync(filePath, modified, 'utf8')
     console.log(`Fixed imports in: ${filePath}`)
