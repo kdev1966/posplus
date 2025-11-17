@@ -1,6 +1,7 @@
 import DatabaseService from '../db'
 import { Ticket, TicketLine, Payment, CreateTicketDTO } from '@shared/types'
 import log from 'electron-log'
+import StockRepository from './StockRepository'
 
 export class TicketRepository {
   private get db() {
@@ -207,17 +208,15 @@ export class TicketRepository {
             lineTotal
           )
 
-          // Update product stock with additional safety check
-          const updateStockStmt = this.db.prepare(
-            'UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?'
+          // Update product stock with audit trail using StockRepository
+          StockRepository.adjust(
+            line.productId,
+            line.quantity,
+            'sale',
+            data.userId,
+            ticketNumber,
+            `Vente ticket ${ticketNumber}`
           )
-          const result = updateStockStmt.run(line.quantity, line.productId, line.quantity)
-
-          if (result.changes === 0) {
-            throw new Error(
-              `Failed to update stock for product "${product.name}". Stock may have changed during transaction.`
-            )
-          }
         }
 
         // Insert payments
@@ -251,7 +250,7 @@ export class TicketRepository {
     return transaction()
   }
 
-  cancel(id: number, reason: string): boolean {
+  cancel(id: number, reason: string, userId?: number): boolean {
     const transaction = this.db.transaction(() => {
       try {
         const ticket = this.findById(id)
@@ -263,10 +262,16 @@ export class TicketRepository {
           throw new Error('Only completed tickets can be cancelled')
         }
 
-        // Restore stock
+        // Restore stock with audit trail
         for (const line of ticket.lines) {
-          const stmt = this.db.prepare('UPDATE products SET stock = stock + ? WHERE id = ?')
-          stmt.run(line.quantity, line.productId)
+          StockRepository.adjust(
+            line.productId,
+            line.quantity,
+            'return',
+            userId || ticket.userId,
+            ticket.ticketNumber,
+            `Annulation ticket ${ticket.ticketNumber}: ${reason}`
+          )
         }
 
         // Update ticket status
@@ -284,7 +289,7 @@ export class TicketRepository {
     return transaction()
   }
 
-  refund(id: number, reason: string): boolean {
+  refund(id: number, reason: string, userId?: number): boolean {
     const transaction = this.db.transaction(() => {
       try {
         const ticket = this.findById(id)
@@ -296,10 +301,16 @@ export class TicketRepository {
           throw new Error('Only completed tickets can be refunded')
         }
 
-        // Restore stock
+        // Restore stock with audit trail
         for (const line of ticket.lines) {
-          const stmt = this.db.prepare('UPDATE products SET stock = stock + ? WHERE id = ?')
-          stmt.run(line.quantity, line.productId)
+          StockRepository.adjust(
+            line.productId,
+            line.quantity,
+            'return',
+            userId || ticket.userId,
+            ticket.ticketNumber,
+            `Remboursement ticket ${ticket.ticketNumber}: ${reason}`
+          )
         }
 
         // Update ticket status
@@ -389,8 +400,8 @@ export default {
   findByTicketNumber: function(ticketNumber: string) { return this.instance.findByTicketNumber(ticketNumber) },
   findBySession: function(sessionId: number) { return this.instance.findBySession(sessionId) },
   create: function(data: CreateTicketDTO) { return this.instance.create(data) },
-  cancel: function(id: number, reason: string) { return this.instance.cancel(id, reason) },
-  refund: function(id: number, reason: string) { return this.instance.refund(id, reason) },
+  cancel: function(id: number, reason: string, userId?: number) { return this.instance.cancel(id, reason, userId) },
+  refund: function(id: number, reason: string, userId?: number) { return this.instance.refund(id, reason, userId) },
   getDailySales: function(date?: string) { return this.instance.getDailySales(date) },
   getTopProducts: function(limit?: number) { return this.instance.getTopProducts(limit) }
 }
