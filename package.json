@@ -12,7 +12,7 @@
     "dev:electron": "wait-on http://localhost:5173 && cross-env NODE_ENV=development electron ./dist/main/main-process/main.js",
     "build": "npm run build:vite && npm run build:electron",
     "build:vite": "tsc && vite build",
-    "build:electron": "tsc -p tsconfig.electron.json && tsc-alias -p tsconfig.electron.json --dir dist/main && node scripts/fix-electron-imports.js && mkdir -p dist/main/main-process/services/database/migrations && cp src/main-process/services/database/migrations/*.sql dist/main/main-process/services/database/migrations/",
+    "build:electron": "tsc -p tsconfig.electron.json && tsc-alias -p tsconfig.electron.json --dir dist/main && node scripts/fix-electron-imports.js && node scripts/copy-migrations.js",
     "package": "npm run build && electron-builder",
     "package:win": "npm run build && electron-builder --win",
     "package:mac": "npm run build && electron-builder --mac",
@@ -82,15 +82,9 @@
       "package.json"
     ],
     "win": {
-      "target": [
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "build/icon.ico"
+      "target": "portable",
+      "icon": "build/icon.ico",
+      "signingHashAlgorithms": []
     },
     "mac": {
       "target": "dmg",
@@ -104,30 +98,6 @@
       ],
       "icon": "build/icon.png",
       "category": "Office"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "runAfterFinish": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico"
-    },
-    "npmRebuild": false,
-    "extraResources": [
-      {
-        "from": "assets/",
-        "to": "assets/",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "publish": {
-      "provider": "generic",
-      "url": "https://updates.posplus.app"
     }
   }
 }
