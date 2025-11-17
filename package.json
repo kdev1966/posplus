@@ -21,7 +21,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "lint": "eslint . --ext .ts,.tsx",
-    "format": "prettier --write \"src/**/*.{ts,tsx,json}\""
+    "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
+    "postinstall": "electron-rebuild -f -w better-sqlite3 -w usb -w canvas || true"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -90,7 +91,10 @@
           ]
         }
       ],
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "signingHashAlgorithms": [],
+      "nodeGypRebuild": false,
+      "npmRebuild": true
     },
     "mac": {
       "target": "dmg",
@@ -104,30 +108,6 @@
       ],
       "icon": "build/icon.png",
       "category": "Office"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "runAfterFinish": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico"
-    },
-    "npmRebuild": false,
-    "extraResources": [
-      {
-        "from": "assets/",
-        "to": "assets/",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "publish": {
-      "provider": "generic",
-      "url": "https://updates.posplus.app"
     }
   }
 }
