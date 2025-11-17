@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { useSessionStore } from './store/sessionStore'
+import { useThemeStore } from './store/themeStore'
 
 // Pages
 import { Login } from './pages/Login'
@@ -35,6 +36,21 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 export const App: React.FC = () => {
   const { checkAuth } = useAuthStore()
   const { fetchCurrentSession } = useSessionStore()
+  const { theme, resolvedTheme } = useThemeStore()
+
+  // Initialize theme on app load
+  useEffect(() => {
+    // Apply theme class to html element
+    const root = document.documentElement
+    if (resolvedTheme === 'dark') {
+      root.classList.add('dark')
+      root.classList.remove('light')
+    } else {
+      root.classList.add('light')
+      root.classList.remove('dark')
+    }
+    root.setAttribute('data-theme', resolvedTheme)
+  }, [resolvedTheme])
 
   useEffect(() => {
     checkAuth().then(() => {

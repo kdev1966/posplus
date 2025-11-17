@@ -85,6 +85,12 @@
     "win": {
       "target": [
         {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
           "target": "portable",
           "arch": [
             "x64"
@@ -94,8 +100,34 @@
       "icon": "build/icon.ico",
       "signingHashAlgorithms": [],
       "nodeGypRebuild": false,
-      "npmRebuild": true
+      "npmRebuild": true,
+      "signDlls": false
     },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "POSPlus",
+      "uninstallDisplayName": "POSPlus - Point of Sale",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "license": "LICENSE",
+      "perMachine": false,
+      "allowElevation": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    },
+    "asarUnpack": [
+      "**/*.node",
+      "**/better-sqlite3/**",
+      "**/usb/**",
+      "**/canvas/**"
+    ],
     "mac": {
       "target": "dmg",
       "icon": "build/icon.icns",
