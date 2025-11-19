@@ -2,12 +2,28 @@ import { defineConfig, Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-// Custom plugin to remove type="module" from script tags for Electron compatibility
+// Custom plugin to remove type="module" and move scripts to end of body for Electron compatibility
 function removeModuleType(): Plugin {
   return {
     name: 'remove-module-type',
     transformIndexHtml(html) {
-      return html.replace(/<script type="module"/g, '<script')
+      // Remove type="module" from script tags
+      html = html.replace(/<script type="module"/g, '<script')
+
+      // Move script tags from head to end of body (before </body>)
+      // This ensures DOM is ready when scripts execute
+      const scriptRegex = /<script[^>]*src="[^"]*"[^>]*><\/script>/g
+      const scripts = html.match(scriptRegex) || []
+
+      // Remove scripts from head
+      html = html.replace(scriptRegex, '')
+
+      // Add scripts before </body>
+      if (scripts.length > 0) {
+        html = html.replace('</body>', `${scripts.join('\n    ')}\n  </body>`)
+      }
+
+      return html
     },
   }
 }
