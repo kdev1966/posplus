@@ -3,6 +3,7 @@ import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
+import { SessionCloseModal } from '../components/session/SessionCloseModal'
 import { useSessionStore } from '../store/sessionStore'
 import { useAuthStore } from '../store/authStore'
 import { useLanguageStore } from '../store/languageStore'
@@ -13,8 +14,14 @@ export const Settings: React.FC = () => {
   const { currentSession, isSessionOpen, openSession, closeSession, fetchCurrentSession } = useSessionStore()
   const { t, currentLanguage, setLanguage } = useLanguageStore()
 
-  const [openingCash, setOpeningCash] = useState('100.000')
-  const [closingCash, setClosingCash] = useState('0.000')
+  const [openingCash, setOpeningCash] = useState('0.000')
+  const [isCloseModalOpen, setIsCloseModalOpen] = useState(false)
+  const [isRepairing, setIsRepairing] = useState(false)
+  const [isBackingUp, setIsBackingUp] = useState(false)
+  const [isRestoring, setIsRestoring] = useState(false)
+  const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
 
   // Fetch current session on component mount
   useEffect(() => {
@@ -32,30 +39,31 @@ export const Settings: React.FC = () => {
 
     try {
       await openSession(user.id, amount)
-      alert('Session ouverte avec succès')
+      alert(t('sessionOpenedSuccess'))
     } catch (error: any) {
-      const errorMsg = error?.message || 'Échec de l\'ouverture de session'
-      alert(`Erreur: ${errorMsg}`)
+      const errorMsg = error?.message || t('openSessionFailed')
+      alert(`${t('error')}: ${errorMsg}`)
       console.error('Error opening session:', error)
     }
   }
 
-  const handleCloseSession = async () => {
+  const handleOpenCloseModal = () => {
+    if (!currentSession) return
+    setIsCloseModalOpen(true)
+  }
+
+  const handleCloseSessionConfirm = async (closingCash: number) => {
     if (!currentSession) return
 
-    const amount = parseFloat(closingCash)
-    if (isNaN(amount) || amount < 0) {
-      alert(t('error'))
-      return
-    }
-
     try {
-      await closeSession(currentSession.id, amount)
-      alert('Session fermée avec succès')
+      await closeSession(currentSession.id, closingCash)
+      setIsCloseModalOpen(false)
+      alert(t('sessionClosedSuccess'))
     } catch (error: any) {
-      const errorMsg = error?.message || 'Échec de la fermeture de session'
-      alert(`Erreur: ${errorMsg}`)
+      const errorMsg = error?.message || t('closeSessionFailed')
+      alert(`${t('error')}: ${errorMsg}`)
       console.error('Error closing session:', error)
+      throw error
     }
   }
 
@@ -72,6 +80,152 @@ export const Settings: React.FC = () => {
     }
   }
 
+  const handleRepairPayments = async () => {
+    if (!confirm(t('repairConfirm'))) {
+      return
+    }
+
+    setIsRepairing(true)
+    try {
+      const result = await window.api.repairTicketPayments()
+
+      if (result.errors.length > 0) {
+        alert(`${t('repairError')}: ${result.errors.join(', ')}`)
+      } else if (result.fixed > 0) {
+        alert(`✅ ${t('repairSuccess')}\n\n${result.fixed} ${t('ticketsRepaired')}.\n\n${t('paymentsRecalculated')}`)
+
+        // Refresh current session to update stats
+        await fetchCurrentSession()
+      } else {
+        alert(`✅ ${t('noIssuesFound')}\n\n${t('allPaymentsMatch')}`)
+      }
+    } catch (error: any) {
+      alert(`${t('error')}: ${error?.message || t('repairError')}`)
+      console.error('Error repairing payments:', error)
+    }
+    setIsRepairing(false)
+  }
+
+  const handleCreateBackup = async () => {
+    if (!confirm(t('backupConfirm'))) {
+      return
+    }
+
+    setIsBackingUp(true)
+    try {
+      const result = await window.api.createBackup()
+
+      if (result.success && result.filePath) {
+        alert(`✅ ${t('backupSuccess')}\n\n${t('backupSavedTo')}: ${result.filePath}`)
+      } else if (result.error === 'Backup canceled') {
+        alert(t('backupCancelled'))
+      } else {
+        alert(`${t('backupError')}: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error: any) {
+      alert(`${t('backupError')}: ${error?.message || 'Unknown error'}`)
+      console.error('Error creating backup:', error)
+    }
+    setIsBackingUp(false)
+  }
+
+  const handleRestoreBackup = async () => {
+    if (!confirm(t('restoreConfirm'))) {
+      return
+    }
+
+    setIsRestoring(true)
+    try {
+      const result = await window.api.restoreBackup()
+
+      if (result.success && result.needsRestart) {
+        alert(`✅ ${t('restoreSuccess')}\n\n${t('restartRequired')}`)
+        // App will restart automatically after 2 seconds
+      } else if (result.error === 'Restore canceled') {
+        alert(t('restoreCancelled'))
+      } else {
+        alert(`${t('restoreError')}: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error: any) {
+      alert(`${t('restoreError')}: ${error?.message || 'Unknown error'}`)
+      console.error('Error restoring backup:', error)
+    }
+    setIsRestoring(false)
+  }
+
+  const handleGenerateTemplate = async () => {
+    setIsGeneratingTemplate(true)
+    try {
+      const result = await window.api.generateExcelTemplate()
+
+      if (result.success && result.filePath) {
+        alert(`✅ ${t('templateSuccess')}\n\n${t('templateSavedTo')}: ${result.filePath}`)
+      } else if (result.error === 'Template download canceled') {
+        alert(t('templateCancelled'))
+      } else {
+        alert(`${t('templateError')}: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error: any) {
+      alert(`${t('templateError')}: ${error?.message || 'Unknown error'}`)
+      console.error('Error generating template:', error)
+    }
+    setIsGeneratingTemplate(false)
+  }
+
+  const handleExportData = async () => {
+    setIsExporting(true)
+    try {
+      const result = await window.api.exportToExcel()
+
+      if (result.success && result.filePath) {
+        alert(`✅ ${t('exportSuccess')}\n\n${t('templateSavedTo')}: ${result.filePath}`)
+      } else if (result.error === 'Export canceled') {
+        alert(t('exportCancelled'))
+      } else {
+        alert(`${t('exportError')}: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error: any) {
+      alert(`${t('exportError')}: ${error?.message || 'Unknown error'}`)
+      console.error('Error exporting data:', error)
+    }
+    setIsExporting(false)
+  }
+
+  const handleImportData = async () => {
+    if (!confirm('⚠️ L\'import va créer ou mettre à jour les catégories et produits. Voulez-vous continuer ?')) {
+      return
+    }
+
+    setIsImporting(true)
+    try {
+      const result = await window.api.importFromExcel()
+
+      if (result.success) {
+        let message = `✅ ${t('importSuccess')}\n\n`
+        message += `${t('categoriesImported')}: ${result.categoriesImported || 0}\n`
+        message += `${t('productsImported')}: ${result.productsImported || 0}\n`
+
+        if (result.errors && result.errors.length > 0) {
+          message += `\n⚠️ ${t('importErrors')}: ${result.errors.length}\n\n`
+          message += result.errors.slice(0, 10).join('\n')
+          if (result.errors.length > 10) {
+            message += `\n... et ${result.errors.length - 10} autres erreurs`
+          }
+        }
+
+        alert(message)
+      } else if (result.error === 'Import canceled') {
+        alert(t('importCancelled'))
+      } else {
+        alert(`${t('importError')}: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error: any) {
+      alert(`${t('importError')}: ${error?.message || 'Unknown error'}`)
+      console.error('Error importing data:', error)
+    }
+    setIsImporting(false)
+  }
+
   return (
     <Layout>
       <div className="space-y-6 fade-in">
@@ -82,7 +236,7 @@ export const Settings: React.FC = () => {
 
         {/* Language Settings */}
         <Card>
-          <h2 className="text-xl font-bold text-white mb-4">Langue / اللغة</h2>
+          <h2 className="text-xl font-bold text-white mb-4">{t('languageSettings')}</h2>
           <div className="flex gap-4">
             <button
               onClick={() => setLanguage('fr')}
@@ -93,7 +247,7 @@ export const Settings: React.FC = () => {
               }`}
             >
               <div className="text-2xl mb-2">🇫🇷</div>
-              <div className="font-semibold text-white">Français</div>
+              <div className="font-semibold text-white">{t('french')}</div>
             </button>
             <button
               onClick={() => setLanguage('ar')}
@@ -104,7 +258,7 @@ export const Settings: React.FC = () => {
               }`}
             >
               <div className="text-2xl mb-2">🇹🇳</div>
-              <div className="font-semibold text-white">العربية</div>
+              <div className="font-semibold text-white">{t('arabic')}</div>
             </button>
           </div>
         </Card>
@@ -150,27 +304,28 @@ export const Settings: React.FC = () => {
                   <div>
                     <p className="text-xs text-gray-500 mb-1">{t('status')}</p>
                     <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-500/20 text-green-300">
-                      OPEN
+                      {currentSession?.status === 'open' ? t('open') : currentSession?.status === 'closed' ? t('closed') : currentSession?.status || '-'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <Input
-                label={`${t('closingCash')} (DT)`}
-                type="number"
-                step="0.001"
-                value={closingCash}
-                onChange={(e) => setClosingCash(e.target.value)}
-                placeholder="0.000"
-              />
-
-              <Button variant="danger" onClick={handleCloseSession}>
+              <Button variant="danger" onClick={handleOpenCloseModal}>
                 {t('closeSession')}
               </Button>
             </div>
           )}
         </Card>
+
+        {/* Session Close Modal */}
+        {currentSession && (
+          <SessionCloseModal
+            isOpen={isCloseModalOpen}
+            onClose={() => setIsCloseModalOpen(false)}
+            session={currentSession}
+            onConfirm={handleCloseSessionConfirm}
+          />
+        )}
 
         {/* System Information */}
         <Card>
@@ -190,11 +345,11 @@ export const Settings: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">{t('currency')}</span>
-              <span className="text-white font-semibold">Dinar Tunisien (TND)</span>
+              <span className="text-white font-semibold">{t('tunisianDinar')}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">Pays</span>
-              <span className="text-white font-semibold">Tunisie 🇹🇳</span>
+              <span className="text-gray-400">{t('country')}</span>
+              <span className="text-white font-semibold">{t('tunisia')}</span>
             </div>
           </div>
         </Card>
@@ -206,9 +361,9 @@ export const Settings: React.FC = () => {
             <Button variant="primary" onClick={async () => {
               try {
                 await window.api.openDrawer()
-                alert('Tiroir-caisse ouvert')
+                alert(t('cashDrawerOpened'))
               } catch (error) {
-                alert('Échec de l\'ouverture du tiroir-caisse')
+                alert(t('cashDrawerOpenFailed'))
               }
             }}>
               {t('openCashDrawer')}
@@ -217,15 +372,112 @@ export const Settings: React.FC = () => {
             <Button variant="ghost" onClick={async () => {
               try {
                 const status = await window.api.getPrinterStatus()
-                alert(`Imprimante ${status.connected ? 'connectée' : 'non connectée'}`)
+                alert(status.connected ? t('printerConnected') : t('printerNotConnected'))
               } catch (error) {
-                alert('Échec de vérification de l\'imprimante')
+                alert(t('printerCheckFailed'))
               }
             }}>
               {t('checkPrinterStatus')}
             </Button>
           </div>
         </Card>
+
+        {/* Maintenance Settings - ADMINISTRATOR ONLY */}
+        {user?.roleId === 1 && (
+          <Card>
+            <h2 className="text-xl font-bold text-white mb-4">🔧 {t('maintenance')}</h2>
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4">
+              <p className="text-red-400 text-sm flex items-center gap-2">
+                <span>⚠️</span>
+                <span><strong>{t('maintenanceAdminOnly')}</strong> - {t('maintenanceWarning')}</span>
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-white font-semibold mb-2">{t('repairTicketPayments')}</h3>
+                <p className="text-gray-400 text-sm mb-3">
+                  {t('repairTicketPaymentsDescription')}
+                </p>
+                <Button
+                  variant="primary"
+                  onClick={handleRepairPayments}
+                  disabled={isRepairing}
+                >
+                  {isRepairing ? `⏳ ${t('repairingPayments')}` : `🔧 ${t('repairPaymentsButton')}`}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Backup & Restore - ADMINISTRATOR ONLY */}
+        {user?.roleId === 1 && (
+          <Card>
+            <h2 className="text-xl font-bold text-white mb-4">💾 {t('backupRestore')}</h2>
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
+              <p className="text-blue-400 text-sm flex items-center gap-2">
+                <span>ℹ️</span>
+                <span><strong>{t('backupRestoreAdminOnly')}</strong> - {t('backupRestoreDescription')}</span>
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button
+                  variant="primary"
+                  onClick={handleCreateBackup}
+                  disabled={isBackingUp || isRestoring}
+                >
+                  {isBackingUp ? `⏳ ${t('creatingBackup')}` : `💾 ${t('createBackup')}`}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleRestoreBackup}
+                  disabled={isBackingUp || isRestoring}
+                >
+                  {isRestoring ? `⏳ ${t('restoringBackup')}` : `📥 ${t('restoreBackup')}`}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* CSV Import/Export - ADMINISTRATOR ONLY */}
+        {user?.roleId === 1 && (
+          <Card>
+            <h2 className="text-xl font-bold text-white mb-4">📊 {t('csvImportExport')}</h2>
+            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mb-4">
+              <p className="text-green-400 text-sm flex items-center gap-2">
+                <span>ℹ️</span>
+                <span><strong>{t('backupRestoreAdminOnly')}</strong> - {t('csvImportExportDescription')}</span>
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Button
+                  variant="primary"
+                  onClick={handleGenerateTemplate}
+                  disabled={isGeneratingTemplate || isExporting || isImporting}
+                >
+                  {isGeneratingTemplate ? `⏳ ${t('generatingTemplate')}` : `📥 ${t('generateTemplate')}`}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleExportData}
+                  disabled={isGeneratingTemplate || isExporting || isImporting}
+                >
+                  {isExporting ? `⏳ ${t('exportingData')}` : `📤 ${t('exportData')}`}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleImportData}
+                  disabled={isGeneratingTemplate || isExporting || isImporting}
+                >
+                  {isImporting ? `⏳ ${t('importingData')}` : `📦 ${t('importData')}`}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
     </Layout>
   )

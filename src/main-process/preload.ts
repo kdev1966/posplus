@@ -41,6 +41,7 @@ const api: IPCApi = {
   getAllTickets: (filters) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_GET_ALL, filters),
   getTicketsBySession: (sessionId) =>
     ipcRenderer.invoke(IPC_CHANNELS.TICKET_GET_BY_SESSION, sessionId),
+  updateTicket: (id, data) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_UPDATE, id, data),
   cancelTicket: (id, reason) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_CANCEL, id, reason),
   refundTicket: (id, reason) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_REFUND, id, reason),
 
@@ -51,6 +52,7 @@ const api: IPCApi = {
     ipcRenderer.invoke(IPC_CHANNELS.SESSION_CLOSE, sessionId, closingCash),
   getCurrentSession: () => ipcRenderer.invoke(IPC_CHANNELS.SESSION_GET_CURRENT),
   getSessionById: (id) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_GET_BY_ID, id),
+  getSessionStats: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_GET_STATS, sessionId),
 
   // Reports
   generateZReport: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.REPORT_Z, sessionId),
@@ -77,6 +79,21 @@ const api: IPCApi = {
   // System
   getSystemInfo: () => ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_GET_INFO),
   getSystemLogs: () => ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_GET_LOGS),
+
+  // Maintenance
+  repairTicketPayments: (ticketId?: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.MAINTENANCE_REPAIR_PAYMENTS, ticketId),
+  checkTicketPayments: () => ipcRenderer.invoke(IPC_CHANNELS.MAINTENANCE_CHECK_PAYMENTS),
+
+  // Backup & Restore
+  createBackup: () => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_CREATE),
+  restoreBackup: () => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_RESTORE),
+  getBackupInfo: () => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_GET_INFO),
+
+  // CSV Import/Export
+  generateExcelTemplate: () => ipcRenderer.invoke(IPC_CHANNELS.EXCEL_GENERATE_TEMPLATE),
+  exportToExcel: () => ipcRenderer.invoke(IPC_CHANNELS.EXCEL_EXPORT_DATA),
+  importFromExcel: () => ipcRenderer.invoke(IPC_CHANNELS.EXCEL_IMPORT_DATA),
 }
 
 // Expose API to window

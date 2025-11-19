@@ -41,6 +41,7 @@ export const POS: React.FC = () => {
       if (product && product.stock > 0) {
         addItem(product, 1)
         setBarcode('')
+        setSearchQuery('')
       } else {
         alert(t('productNotFound'))
       }
@@ -96,7 +97,7 @@ export const POS: React.FC = () => {
       clearCart()
       setShowPayment(false)
 
-      alert(`${t('saleCompleted')} ${t('ticket')} #${ticket.ticketNumber}`)
+      alert(`${t('saleCompleted')} - ${t('ticket')} #${ticket.ticketNumber}`)
     } catch (error) {
       console.error('Failed to complete sale:', error)
       alert(t('failedToCompleteSale'))

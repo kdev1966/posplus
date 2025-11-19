@@ -135,6 +135,13 @@ class DatabaseService {
     return this.db
   }
 
+  public getDatabasePath(): string {
+    if (!this.dbPath) {
+      throw new Error('Database not initialized. Call initialize() first.')
+    }
+    return this.dbPath
+  }
+
   public close(): void {
     if (this.db) {
       log.info('Closing database...')
@@ -159,23 +166,15 @@ class DatabaseService {
 
     try {
       log.info(`Creating backup at: ${backupPath}`)
-      const backup = this.db.backup(backupPath) as any
 
-      return new Promise<void>((resolve, reject) => {
-        backup.on('progress', ({ totalPages, remainingPages }: any) => {
-          log.debug(`Backup progress: ${totalPages - remainingPages}/${totalPages}`)
-        })
+      // Force a checkpoint to ensure all WAL data is written to the main database
+      this.db.pragma('wal_checkpoint(FULL)')
 
-        backup.on('finish', () => {
-          log.info('Backup completed successfully')
-          resolve()
-        })
+      // Use VACUUM INTO to create a clean, optimized backup
+      // This creates a complete copy without WAL dependencies
+      this.db.exec(`VACUUM INTO '${backupPath.replace(/'/g, "''")}'`)
 
-        backup.on('error', (error: any) => {
-          log.error('Backup failed:', error)
-          reject(error)
-        })
-      })
+      log.info('Backup completed successfully')
     } catch (error) {
       log.error('Backup failed:', error)
       throw error

@@ -7,10 +7,25 @@ export class SessionRepository {
     return DatabaseService.getInstance().getDatabase()
   }
 
+  private mapSessionFromDb(dbSession: any): CashSession {
+    return {
+      id: dbSession.id,
+      userId: dbSession.user_id,
+      openingCash: dbSession.opening_cash,
+      closingCash: dbSession.closing_cash,
+      expectedCash: dbSession.expected_cash,
+      difference: dbSession.difference,
+      startedAt: dbSession.started_at,
+      closedAt: dbSession.closed_at,
+      status: dbSession.status,
+    }
+  }
+
   findAll(): CashSession[] {
     try {
       const stmt = this.db.prepare('SELECT * FROM cash_sessions ORDER BY started_at DESC')
-      return stmt.all() as CashSession[]
+      const results = stmt.all() as any[]
+      return results.map(result => this.mapSessionFromDb(result))
     } catch (error) {
       log.error('SessionRepository.findAll failed:', error)
       throw error
@@ -20,7 +35,9 @@ export class SessionRepository {
   findById(id: number): CashSession | null {
     try {
       const stmt = this.db.prepare('SELECT * FROM cash_sessions WHERE id = ?')
-      return (stmt.get(id) as CashSession) || null
+      const result = stmt.get(id) as any
+      if (!result) return null
+      return this.mapSessionFromDb(result)
     } catch (error) {
       log.error('SessionRepository.findById failed:', error)
       throw error
@@ -30,7 +47,9 @@ export class SessionRepository {
   findCurrent(): CashSession | null {
     try {
       const stmt = this.db.prepare('SELECT * FROM cash_sessions WHERE status = ? ORDER BY started_at DESC LIMIT 1')
-      return (stmt.get('open') as CashSession) || null
+      const result = stmt.get('open') as any
+      if (!result) return null
+      return this.mapSessionFromDb(result)
     } catch (error) {
       log.error('SessionRepository.findCurrent failed:', error)
       throw error
@@ -40,7 +59,9 @@ export class SessionRepository {
   findCurrentByUser(userId: number): CashSession | null {
     try {
       const stmt = this.db.prepare('SELECT * FROM cash_sessions WHERE user_id = ? AND status = ? ORDER BY started_at DESC LIMIT 1')
-      return (stmt.get(userId, 'open') as CashSession) || null
+      const result = stmt.get(userId, 'open') as any
+      if (!result) return null
+      return this.mapSessionFromDb(result)
     } catch (error) {
       log.error('SessionRepository.findCurrentByUser failed:', error)
       throw error
@@ -50,7 +71,8 @@ export class SessionRepository {
   findByUser(userId: number): CashSession[] {
     try {
       const stmt = this.db.prepare('SELECT * FROM cash_sessions WHERE user_id = ? ORDER BY started_at DESC')
-      return stmt.all(userId) as CashSession[]
+      const results = stmt.all(userId) as any[]
+      return results.map(result => this.mapSessionFromDb(result))
     } catch (error) {
       log.error('SessionRepository.findByUser failed:', error)
       throw error

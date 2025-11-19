@@ -46,6 +46,18 @@ class TicketService {
     }
   }
 
+  async updateTicket(id: number, data: any): Promise<Ticket> {
+    try {
+      log.info(`Updating ticket ${id}`)
+      const ticket = TicketRepository.update(id, data)
+      log.info(`Ticket ${id} updated`)
+      return ticket
+    } catch (error) {
+      log.error('Failed to update ticket:', error)
+      throw error
+    }
+  }
+
   async cancelTicket(id: number, reason: string): Promise<boolean> {
     try {
       log.info(`Cancelling ticket ${id}`)

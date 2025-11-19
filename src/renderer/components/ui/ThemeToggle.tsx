@@ -12,18 +12,16 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '', showLa
   const { t } = useLanguageStore()
 
   const themeOptions: { value: Theme; label: string; icon: string }[] = [
-    { value: 'light', label: t('lightTheme') || 'Light', icon: '☀️' },
-    { value: 'dark', label: t('darkTheme') || 'Dark', icon: '🌙' },
-    { value: 'system', label: t('systemTheme') || 'System', icon: '💻' },
+    { value: 'light', label: t('lightTheme'), icon: '☀️' },
+    { value: 'dark', label: t('darkTheme'), icon: '🌙' },
+    { value: 'system', label: t('systemTheme'), icon: '💻' },
   ]
-
-  const currentTheme = themeOptions.find((opt) => opt.value === theme)
 
   return (
     <div className={`relative ${className}`}>
       {showLabel && (
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          {t('theme') || 'Theme'}
+          {t('theme')}
         </label>
       )}
 

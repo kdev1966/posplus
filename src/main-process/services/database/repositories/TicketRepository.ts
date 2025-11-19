@@ -59,11 +59,11 @@ export class TicketRepository {
       const params: any[] = []
 
       if (filters?.startDate) {
-        sql += ' AND created_at >= ?'
+        sql += ' AND DATE(created_at) >= DATE(?)'
         params.push(filters.startDate)
       }
       if (filters?.endDate) {
-        sql += ' AND created_at <= ?'
+        sql += ' AND DATE(created_at) <= DATE(?)'
         params.push(filters.endDate)
       }
       if (filters?.status) {
@@ -328,6 +328,107 @@ export class TicketRepository {
     return transaction()
   }
 
+  update(id: number, data: { lines: TicketLine[]; subtotal: number; discountAmount: number; totalAmount: number }): Ticket {
+    const transaction = this.db.transaction(() => {
+      try {
+        const ticket = this.findById(id)
+        if (!ticket) {
+          throw new Error('Ticket not found')
+        }
+
+        if (ticket.status !== 'completed') {
+          throw new Error('Only completed tickets can be updated')
+        }
+
+        // Calculate the difference between old and new total amounts
+        const oldTotalAmount = ticket.totalAmount
+        const newTotalAmount = data.totalAmount
+        const amountDifference = oldTotalAmount - newTotalAmount
+
+        // Update ticket totals
+        const ticketStmt = this.db.prepare(`
+          UPDATE tickets
+          SET subtotal = ?, discount_amount = ?, total_amount = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `)
+        ticketStmt.run(data.subtotal, data.discountAmount, data.totalAmount, id)
+
+        // Update ticket lines
+        const lineStmt = this.db.prepare(`
+          UPDATE ticket_lines
+          SET quantity = ?, discount_rate = ?, discount_amount = ?, total_amount = ?
+          WHERE id = ?
+        `)
+
+        for (const line of data.lines) {
+          // Calculate stock difference
+          const originalLine = ticket.lines.find(l => l.id === line.id)
+          if (originalLine && originalLine.quantity !== line.quantity) {
+            const quantityDiff = line.quantity - originalLine.quantity
+
+            if (quantityDiff > 0) {
+              // More items sold - reduce stock
+              StockRepository.adjust(
+                line.productId,
+                quantityDiff,
+                'sale',
+                ticket.userId,
+                ticket.ticketNumber,
+                `Modification ticket ${ticket.ticketNumber} - augmentation quantité`
+              )
+            } else {
+              // Fewer items sold - restore stock
+              StockRepository.adjust(
+                line.productId,
+                Math.abs(quantityDiff),
+                'return',
+                ticket.userId,
+                ticket.ticketNumber,
+                `Modification ticket ${ticket.ticketNumber} - réduction quantité`
+              )
+            }
+          }
+
+          lineStmt.run(line.quantity, line.discountRate, line.discountAmount, line.totalAmount, line.id)
+        }
+
+        // Update payment amounts proportionally if total amount changed
+        if (amountDifference > 0.001 && ticket.payments.length > 0) {
+          // Calculate the reduction ratio
+          const reductionRatio = newTotalAmount / oldTotalAmount
+
+          // Update each payment proportionally
+          const paymentStmt = this.db.prepare(`
+            UPDATE payments
+            SET amount = ?
+            WHERE id = ?
+          `)
+
+          for (const payment of ticket.payments) {
+            const newPaymentAmount = payment.amount * reductionRatio
+            paymentStmt.run(newPaymentAmount, payment.id)
+            log.info(`Payment ${payment.id} updated: ${payment.amount} DT → ${newPaymentAmount.toFixed(3)} DT (${payment.method})`)
+          }
+
+          log.info(`Ticket ${ticket.ticketNumber}: Total amount reduced from ${oldTotalAmount} DT to ${newTotalAmount} DT`)
+        }
+
+        const updatedTicket = this.findById(id)
+        if (!updatedTicket) {
+          throw new Error('Failed to update ticket')
+        }
+
+        log.info(`Ticket updated: ${updatedTicket.ticketNumber} (ID: ${updatedTicket.id})`)
+        return updatedTicket
+      } catch (error) {
+        log.error('TicketRepository.update transaction failed:', error)
+        throw error
+      }
+    })
+
+    return transaction()
+  }
+
   private loadTicketDetails(dbTicket: any): Ticket {
     // Map the ticket from DB format to TypeScript format
     const ticket = this.mapTicketFromDb(dbTicket)
@@ -400,6 +501,7 @@ export default {
   findByTicketNumber: function(ticketNumber: string) { return this.instance.findByTicketNumber(ticketNumber) },
   findBySession: function(sessionId: number) { return this.instance.findBySession(sessionId) },
   create: function(data: CreateTicketDTO) { return this.instance.create(data) },
+  update: function(id: number, data: { lines: TicketLine[]; subtotal: number; discountAmount: number; totalAmount: number }) { return this.instance.update(id, data) },
   cancel: function(id: number, reason: string, userId?: number) { return this.instance.cancel(id, reason, userId) },
   refund: function(id: number, reason: string, userId?: number) { return this.instance.refund(id, reason, userId) },
   getDailySales: function(date?: string) { return this.instance.getDailySales(date) },

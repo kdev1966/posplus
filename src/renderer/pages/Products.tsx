@@ -5,13 +5,14 @@ import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
 import { Input } from '../components/ui/Input'
-import { Product } from '@shared/types'
+import { Product, Category } from '@shared/types'
 import { useLanguageStore } from '../store/languageStore'
 import { formatCurrency } from '../utils/currency'
 
 export const Products: React.FC = () => {
   const { t } = useLanguageStore()
   const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -22,6 +23,7 @@ export const Products: React.FC = () => {
     name: '',
     description: '',
     sku: '',
+    barcode: '',
     price: '',
     stock: '',
     minStock: '',
@@ -33,6 +35,7 @@ export const Products: React.FC = () => {
     name: '',
     description: '',
     sku: '',
+    barcode: '',
     price: '',
     stock: '',
     minStock: '',
@@ -43,6 +46,7 @@ export const Products: React.FC = () => {
 
   useEffect(() => {
     loadProducts()
+    loadCategories()
   }, [])
 
   const loadProducts = async () => {
@@ -56,12 +60,21 @@ export const Products: React.FC = () => {
     setLoading(false)
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const loadCategories = async () => {
+    try {
+      const data = await window.api.getAllCategories()
+      setCategories(data)
+    } catch (error) {
+      console.error('Failed to load categories:', error)
+    }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setEditFormData(prev => ({ ...prev, [name]: value }))
   }
@@ -73,6 +86,7 @@ export const Products: React.FC = () => {
         name: formData.name,
         description: formData.description,
         sku: formData.sku,
+        barcode: formData.barcode || undefined,
         price: parseFloat(formData.price),
         cost: 0,
         discountRate: formData.discountRate ? parseFloat(formData.discountRate) / 100 : 0,
@@ -88,6 +102,7 @@ export const Products: React.FC = () => {
         name: '',
         description: '',
         sku: '',
+        barcode: '',
         price: '',
         stock: '',
         minStock: '',
@@ -108,6 +123,7 @@ export const Products: React.FC = () => {
       name: product.name,
       description: product.description || '',
       sku: product.sku,
+      barcode: product.barcode || '',
       price: (product.price ?? 0).toString(),
       stock: (product.stock ?? 0).toString(),
       minStock: (product.minStock ?? 0).toString(),
@@ -128,6 +144,7 @@ export const Products: React.FC = () => {
         name: editFormData.name,
         description: editFormData.description,
         sku: editFormData.sku,
+        barcode: editFormData.barcode || undefined,
         price: parseFloat(editFormData.price),
         cost: editingProduct.cost,
         discountRate: editFormData.discountRate ? parseFloat(editFormData.discountRate) / 100 : 0,
@@ -194,7 +211,7 @@ export const Products: React.FC = () => {
                     <th>{t('category')}</th>
                     <th>{t('price')}</th>
                     <th>{t('remise')}</th>
-                    <th>Stock</th>
+                    <th>{t('stock')}</th>
                     <th>{t('status')}</th>
                     <th>{t('actions')}</th>
                   </tr>
@@ -293,6 +310,13 @@ export const Products: React.FC = () => {
               />
             </div>
             <Input
+              label={t('barcode')}
+              name="barcode"
+              value={formData.barcode}
+              onChange={handleInputChange}
+              placeholder={t('barcodeExample')}
+            />
+            <Input
               label={t('description')}
               name="description"
               value={formData.description}
@@ -308,14 +332,25 @@ export const Products: React.FC = () => {
                 onChange={handleInputChange}
                 required
               />
-              <Input
-                label={t('categoryId')}
-                name="categoryId"
-                type="number"
-                value={formData.categoryId}
-                onChange={handleInputChange}
-                required
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  {t('category')}
+                </label>
+                <select
+                  name="categoryId"
+                  value={formData.categoryId}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                >
+                  <option value="">{t('selectCategory')}</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Input
@@ -401,6 +436,13 @@ export const Products: React.FC = () => {
               />
             </div>
             <Input
+              label={t('barcode')}
+              name="barcode"
+              value={editFormData.barcode}
+              onChange={handleEditInputChange}
+              placeholder={t('barcodeExample')}
+            />
+            <Input
               label={t('description')}
               name="description"
               value={editFormData.description}
@@ -416,14 +458,25 @@ export const Products: React.FC = () => {
                 onChange={handleEditInputChange}
                 required
               />
-              <Input
-                label={t('categoryId')}
-                name="categoryId"
-                type="number"
-                value={editFormData.categoryId}
-                onChange={handleEditInputChange}
-                required
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  {t('category')}
+                </label>
+                <select
+                  name="categoryId"
+                  value={editFormData.categoryId}
+                  onChange={handleEditInputChange}
+                  required
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                >
+                  <option value="">{t('selectCategory')}</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Input

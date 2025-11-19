@@ -47,7 +47,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ products, onProductCli
             )}
 
             <div className="mt-2 text-xs text-gray-500">
-              Stock: {product.stock} {product.unit}
+              {t('stock')}: {product.stock} {product.unit}
             </div>
           </div>
         </Card>

@@ -1,10 +1,12 @@
 import UserRepository from '../database/repositories/UserRepository'
 import { User, LoginCredentials, AuthResponse } from '@shared/types'
 import { ROLE_IDS } from '@shared/constants'
+import DatabaseService from '../database/db'
 import log from 'electron-log'
 
 class AuthService {
   private currentUser: User | null = null
+  private forceLogoutChecked: boolean = false
 
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
@@ -37,7 +39,7 @@ class AuthService {
       UserRepository.updateLastLogin(user.id)
 
       this.currentUser = user
-      log.info(`User logged in successfully: ${user.username} (ID: ${user.id})`)
+      log.info(`User logged in successfully: ${user.username} (ID: ${user.id}, Role: ${user.roleId})`)
 
       return {
         success: true,
@@ -58,15 +60,47 @@ class AuthService {
   }
 
   async checkAuth(): Promise<AuthResponse> {
+    // Check if we need to force logout (only once per app session)
+    if (!this.forceLogoutChecked) {
+      this.forceLogoutChecked = true
+      try {
+        const db = DatabaseService.getInstance().getDatabase()
+        const stmt = db.prepare("SELECT value FROM settings WHERE key = 'force_logout'")
+        const result = stmt.get() as { value: string } | undefined
+
+        if (result && result.value === 'true') {
+          log.warn('Force logout flag detected - clearing all sessions')
+          this.currentUser = null
+
+          // Clear the flag so it only happens once
+          const updateStmt = db.prepare("UPDATE settings SET value = 'false' WHERE key = 'force_logout'")
+          updateStmt.run()
+
+          return {
+            success: false,
+            error: 'Session expired - please login again',
+          }
+        }
+      } catch (error) {
+        log.error('Failed to check force_logout flag:', error)
+      }
+    }
+
     if (this.currentUser) {
-      // Refresh user data
+      // Always refresh user data from database to get latest role and permissions
       const user = UserRepository.findById(this.currentUser.id)
       if (user && user.isActive) {
+        // Update current user with fresh data from DB
         this.currentUser = user
+        log.debug(`Auth check: User ${user.username} (ID: ${user.id}, Role: ${user.roleId})`)
         return {
           success: true,
           user,
         }
+      } else {
+        // User no longer exists or is inactive - logout
+        log.warn(`Auth check failed: User ${this.currentUser.username} not found or inactive`)
+        this.currentUser = null
       }
     }
 

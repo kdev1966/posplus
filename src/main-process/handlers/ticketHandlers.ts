@@ -44,6 +44,16 @@ ipcMain.handle(IPC_CHANNELS.TICKET_GET_BY_SESSION, async (_event, sessionId) => 
   }
 })
 
+ipcMain.handle(IPC_CHANNELS.TICKET_UPDATE, async (_event, id, data) => {
+  try {
+    requirePermission('ticket.update')
+    return await TicketService.updateTicket(id, data)
+  } catch (error) {
+    log.error('TICKET_UPDATE handler error:', error)
+    throw error
+  }
+})
+
 ipcMain.handle(IPC_CHANNELS.TICKET_CANCEL, async (_event, id, reason) => {
   try {
     requirePermission('ticket.update')

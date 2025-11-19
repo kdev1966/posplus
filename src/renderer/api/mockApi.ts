@@ -534,6 +534,15 @@ export const createMockApi = (): IPCApi => ({
     }
     return false
   },
+  updateTicket: async (id: number, data: any) => {
+    const ticket = mockTickets.find(t => t.id === id)
+    if (ticket) {
+      Object.assign(ticket, data)
+      ticket.updatedAt = new Date().toISOString()
+      return ticket
+    }
+    throw new Error('Ticket not found')
+  },
 
   // Cash session handlers (mock)
   openSession: async (userId: number, openingCash: number) => {
@@ -580,6 +589,19 @@ export const createMockApi = (): IPCApi => ({
     }
     return null
   },
+  getSessionStats: async (sessionId: number) => {
+    const sessionTickets = mockTickets.filter(t => t.sessionId === sessionId && t.status === 'completed')
+    const stats = {
+      ticket_count: sessionTickets.length,
+      total_sales: sessionTickets.reduce((sum, t) => sum + t.totalAmount, 0),
+      total_cash: sessionTickets.reduce((sum, t) => sum + (t.payments?.find(p => p.method === 'cash')?.amount || 0), 0),
+      total_card: sessionTickets.reduce((sum, t) => sum + (t.payments?.find(p => p.method === 'card')?.amount || 0), 0),
+      total_transfer: sessionTickets.reduce((sum, t) => sum + (t.payments?.find(p => p.method === 'transfer')?.amount || 0), 0),
+      total_check: sessionTickets.reduce((sum, t) => sum + (t.payments?.find(p => p.method === 'check')?.amount || 0), 0),
+      total_other: sessionTickets.reduce((sum, t) => sum + (t.payments?.find(p => p.method === 'other')?.amount || 0), 0),
+    }
+    return stats
+  },
 
   // Report handlers (mock)
   generateZReport: async () => ({} as any),
@@ -603,4 +625,42 @@ export const createMockApi = (): IPCApi => ({
   // System handlers (mock)
   getSystemInfo: async () => ({}),
   getSystemLogs: async () => [],
+
+  // Maintenance handlers (mock)
+  repairTicketPayments: async (ticketId?: number) => {
+    console.log('[Mock API] Repairing ticket payments:', ticketId || 'all tickets')
+    return { fixed: 0, errors: [] }
+  },
+  checkTicketPayments: async () => {
+    console.log('[Mock API] Checking ticket payments')
+    return []
+  },
+
+  // Backup & Restore handlers (mock)
+  createBackup: async () => {
+    console.log('[Mock API] Creating backup (mock)')
+    return { success: true, filePath: '/mock/backup.zip' }
+  },
+  restoreBackup: async () => {
+    console.log('[Mock API] Restoring backup (mock)')
+    return { success: true }
+  },
+  getBackupInfo: async () => {
+    console.log('[Mock API] Getting backup info (mock)')
+    return { lastBackup: new Date().toISOString(), size: 1024 }
+  },
+
+  // CSV Import/Export handlers (mock)
+  generateExcelTemplate: async () => {
+    console.log('[Mock API] Generating CSV template (mock)')
+    return { success: true, filePath: '/mock/templates' }
+  },
+  exportToExcel: async () => {
+    console.log('[Mock API] Exporting to CSV (mock)')
+    return { success: true, filePath: '/mock/export.csv' }
+  },
+  importFromExcel: async () => {
+    console.log('[Mock API] Importing from CSV (mock)')
+    return { success: true, categoriesImported: 4, productsImported: 4 }
+  },
 })

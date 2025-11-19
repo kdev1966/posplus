@@ -433,7 +433,7 @@ INSERT OR IGNORE INTO permissions (resource, action, description) VALUES
   ('session', 'manage', 'Manage cash sessions'),
   ('report', 'manage', 'Access reports'),
   ('settings', 'manage', 'Manage system settings'),
-  ('system', 'admin', 'System administration');
+  ('system', 'manage', 'System administration');
 
 -- Assign all permissions to Administrator role
 INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
@@ -452,19 +452,8 @@ WHERE (resource IN ('product', 'category') AND action = 'read')
    OR (resource = 'ticket' AND action IN ('create', 'read'))
    OR (resource = 'session' AND action = 'manage');
 
--- Insert default admin user (password: admin123 - CHANGE IN PRODUCTION!)
--- Password hash is bcrypt of 'admin123'
-INSERT OR IGNORE INTO users (id, username, email, password_hash, first_name, last_name, role_id, is_active)
-VALUES (
-  1,
-  'admin',
-  'admin@posplus.local',
-  '$2b$10$KBL5osZy1v5efMvTVeJ/SOzrJHIDIOOBsRKYcgKMm83dlEKE425eS',
-  'System',
-  'Administrator',
-  1,
-  1
-);
+-- NOTE: Default admin user is now created in migration 003_insert_default_admin.sql
+-- This was moved to avoid duplication and ensure consistent setup
 
 -- Insert default settings
 INSERT OR IGNORE INTO settings (key, value, type, description) VALUES

@@ -79,10 +79,6 @@ export const Login: React.FC = () => {
               {t('signIn')}
             </Button>
           </form>
-
-          <div className="mt-6 pt-6 border-t border-white/10 text-center text-sm text-gray-400">
-            {t('defaultCredentials')}
-          </div>
         </div>
       </div>
     </div>

@@ -149,7 +149,7 @@ export const Dashboard: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-400 mb-1">{t('status')}</p>
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-500/20 text-green-300 border border-green-500/30">
-                  {currentSession.status.toUpperCase()}
+                  {currentSession.status === 'open' ? t('open') : currentSession.status === 'closed' ? t('closed') : currentSession.status}
                 </span>
               </div>
             </div>

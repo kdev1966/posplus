@@ -21,7 +21,7 @@ export const Users: React.FC = () => {
     password: '',
     firstName: '',
     lastName: '',
-    roleId: '1',
+    roleId: '3', // Default to Cashier for security
   })
 
   useEffect(() => {
@@ -41,22 +41,23 @@ export const Users: React.FC = () => {
 
   const getRoleBadgeVariant = (roleId: number) => {
     switch (roleId) {
-      case 3: // Admin
+      case 1: // Administrator
         return 'danger' as const
       case 2: // Manager
         return 'warning' as const
-      default: // Cashier
+      case 3: // Cashier
+      default:
         return 'info' as const
     }
   }
 
   const getRoleName = (roleId: number) => {
     switch (roleId) {
-      case 3:
+      case 1:
         return t('administrator')
       case 2:
         return t('manager')
-      case 1:
+      case 3:
       default:
         return t('cashier')
     }
@@ -76,7 +77,7 @@ export const Users: React.FC = () => {
       password: '',
       firstName: '',
       lastName: '',
-      roleId: '1',
+      roleId: '3', // Default to Cashier for security
     })
     setIsModalOpen(true)
   }
@@ -102,11 +103,11 @@ export const Users: React.FC = () => {
 
     try {
       await window.api.deleteUser(userId)
-      alert(`Utilisateur ${username} supprimé avec succès`)
+      alert(t('userDeletedSuccess'))
       loadUsers()
     } catch (error: any) {
       console.error('Failed to delete user:', error)
-      alert(`Erreur: ${error?.message || 'Échec de la suppression'}`)
+      alert(`${t('error')}: ${error?.message || t('deleteFailed')}`)
     }
   }
 
@@ -131,7 +132,7 @@ export const Users: React.FC = () => {
         }
 
         await window.api.updateUser(updateData)
-        alert('Utilisateur modifié avec succès')
+        alert(t('userUpdatedSuccess'))
       } else {
         // Create new user
         const newUser = {
@@ -144,7 +145,7 @@ export const Users: React.FC = () => {
         }
 
         await window.api.createUser(newUser)
-        alert('Utilisateur créé avec succès')
+        alert(t('userCreatedSuccess'))
       }
 
       setIsModalOpen(false)
@@ -159,7 +160,7 @@ export const Users: React.FC = () => {
       loadUsers()
     } catch (error: any) {
       console.error('Failed to save user:', error)
-      alert(`Erreur: ${error?.message || 'Échec de l\'enregistrement'}`)
+      alert(`${t('error')}: ${error?.message || t('saveFailed')}`)
     }
   }
 
@@ -250,8 +251,8 @@ export const Users: React.FC = () => {
           <Card>
             <div className="text-center py-12">
               <div className="text-6xl mb-4">👥</div>
-              <h3 className="text-xl font-semibold text-white mb-2">Aucun utilisateur trouvé</h3>
-              <p className="text-gray-400">Ajoutez des utilisateurs pour gérer l'accès au système</p>
+              <h3 className="text-xl font-semibold text-white mb-2">{t('noUsersFound')}</h3>
+              <p className="text-gray-400">{t('addUsersToManageAccess')}</p>
             </div>
           </Card>
         )}
@@ -304,7 +305,7 @@ export const Users: React.FC = () => {
               required
             />
             <Input
-              label={`${t('password')}${isEditMode ? ' (laisser vide pour ne pas changer)' : ''}`}
+              label={isEditMode ? t('passwordOptional') : t('password')}
               name="password"
               type="password"
               value={formData.password}
@@ -320,9 +321,9 @@ export const Users: React.FC = () => {
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
                 required
               >
-                <option value="1">{t('cashier')}</option>
+                <option value="1">{t('administrator')}</option>
                 <option value="2">{t('manager')}</option>
-                <option value="3">{t('administrator')}</option>
+                <option value="3">{t('cashier')}</option>
               </select>
             </div>
           </form>

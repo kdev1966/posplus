@@ -56,7 +56,8 @@ export const PERMISSIONS = {
   SETTINGS_MANAGE: 'settings:manage',
 
   // System
-  SYSTEM_ADMIN: 'system:admin',
+  SYSTEM_MANAGE: 'system:manage',
+  SYSTEM_ADMIN: 'system:manage', // Alias for backward compatibility
 } as const
 
 export const ROLE_IDS = {

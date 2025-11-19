@@ -34,7 +34,8 @@ function createWindow() {
   // Load the app
   if (isDevelopment) {
     mainWindow.loadURL('http://localhost:5173')
-    mainWindow.webContents.openDevTools()
+    // DevTools can be opened manually with Cmd+Option+I (macOS) or Ctrl+Shift+I (Windows/Linux)
+    // mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../renderer/index.html'))
   }
@@ -77,6 +78,9 @@ app.whenReady().then(() => {
   require('./handlers/printerHandlers')
   require('./handlers/stockHandlers')
   require('./handlers/syncHandlers')
+  require('./handlers/maintenanceHandlers')
+  require('./handlers/backupHandlers')
+  require('./handlers/excelHandlers')
   log.info('IPC handlers registered')
 
   createWindow()

@@ -36,7 +36,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 export const App: React.FC = () => {
   const { checkAuth } = useAuthStore()
   const { fetchCurrentSession } = useSessionStore()
-  const { theme, resolvedTheme } = useThemeStore()
+  const { resolvedTheme } = useThemeStore()
 
   // Initialize theme on app load
   useEffect(() => {

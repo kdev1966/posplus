@@ -243,6 +243,7 @@ export const IPC_CHANNELS = {
   TICKET_GET_BY_ID: 'ticket:get-by-id',
   TICKET_GET_ALL: 'ticket:get-all',
   TICKET_GET_BY_SESSION: 'ticket:get-by-session',
+  TICKET_UPDATE: 'ticket:update',
   TICKET_CANCEL: 'ticket:cancel',
   TICKET_REFUND: 'ticket:refund',
 
@@ -251,6 +252,7 @@ export const IPC_CHANNELS = {
   SESSION_CLOSE: 'session:close',
   SESSION_GET_CURRENT: 'session:get-current',
   SESSION_GET_BY_ID: 'session:get-by-id',
+  SESSION_GET_STATS: 'session:get-stats',
 
   // Reports
   REPORT_Z: 'report:z',
@@ -274,6 +276,20 @@ export const IPC_CHANNELS = {
   // System
   SYSTEM_GET_INFO: 'system:get-info',
   SYSTEM_GET_LOGS: 'system:get-logs',
+
+  // Maintenance
+  MAINTENANCE_REPAIR_PAYMENTS: 'maintenance:repair-payments',
+  MAINTENANCE_CHECK_PAYMENTS: 'maintenance:check-payments',
+
+  // Backup & Restore
+  BACKUP_CREATE: 'backup:create',
+  BACKUP_RESTORE: 'backup:restore',
+  BACKUP_GET_INFO: 'backup:get-info',
+
+  // Excel Import/Export
+  EXCEL_GENERATE_TEMPLATE: 'excel:generate-template',
+  EXCEL_EXPORT_DATA: 'excel:export-data',
+  EXCEL_IMPORT_DATA: 'excel:import-data',
 } as const
 
 // ---------- IPC API Interface ----------
@@ -312,6 +328,7 @@ export interface IPCApi {
   getTicketById: (id: number) => Promise<Ticket | null>
   getAllTickets: (filters?: { startDate?: string; endDate?: string }) => Promise<Ticket[]>
   getTicketsBySession: (sessionId: number) => Promise<Ticket[]>
+  updateTicket: (id: number, data: any) => Promise<Ticket>
   cancelTicket: (id: number, reason: string) => Promise<boolean>
   refundTicket: (id: number, reason: string) => Promise<boolean>
 
@@ -320,6 +337,7 @@ export interface IPCApi {
   closeSession: (sessionId: number, closingCash: number) => Promise<CashSession>
   getCurrentSession: () => Promise<CashSession | null>
   getSessionById: (id: number) => Promise<CashSession | null>
+  getSessionStats: (sessionId: number) => Promise<any>
 
   // Reports
   generateZReport: (sessionId: number) => Promise<ZReport>
@@ -343,6 +361,32 @@ export interface IPCApi {
   // System
   getSystemInfo: () => Promise<any>
   getSystemLogs: () => Promise<string[]>
+
+  // Maintenance
+  repairTicketPayments: (ticketId?: number) => Promise<{ fixed: number; errors: string[] }>
+  checkTicketPayments: () => Promise<Array<{
+    ticketId: number
+    ticketNumber: string
+    totalAmount: number
+    totalPaid: number
+    difference: number
+  }>>
+
+  // Backup & Restore
+  createBackup: () => Promise<{ success: boolean; filePath?: string; error?: string }>
+  restoreBackup: () => Promise<{ success: boolean; error?: string; needsRestart?: boolean }>
+  getBackupInfo: () => Promise<{ path: string; size: number; exists: boolean }>
+
+  // Excel Import/Export
+  generateExcelTemplate: () => Promise<{ success: boolean; filePath?: string; error?: string }>
+  exportToExcel: () => Promise<{ success: boolean; filePath?: string; error?: string }>
+  importFromExcel: () => Promise<{
+    success: boolean
+    categoriesImported?: number
+    productsImported?: number
+    errors?: string[]
+    error?: string
+  }>
 }
 
 // Expose API to window object

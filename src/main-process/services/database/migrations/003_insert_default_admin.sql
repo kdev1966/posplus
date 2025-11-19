@@ -8,7 +8,10 @@
 -- Insert default admin user
 -- Username: admin
 -- Password: admin123 (hashed with bcrypt)
--- Role ID 1 = Admin (from roles table)
+-- Role ID: 1 = Administrator (IMPORTANT: Must be 1, not 3!)
+--   Role 1 = Administrator (Full system access with all 23 permissions)
+--   Role 2 = Manager (Limited management permissions)
+--   Role 3 = Cashier (Basic POS operations only)
 INSERT OR IGNORE INTO users (
   username,
   email,
@@ -21,8 +24,8 @@ INSERT OR IGNORE INTO users (
   'admin',
   'admin@posplus.local',
   '$2b$10$Mk4CLUw6qwFOnIE9TJQVPeZIlkxS7cBzcfSVS6C.em6x5TNR8hxju',
-  'Admin',
-  'User',
-  1,
+  'System',
+  'Administrator',
+  1,  -- CRITICAL: Must be 1 (Administrator), not 3 (Cashier)
   1
 );
