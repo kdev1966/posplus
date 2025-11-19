@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --neon-cyan: 56 189 248;
+  --neon-fuchsia: 236 72 153;
+}
+
+.bg-customer {
+  background: linear-gradient(180deg, rgba(6,6,23,0.6), rgba(4,6,23,0.85));
+}
+
+.neon-glow {
+  box-shadow: 0 0 20px rgba(var(--neon-cyan), 0.25), inset 0 1px 0 rgba(255,255,255,0.03);
+  background: linear-gradient(135deg, rgba(var(--neon-cyan),0.12), rgba(var(--neon-fuchsia),0.06));
+}
+
+.drop-shadow-neon {
+  filter: drop-shadow(0 0 12px rgba(var(--neon-cyan), 0.65));
+}
+
+.product-card:hover {
+  transform: translateY(-4px);
+  transition: transform .18s ease-out, box-shadow .18s ease-out;
+}

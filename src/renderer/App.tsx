@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { useSessionStore } from './store/sessionStore'
 import { useThemeStore } from './store/themeStore'
@@ -58,8 +58,10 @@ export const App: React.FC = () => {
     })
   }, [])
 
+  // Use HashRouter to avoid file:// absolute path navigation issues
+  // HashRouter works in both dev (http) and production (file://)
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
@@ -129,6 +131,6 @@ export const App: React.FC = () => {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }

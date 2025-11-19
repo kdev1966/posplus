@@ -1,9 +1,14 @@
 import TicketRepository from '../database/repositories/TicketRepository'
 import log from 'electron-log'
-import { ThermalPrinter, PrinterTypes } from 'node-thermal-printer'
+// Do not import `node-thermal-printer` at module load time — require it lazily
+// inside `initialize()` when a printer configuration exists. This avoids
+// import-time side effects in environments without printer drivers.
+import fs from 'fs'
+import path from 'path'
+import { app } from 'electron'
 
 class PrinterService {
-  private printer: ThermalPrinter | null = null
+  private printer: any | null = null
   private isConnected = false
 
   constructor() {
@@ -12,17 +17,53 @@ class PrinterService {
 
   private async initialize() {
     try {
-      // Initialize printer (USB or Network)
-      this.printer = new ThermalPrinter({
-        type: PrinterTypes.EPSON,
-        interface: 'printer:auto', // Auto-detect printer
-        characterSet: 'SLOVENIA' as any,
-        removeSpecialCharacters: false,
-        lineCharacter: '=',
-        options: {
-          timeout: 5000,
-        },
-      })
+      // Check for explicit printer configuration before initializing.
+      // We accept either an env var `PRINTER_INTERFACE` or a `printer.json`
+      // file stored in the userData directory.
+      const userData = app?.getPath ? app.getPath('userData') : process.cwd()
+      const configPath = path.join(userData, 'printer.json')
+
+      let config: any = null
+      if (process.env.PRINTER_INTERFACE) {
+        config = { interface: process.env.PRINTER_INTERFACE, type: process.env.PRINTER_TYPE }
+      } else if (fs.existsSync(configPath)) {
+        try {
+          const raw = fs.readFileSync(configPath, 'utf8')
+          config = JSON.parse(raw)
+        } catch (err) {
+          log.warn('Failed to read printer.json, will skip printer initialization', err)
+        }
+      }
+
+      if (!config || !config.interface) {
+        log.info('No printer configuration found (env or printer.json). Skipping printer initialization.')
+        this.printer = null
+        this.isConnected = false
+        return
+      }
+
+      // Initialize printer (USB or Network) with provided config.
+      // Require the library lazily to avoid errors when no drivers are present.
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const ntp = require('node-thermal-printer')
+        const ThermalPrinter = ntp.ThermalPrinter
+        const PrinterTypes = ntp.PrinterTypes
+
+        this.printer = new ThermalPrinter({
+          type: (config.type as any) || PrinterTypes.EPSON,
+          interface: config.interface,
+          characterSet: (config.characterSet as any) || 'SLOVENIA',
+          removeSpecialCharacters: config.removeSpecialCharacters ?? false,
+          lineCharacter: config.lineCharacter || '=',
+          options: Object.assign({ timeout: 5000 }, config.options || {}),
+        })
+      } catch (err) {
+        log.error('Failed to require/initialize node-thermal-printer, skipping printer init', err)
+        this.printer = null
+        this.isConnected = false
+        return
+      }
 
       this.isConnected = await this.testConnection()
       if (this.isConnected) {

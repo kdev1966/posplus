@@ -2,18 +2,15 @@ import { defineConfig, Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-// Custom plugin to remove type="module" from script tags for Electron compatibility
-function removeModuleType(): Plugin {
-  return {
-    name: 'remove-module-type',
-    transformIndexHtml(html) {
-      return html.replace(/<script type="module"/g, '<script')
-    },
-  }
-}
+// NOTE: We previously removed `type="module"` and forced IIFE output
+// for Electron compatibility, but that caused ESM imports to be loaded
+// as classic scripts ("Cannot use import statement outside a module").
+// Modern Electron (Chromium) supports ESM modules when the script tag
+// uses `type="module"`. We therefore emit standard ESM build and
+// keep `type="module"` in the generated `index.html`.
 
 export default defineConfig({
-  plugins: [react(), removeModuleType()],
+  plugins: [react()],
   base: './',
   build: {
     outDir: 'dist/renderer',
@@ -28,8 +25,6 @@ export default defineConfig({
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
-        // Use IIFE format instead of ES modules for better file:// protocol support
-        format: 'iife',
       },
     },
   },
