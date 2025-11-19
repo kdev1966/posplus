@@ -9,7 +9,14 @@ log.transports.console.level = 'debug'
 
 let mainWindow: BrowserWindow | null = null
 
+// Check if running in development mode
+// Development = NODE_ENV is explicitly 'development'
+// Production = NODE_ENV is not 'development' (undefined, 'production', etc.) OR app is packaged
 const isDevelopment = process.env.NODE_ENV === 'development'
+
+log.info(`Running in ${isDevelopment ? 'DEVELOPMENT' : 'PRODUCTION'} mode`)
+log.info(`app.isPackaged: ${app.isPackaged}`)
+log.info(`NODE_ENV: ${process.env.NODE_ENV}`)
 
 function createWindow() {
   log.info('Creating main window...')
