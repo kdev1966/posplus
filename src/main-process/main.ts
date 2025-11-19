@@ -37,16 +37,21 @@ function createWindow() {
     // DevTools can be opened manually with Cmd+Option+I (macOS) or Ctrl+Shift+I (Windows/Linux)
     // mainWindow.webContents.openDevTools()
   } else {
-    const indexPath = path.join(__dirname, '../../renderer/index.html')
+    // In production, files are in app.asar or resources/app
+    // Structure: app/dist/main/main-process/main.js and app/dist/renderer/index.html
+    const appPath = app.getAppPath()
+    const indexPath = path.join(appPath, 'dist', 'renderer', 'index.html')
+
+    log.info(`App path: ${appPath}`)
     log.info(`Loading production app from: ${indexPath}`)
-    log.info(`__dirname: ${__dirname}`)
-    log.info(`Resolved path: ${path.resolve(indexPath)}`)
+    log.info(`File exists: ${require('fs').existsSync(indexPath)}`)
 
     mainWindow.loadFile(indexPath).catch(err => {
       log.error('Failed to load index.html:', err)
+      log.error('Tried path:', indexPath)
     })
 
-    // Open DevTools in production to debug (remove after fixing)
+    // Open DevTools in production to debug
     mainWindow.webContents.openDevTools()
   }
 
