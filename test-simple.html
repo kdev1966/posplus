@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Simple</title>
+    <style>
+        body {
+            background: #0f172a;
+            color: white;
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            text-align: center;
+        }
+        .success {
+            color: #22c55e;
+            font-size: 24px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>✅ Test de Base Réussi</h1>
+    <div class="success">Si vous voyez ceci, Electron fonctionne !</div>
+    <p>Informations :</p>
+    <ul style="list-style: none; padding: 0;">
+        <li id="info"></li>
+    </ul>
+    <script>
+        console.log('[TEST] Script loaded successfully');
+        document.getElementById('info').innerHTML = `
+            <li>User Agent: ${navigator.userAgent}</li>
+            <li>Platform: ${navigator.platform}</li>
+            <li>Location: ${window.location.href}</li>
+        `;
+        console.log('[TEST] DOM updated successfully');
+    </script>
+</body>
+</html>
