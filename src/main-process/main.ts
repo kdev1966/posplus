@@ -43,12 +43,17 @@ function createWindow() {
     const indexPath = path.join(appPath, 'dist', 'renderer', 'index.html')
 
     log.info(`App path: ${appPath}`)
-    log.info(`Loading production app from: ${indexPath}`)
+    log.info(`Index path: ${indexPath}`)
     log.info(`File exists: ${require('fs').existsSync(indexPath)}`)
 
-    mainWindow.loadFile(indexPath).catch(err => {
+    // Use file:// protocol URL instead of loadFile for better asset resolution
+    // Convert to file URL with proper format for Windows/Mac/Linux
+    const fileUrl = `file://${indexPath.replace(/\\/g, '/')}`
+    log.info(`Loading URL: ${fileUrl}`)
+
+    mainWindow.loadURL(fileUrl).catch(err => {
       log.error('Failed to load index.html:', err)
-      log.error('Tried path:', indexPath)
+      log.error('Tried URL:', fileUrl)
     })
 
     // Open DevTools in production to debug

@@ -8,6 +8,16 @@ export default defineConfig({
   build: {
     outDir: 'dist/renderer',
     emptyOutDir: true,
+    // Ensure assets use relative paths for Electron
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        // Use relative paths for all assets
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+      },
+    },
   },
   resolve: {
     alias: {
