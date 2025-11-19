@@ -10,12 +10,16 @@ export default defineConfig({
     emptyOutDir: true,
     // Ensure assets use relative paths for Electron
     assetsDir: 'assets',
+    // Disable module preload for better Electron compatibility
+    modulePreload: false,
     rollupOptions: {
       output: {
         // Use relative paths for all assets
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
+        // Use IIFE format instead of ES modules for better file:// protocol support
+        format: 'iife',
       },
     },
   },
