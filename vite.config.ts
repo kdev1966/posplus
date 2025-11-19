@@ -1,9 +1,19 @@
-import { defineConfig } from 'vite'
+import { defineConfig, Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+// Custom plugin to remove type="module" from script tags for Electron compatibility
+function removeModuleType(): Plugin {
+  return {
+    name: 'remove-module-type',
+    transformIndexHtml(html) {
+      return html.replace(/<script type="module"/g, '<script')
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), removeModuleType()],
   base: './',
   build: {
     outDir: 'dist/renderer',
