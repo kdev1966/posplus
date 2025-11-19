@@ -22,7 +22,7 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
-    "postinstall": "electron-rebuild -f -w better-sqlite3 -w usb -w canvas || true"
+    "postinstall": "npx electron-rebuild -f -w better-sqlite3 && npx electron-rebuild -f -w usb && npx electron-rebuild -f -w canvas || true"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -101,8 +101,6 @@
       ],
       "icon": "build/icon.ico",
       "signingHashAlgorithms": [],
-      "nodeGypRebuild": false,
-      "npmRebuild": true,
       "signDlls": false
     },
     "nsis": {

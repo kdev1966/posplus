@@ -647,7 +647,7 @@ export const createMockApi = (): IPCApi => ({
   },
   getBackupInfo: async () => {
     console.log('[Mock API] Getting backup info (mock)')
-    return { lastBackup: new Date().toISOString(), size: 1024 }
+    return { path: '/mock/backup/path/posplus-backup.db', size: 1024000, exists: true }
   },
 
   // CSV Import/Export handlers (mock)
