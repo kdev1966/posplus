@@ -25,7 +25,8 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false, // Disable sandbox to allow preload script to load modules
-      webSecurity: true,
+      // In production, disable webSecurity to allow loading local files
+      webSecurity: isDevelopment,
     },
     titleBarStyle: 'default',
     show: false,
@@ -46,14 +47,10 @@ function createWindow() {
     log.info(`Index path: ${indexPath}`)
     log.info(`File exists: ${require('fs').existsSync(indexPath)}`)
 
-    // Use file:// protocol URL instead of loadFile for better asset resolution
-    // Convert to file URL with proper format for Windows/Mac/Linux
-    const fileUrl = `file://${indexPath.replace(/\\/g, '/')}`
-    log.info(`Loading URL: ${fileUrl}`)
-
-    mainWindow.loadURL(fileUrl).catch(err => {
+    // Use loadFile which properly handles relative paths in HTML
+    mainWindow.loadFile(indexPath).catch(err => {
       log.error('Failed to load index.html:', err)
-      log.error('Tried URL:', fileUrl)
+      log.error('Tried path:', indexPath)
     })
 
     // Open DevTools in production to debug
