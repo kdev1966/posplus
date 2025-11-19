@@ -81,6 +81,34 @@ function createWindow() {
     log.info(`Renderer console [${level}]: ${message}`)
   })
 
+  // Debug: Check if window is actually showing content
+  mainWindow.webContents.on('dom-ready', () => {
+    log.info('DOM is ready')
+
+    // Log the URL that was loaded
+    const url = mainWindow?.webContents.getURL()
+    log.info(`Current URL: ${url}`)
+
+    // Execute JavaScript to check if React root exists
+    mainWindow?.webContents.executeJavaScript(`
+      (function() {
+        const root = document.getElementById('root');
+        const hasContent = root && root.innerHTML.length > 0;
+        return {
+          rootExists: !!root,
+          hasContent: hasContent,
+          innerHTML: root ? root.innerHTML.substring(0, 200) : 'NO ROOT',
+          scripts: Array.from(document.scripts).map(s => s.src),
+          stylesheets: Array.from(document.styleSheets).map(s => s.href)
+        };
+      })();
+    `).then(result => {
+      log.info('DOM inspection result:', JSON.stringify(result, null, 2))
+    }).catch(err => {
+      log.error('Failed to inspect DOM:', err)
+    })
+  })
+
   log.info('Main window created')
 }
 
