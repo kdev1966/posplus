@@ -55,10 +55,18 @@ class PeerDiscoveryService {
       // Nouveau pair découvert
       const peerId = service.txt?.id
       if (peerId && peerId !== this.getPosId()) {
+        // Prefer IPv4 addresses over IPv6 for better WebSocket compatibility
+        let address = service.host
+        if (service.addresses && service.addresses.length > 0) {
+          // Find first IPv4 address
+          const ipv4 = service.addresses.find((addr: string) => !addr.includes(':'))
+          address = ipv4 || service.addresses[0]
+        }
+
         const peer: Peer = {
           id: peerId,
           name: service.name,
-          address: service.addresses?.[0] || service.host,
+          address: address,
           port: service.port,
           online: true,
           lastSeen: new Date(),

@@ -67,7 +67,15 @@ class P2PSyncService {
     for (const peer of peers) {
       if (!this.connections.has(peer.id)) {
         try {
-          const ws = new WebSocket(`ws://${peer.address}:${peer.port}`)
+          // Format address for WebSocket (handle IPv6 with brackets)
+          let address = peer.address
+          if (address.includes(':') && !address.startsWith('[')) {
+            // IPv6 address - add brackets
+            address = `[${address}]`
+          }
+
+          log.info(`P2P: Attempting to connect to ${peer.name} at ${address}:${peer.port}`)
+          const ws = new WebSocket(`ws://${address}:${peer.port}`)
 
           ws.on('open', () => {
             log.info(`P2P: Connected to peer ${peer.name}`)
