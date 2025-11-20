@@ -26,6 +26,12 @@ export const POS: React.FC = () => {
     fetchCategories()
   }, [])
 
+  // Debug: Log categories when they change
+  useEffect(() => {
+    console.log('[POS] Categories:', categories)
+    console.log('[POS] Active categories:', categories.filter(c => c.isActive))
+  }, [categories])
+
   const handleProductClick = (product: Product) => {
     if (product.stock > 0) {
       addItem(product, 1)

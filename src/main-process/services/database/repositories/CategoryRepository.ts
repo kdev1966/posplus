@@ -5,10 +5,25 @@ import log from 'electron-log'
 export class CategoryRepository {
   private db = DatabaseService.getInstance().getDatabase()
 
+  // Helper to map database rows to Category objects
+  private mapRow(row: any): Category {
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      parentId: row.parent_id,
+      displayOrder: row.display_order,
+      isActive: Boolean(row.is_active),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }
+  }
+
   findAll(): Category[] {
     try {
       const stmt = this.db.prepare('SELECT * FROM categories ORDER BY display_order, name')
-      return stmt.all() as Category[]
+      const rows = stmt.all()
+      return rows.map(row => this.mapRow(row))
     } catch (error) {
       log.error('CategoryRepository.findAll failed:', error)
       throw error
@@ -18,7 +33,8 @@ export class CategoryRepository {
   findById(id: number): Category | null {
     try {
       const stmt = this.db.prepare('SELECT * FROM categories WHERE id = ?')
-      return (stmt.get(id) as Category) || null
+      const row = stmt.get(id)
+      return row ? this.mapRow(row) : null
     } catch (error) {
       log.error('CategoryRepository.findById failed:', error)
       throw error
@@ -32,7 +48,8 @@ export class CategoryRepository {
         WHERE ${parentId === null ? 'parent_id IS NULL' : 'parent_id = ?'}
         ORDER BY display_order, name
       `)
-      return (parentId === null ? stmt.all() : stmt.all(parentId)) as Category[]
+      const rows = parentId === null ? stmt.all() : stmt.all(parentId)
+      return rows.map(row => this.mapRow(row))
     } catch (error) {
       log.error('CategoryRepository.findByParent failed:', error)
       throw error
@@ -46,7 +63,8 @@ export class CategoryRepository {
         WHERE is_active = 1
         ORDER BY display_order, name
       `)
-      return stmt.all() as Category[]
+      const rows = stmt.all()
+      return rows.map(row => this.mapRow(row))
     } catch (error) {
       log.error('CategoryRepository.findActive failed:', error)
       throw error
