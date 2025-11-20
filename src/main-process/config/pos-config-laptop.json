@@ -1,0 +1,13 @@
+{
+  "posId": "POS-002",
+  "posName": "PC Portable Manager",
+  "posType": "laptop",
+  "p2p": {
+    "enabled": true,
+    "port": 3030,
+    "discoveryEnabled": true,
+    "autoSync": true,
+    "reconnectInterval": 5000
+  },
+  "createdAt": "2025-11-20T00:00:00.000Z"
+}

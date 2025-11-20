@@ -2,6 +2,9 @@ import { app, BrowserWindow, screen, ipcMain } from 'electron'
 import path from 'path'
 import log from 'electron-log'
 import { db } from './services/database/db'
+import PeerDiscovery from './services/p2p/PeerDiscovery'
+import P2PSyncService from './services/p2p/SyncService'
+import ConfigManager from './services/p2p/ConfigManager'
 
 // Configure logging
 log.transports.file.level = 'info'
@@ -183,6 +186,49 @@ function createCustomerWindow() {
   log.info('Customer window created')
 }
 
+// Initialize P2P services
+async function initializeP2P() {
+  try {
+    // Load configuration
+    const config = await ConfigManager.loadConfig()
+    log.info('P2P: Configuration loaded:', config.posId)
+
+    // Check if P2P is enabled
+    if (!config.p2p?.enabled) {
+      log.info('P2P: Disabled in configuration')
+      return
+    }
+
+    log.info('P2P: Starting services...')
+
+    // 1. Start WebSocket server
+    await P2PSyncService.startServer()
+
+    // 2. Advertise this POS on the network
+    await PeerDiscovery.advertise(config.posName)
+
+    // 3. Start discovering other POS
+    await PeerDiscovery.discover()
+
+    // 4. Setup callback for when peers are discovered
+    PeerDiscovery.onPeerDiscovered(async (peer) => {
+      log.info(`P2P: New peer discovered: ${peer.name}`)
+      // Connect to the new peer after a short delay
+      setTimeout(async () => {
+        await P2PSyncService.connectToPeers()
+      }, 1000)
+    })
+
+    // 5. Connect to already discovered peers after 2 seconds
+    setTimeout(async () => {
+      await P2PSyncService.connectToPeers()
+      log.info('P2P: Services started successfully')
+    }, 2000)
+  } catch (error) {
+    log.error('P2P: Failed to start services:', error)
+  }
+}
+
 // App initialization
 app.whenReady().then(() => {
   log.info('App is ready')
@@ -211,6 +257,7 @@ app.whenReady().then(() => {
   require('./handlers/backupHandlers')
   require('./handlers/excelHandlers')
   require('./handlers/appHandlers')
+  require('./handlers/p2pHandlers')
   log.info('IPC handlers registered')
 
   // Setup IPC for customer display
@@ -240,6 +287,9 @@ app.whenReady().then(() => {
   createWindow()
   createCustomerWindow()
 
+  // Initialize P2P after windows are created
+  initializeP2P()
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
@@ -256,8 +306,18 @@ app.on('window-all-closed', () => {
 })
 
 // Before quit - cleanup
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
   log.info('App is quitting...')
+
+  // Stop P2P services
+  try {
+    await P2PSyncService.stop()
+    await PeerDiscovery.stop()
+    log.info('P2P: Services stopped')
+  } catch (error) {
+    log.error('P2P: Failed to stop services:', error)
+  }
+
   db.close()
 })
 

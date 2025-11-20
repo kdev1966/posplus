@@ -293,6 +293,11 @@ export const IPC_CHANNELS = {
 
   // Application
   APP_QUIT: 'app:quit',
+
+  // P2P Sync
+  P2P_GET_STATUS: 'p2p:get-status',
+  P2P_RECONNECT: 'p2p:reconnect',
+  P2P_TOGGLE: 'p2p:toggle',
 } as const
 
 // ---------- IPC API Interface ----------
