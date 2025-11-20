@@ -2,6 +2,7 @@ import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useLanguageStore } from '../../store/languageStore'
 import { TranslationKey } from '../../i18n/translations'
+import P2PStatus from '../P2PStatus'
 
 const menuItems: { path: string; icon: string; labelKey: TranslationKey }[] = [
   { path: '/dashboard', icon: '📊', labelKey: 'dashboard' },
@@ -59,6 +60,9 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       <div className="p-3 border-t border-white/10 space-y-2">
+        {/* P2P Status */}
+        <P2PStatus />
+
         <button
           onClick={handleQuit}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all"

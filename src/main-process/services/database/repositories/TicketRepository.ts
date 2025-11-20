@@ -2,6 +2,7 @@ import DatabaseService from '../db'
 import { Ticket, TicketLine, Payment, CreateTicketDTO } from '@shared/types'
 import log from 'electron-log'
 import StockRepository from './StockRepository'
+import P2PSyncService from '../../p2p/SyncService'
 
 export class TicketRepository {
   private get db() {
@@ -240,9 +241,104 @@ export class TicketRepository {
         }
 
         log.info(`Ticket created: ${ticket.ticketNumber} (ID: ${ticket.id})`)
+
+        // Synchronize with P2P peers
+        try {
+          P2PSyncService.syncTicket(ticket)
+          log.info(`P2P: Ticket ${ticket.ticketNumber} synchronized with peers`)
+        } catch (error) {
+          log.error('P2P: Failed to sync ticket:', error)
+          // Ne pas bloquer la création si la sync échoue
+        }
+
         return ticket
       } catch (error) {
         log.error('TicketRepository.create transaction failed:', error)
+        throw error
+      }
+    })
+
+    return transaction()
+  }
+
+  // Méthode pour créer un ticket depuis sync P2P (pas de re-broadcast)
+  createFromSync(ticketData: any): Ticket {
+    const transaction = this.db.transaction(() => {
+      try {
+        log.info(`P2P: Creating ticket from sync: ${ticketData.ticketNumber}`)
+
+        // Insert ticket
+        const ticketStmt = this.db.prepare(`
+          INSERT INTO tickets (
+            ticket_number, user_id, customer_id, session_id,
+            subtotal, discount_amount, total_amount, status,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+
+        const ticketResult = ticketStmt.run(
+          ticketData.ticketNumber,
+          ticketData.userId,
+          ticketData.customerId || null,
+          ticketData.sessionId,
+          ticketData.subtotal,
+          ticketData.discountAmount,
+          ticketData.totalAmount,
+          ticketData.status || 'completed',
+          ticketData.createdAt,
+          ticketData.updatedAt
+        )
+
+        const ticketId = ticketResult.lastInsertRowid as number
+
+        // Insert ticket lines
+        const lineStmt = this.db.prepare(`
+          INSERT INTO ticket_lines (
+            ticket_id, product_id, product_name, product_sku,
+            quantity, unit_price, discount_amount, total_amount,
+            created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+
+        for (const line of ticketData.lines) {
+          lineStmt.run(
+            ticketId,
+            line.productId,
+            line.productName,
+            line.productSku,
+            line.quantity,
+            line.unitPrice,
+            line.discountAmount || 0,
+            line.totalAmount,
+            line.createdAt
+          )
+        }
+
+        // Insert payments
+        const paymentStmt = this.db.prepare(`
+          INSERT INTO payments (ticket_id, method, amount, reference, created_at)
+          VALUES (?, ?, ?, ?, ?)
+        `)
+
+        for (const payment of ticketData.payments) {
+          paymentStmt.run(
+            ticketId,
+            payment.method,
+            payment.amount,
+            payment.reference || null,
+            payment.createdAt
+          )
+        }
+
+        const ticket = this.findById(ticketId)
+        if (!ticket) {
+          throw new Error('Failed to create ticket from sync')
+        }
+
+        log.info(`P2P: Ticket ${ticket.ticketNumber} created from sync successfully`)
+        return ticket
+      } catch (error) {
+        log.error('TicketRepository.createFromSync failed:', error)
         throw error
       }
     })

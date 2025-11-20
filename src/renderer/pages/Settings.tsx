@@ -22,11 +22,50 @@ export const Settings: React.FC = () => {
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
+  const [p2pStatus, setP2pStatus] = useState<{
+    serverRunning: boolean
+    connectedPeers: number
+    totalPeers: number
+    enabled: boolean
+    posId: string
+    posName: string
+    peers: Array<{
+      id: string
+      name: string
+      address: string
+      online: boolean
+      lastSeen: Date
+    }>
+  }>({
+    serverRunning: false,
+    connectedPeers: 0,
+    totalPeers: 0,
+    enabled: false,
+    posId: '',
+    posName: '',
+    peers: []
+  })
 
   // Fetch current session on component mount
   useEffect(() => {
     fetchCurrentSession()
+    fetchP2PStatus()
+
+    // Actualiser P2P status toutes les 10 secondes
+    const interval = setInterval(fetchP2PStatus, 10000)
+    return () => clearInterval(interval)
   }, [])
+
+  const fetchP2PStatus = async () => {
+    try {
+      const status = await window.api.getP2PStatus()
+      if (status && !status.error) {
+        setP2pStatus(status)
+      }
+    } catch (error) {
+      console.error('Failed to fetch P2P status:', error)
+    }
+  }
 
   const handleOpenSession = async () => {
     if (!user) return
@@ -379,6 +418,92 @@ export const Settings: React.FC = () => {
             }}>
               {t('checkPrinterStatus')}
             </Button>
+          </div>
+        </Card>
+
+        {/* P2P Synchronization Settings */}
+        <Card>
+          <h2 className="text-xl font-bold text-white mb-4">🔄 Synchronisation P2P</h2>
+
+          <div className="space-y-4">
+            {/* Status */}
+            <div className="bg-gray-700 p-4 rounded-lg space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-300 font-medium">État du serveur P2P</span>
+                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                  p2pStatus.serverRunning
+                    ? 'bg-green-500/20 text-green-400'
+                    : 'bg-red-500/20 text-red-400'
+                }`}>
+                  {p2pStatus.serverRunning ? '✓ En ligne' : '✗ Hors ligne'}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-gray-300 font-medium">Pairs connectés</span>
+                <span className="text-blue-400 font-bold text-lg">
+                  {p2pStatus.connectedPeers} / {p2pStatus.totalPeers}
+                </span>
+              </div>
+
+              {p2pStatus.posName && (
+                <div className="pt-2 border-t border-gray-600">
+                  <div className="text-xs text-gray-400">Nom du POS</div>
+                  <div className="text-white font-mono">{p2pStatus.posName}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Peers List */}
+            {p2pStatus.peers && p2pStatus.peers.length > 0 && (
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <h3 className="font-bold text-white mb-3">Machines découvertes</h3>
+                <div className="space-y-2">
+                  {p2pStatus.peers.map((peer: any) => (
+                    <div key={peer.id} className="flex justify-between items-center py-2 border-b border-gray-600 last:border-0">
+                      <div>
+                        <div className="text-white font-medium">{peer.name}</div>
+                        <div className="text-xs text-gray-400">{peer.address}</div>
+                      </div>
+                      <div className={`px-2 py-1 rounded text-xs font-semibold ${
+                        peer.online
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-600 text-gray-300'
+                      }`}>
+                        {peer.online ? 'En ligne' : 'Hors ligne'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {p2pStatus.peers && p2pStatus.peers.length === 0 && (
+              <div className="bg-gray-700 p-4 rounded-lg text-center">
+                <div className="text-gray-400 py-4">
+                  🔍 Aucune machine découverte sur le réseau
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button variant="primary" onClick={async () => {
+                try {
+                  await window.api.reconnectP2P()
+                  alert('Reconnexion en cours...')
+                  setTimeout(fetchP2PStatus, 2000)
+                } catch (error) {
+                  alert('Échec de la reconnexion')
+                }
+              }}>
+                🔄 Forcer reconnexion
+              </Button>
+
+              <Button variant="ghost" onClick={fetchP2PStatus}>
+                🔍 Actualiser
+              </Button>
+            </div>
           </div>
         </Card>
 

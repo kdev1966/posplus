@@ -398,6 +398,26 @@ export interface IPCApi {
 
   // Application
   quitApp: () => Promise<void>
+
+  // P2P Sync
+  getP2PStatus: () => Promise<{
+    serverRunning: boolean
+    connectedPeers: number
+    totalPeers: number
+    enabled: boolean
+    posId: string
+    posName: string
+    peers: Array<{
+      id: string
+      name: string
+      address: string
+      online: boolean
+      lastSeen: Date
+    }>
+    error?: string
+  }>
+  reconnectP2P: () => Promise<{ success: boolean; error?: string }>
+  toggleP2P: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
 }
 
 // Expose API to window object

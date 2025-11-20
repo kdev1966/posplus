@@ -1,6 +1,7 @@
 import DatabaseService from '../db'
 import { Product, CreateProductDTO, UpdateProductDTO } from '@shared/types'
 import log from 'electron-log'
+import P2PSyncService from '../../p2p/SyncService'
 
 export class ProductRepository {
   private get db() {
@@ -241,9 +242,63 @@ export class ProductRepository {
       }
 
       log.info(`Product created: ${product.name} (ID: ${product.id})`)
+
+      // Synchronize with P2P peers
+      try {
+        P2PSyncService.syncProduct(product, 'create')
+        log.info(`P2P: Product ${product.name} synchronized with peers`)
+      } catch (error) {
+        log.error('P2P: Failed to sync product creation:', error)
+      }
+
       return product
     } catch (error) {
       log.error('ProductRepository.create failed:', error)
+      throw error
+    }
+  }
+
+  // Méthode pour créer un produit depuis sync P2P
+  createFromSync(productData: any): Product {
+    try {
+      log.info(`P2P: Creating product from sync: ${productData.name}`)
+
+      const stmt = this.db.prepare(`
+        INSERT INTO products (
+          sku, barcode, name, description, category_id,
+          price, cost, discount_rate, stock, min_stock, max_stock, unit, image_url,
+          is_active, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+
+      const result = stmt.run(
+        productData.sku,
+        productData.barcode || null,
+        productData.name,
+        productData.description || null,
+        productData.categoryId,
+        productData.price,
+        productData.cost,
+        productData.discountRate || 0,
+        productData.stock,
+        productData.minStock,
+        productData.maxStock || null,
+        productData.unit,
+        productData.imageUrl || null,
+        productData.isActive ? 1 : 0,
+        productData.createdAt,
+        productData.updatedAt
+      )
+
+      const product = this.findById(result.lastInsertRowid as number)
+      if (!product) {
+        throw new Error('Failed to create product from sync')
+      }
+
+      log.info(`P2P: Product ${product.name} created from sync successfully`)
+      return product
+    } catch (error) {
+      log.error('ProductRepository.createFromSync failed:', error)
       throw error
     }
   }
@@ -323,6 +378,15 @@ export class ProductRepository {
       }
 
       log.info(`Product updated: ${product.name} (ID: ${product.id})`)
+
+      // Synchronize with P2P peers
+      try {
+        P2PSyncService.syncProduct(product, 'update')
+        log.info(`P2P: Product ${product.name} update synchronized with peers`)
+      } catch (error) {
+        log.error('P2P: Failed to sync product update:', error)
+      }
+
       return product
     } catch (error) {
       log.error('ProductRepository.update failed:', error)
@@ -354,9 +418,33 @@ export class ProductRepository {
       }
 
       log.info(`Product stock updated: ${product.name} (ID: ${product.id}) - New stock: ${quantity}`)
+
+      // Synchronize stock with P2P peers
+      try {
+        P2PSyncService.syncStock(productId, quantity)
+        log.info(`P2P: Stock update for ${product.name} synchronized with peers`)
+      } catch (error) {
+        log.error('P2P: Failed to sync stock update:', error)
+      }
+
       return product
     } catch (error) {
       log.error('ProductRepository.updateStock failed:', error)
+      throw error
+    }
+  }
+
+  // Méthode pour mettre à jour le stock depuis sync P2P
+  updateStockFromSync(productId: number, quantity: number): void {
+    try {
+      log.info(`P2P: Updating stock from sync for product ${productId} to ${quantity}`)
+
+      const stmt = this.db.prepare('UPDATE products SET stock = ? WHERE id = ?')
+      stmt.run(quantity, productId)
+
+      log.info(`P2P: Stock updated from sync successfully`)
+    } catch (error) {
+      log.error('ProductRepository.updateStockFromSync failed:', error)
       throw error
     }
   }

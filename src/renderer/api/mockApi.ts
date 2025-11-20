@@ -668,4 +668,28 @@ export const createMockApi = (): IPCApi => ({
   quitApp: async () => {
     console.log('[Mock API] Quit app (mock - does nothing in web mode)')
   },
+
+  // P2P Sync handlers (mock)
+  getP2PStatus: async () => {
+    console.log('[Mock API] Get P2P status (mock)')
+    return {
+      serverRunning: false,
+      connectedPeers: 0,
+      totalPeers: 0,
+      enabled: false,
+      posId: 'MOCK-POS-001',
+      posName: 'Mock POS',
+      peers: []
+    }
+  },
+
+  reconnectP2P: async () => {
+    console.log('[Mock API] Reconnect P2P (mock)')
+    return { success: true }
+  },
+
+  toggleP2P: async (enabled: boolean) => {
+    console.log('[Mock API] Toggle P2P (mock):', enabled)
+    return { success: true }
+  },
 })
