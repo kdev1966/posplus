@@ -61,8 +61,8 @@ function createWindow() {
       log.error('Tried path:', indexPath)
     })
 
-    // Open DevTools in production to debug
-    mainWindow.webContents.openDevTools()
+    // DevTools disabled in production
+    // Can be opened manually with Ctrl+Shift+I (Windows) or Cmd+Option+I (macOS)
   }
 
   // Show window when ready
