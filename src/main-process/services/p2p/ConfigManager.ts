@@ -19,19 +19,24 @@ export interface POSConfig {
 }
 
 class ConfigManager {
-  private configPath: string
+  private configPath: string | null = null
   private config: POSConfig | null = null
 
-  constructor() {
-    this.configPath = join(app.getPath('userData'), 'pos-config.json')
+  // Lazy initialization of config path (only when app is ready)
+  private getConfigPath(): string {
+    if (!this.configPath) {
+      this.configPath = join(app.getPath('userData'), 'pos-config.json')
+    }
+    return this.configPath
   }
 
   // Charger ou créer la configuration
   async loadConfig(): Promise<POSConfig> {
+    const configPath = this.getConfigPath()
     try {
-      if (existsSync(this.configPath)) {
+      if (existsSync(configPath)) {
         // Charger config existante
-        const configData = readFileSync(this.configPath, 'utf-8')
+        const configData = readFileSync(configPath, 'utf-8')
         const parsedConfig = JSON.parse(configData) as POSConfig
         this.config = parsedConfig
         log.info('P2P: Loaded existing config:', parsedConfig.posId)
@@ -76,8 +81,9 @@ class ConfigManager {
   private saveConfig(): void {
     if (this.config) {
       try {
-        writeFileSync(this.configPath, JSON.stringify(this.config, null, 2), 'utf-8')
-        log.info('P2P: Config saved to', this.configPath)
+        const configPath = this.getConfigPath()
+        writeFileSync(configPath, JSON.stringify(this.config, null, 2), 'utf-8')
+        log.info('P2P: Config saved to', configPath)
       } catch (error) {
         log.error('P2P: Failed to save config:', error)
       }
@@ -105,11 +111,6 @@ class ConfigManager {
       this.saveConfig()
       log.info(`P2P: ${enabled ? 'Enabled' : 'Disabled'}`)
     }
-  }
-
-  // Obtenir le chemin du fichier de config
-  getConfigPath(): string {
-    return this.configPath
   }
 }
 
