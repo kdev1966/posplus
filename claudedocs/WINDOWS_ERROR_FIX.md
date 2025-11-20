@@ -80,6 +80,7 @@ Après `npm run dev` :
 - ✅ 2 fenêtres s'ouvrent (Main + Customer Display)
 - ✅ Services P2P démarrés
 - ✅ Configuration créée dans AppData
+- ✅ Connexion P2P établie entre machines (voir P2P_CONNECTION_FIX.md)
 
 ## 🎯 Prochaine Étape
 
@@ -91,6 +92,19 @@ Une fois que l'app démarre correctement :
 
 ---
 
-**Fix commit** : `7ab5efa`
-**Date** : 2025-11-20
-**Testé** : ✅ Sur MacBook, en attente test Windows
+## 📝 Historique des Corrections
+
+**ConfigManager Fix** : `7ab5efa` (2025-11-20)
+- Lazy initialization pour éviter app.getPath() avant app ready
+
+**app.isPackaged Fix** : `aa9f328` (2025-11-20)
+- Déplacé logs dans app.whenReady()
+
+**ELECTRON_RUN_AS_NODE Fix** : `e173568` (2025-11-20)
+- Supprimé flag qui cassait Electron sur Windows
+
+**P2P Connection Fix** : `b02090c` (2025-11-20)
+- IPv4/IPv6 handling pour connexions WebSocket
+- Voir [P2P_CONNECTION_FIX.md](P2P_CONNECTION_FIX.md)
+
+**Testé** : ✅ Sur MacBook, ✅ Sur Windows (build), ⏳ P2P sync en attente test
