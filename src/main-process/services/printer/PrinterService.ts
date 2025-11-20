@@ -12,10 +12,12 @@ class PrinterService {
 
   private async initialize() {
     try {
-      // Initialize printer (USB or Network)
+      // Initialize printer - Windows POS80 Printer on port CP001
+      log.info('Initializing printer: POS80 Printer on CP001')
+
       this.printer = new ThermalPrinter({
         type: PrinterTypes.EPSON,
-        interface: 'printer:auto', // Auto-detect printer
+        interface: 'printer:POS80 Printer', // Windows printer name
         characterSet: 'SLOVENIA' as any,
         removeSpecialCharacters: false,
         lineCharacter: '=',
@@ -26,12 +28,12 @@ class PrinterService {
 
       this.isConnected = await this.testConnection()
       if (this.isConnected) {
-        log.info('Printer initialized and connected')
+        log.info('Printer initialized and connected: POS80 Printer')
       } else {
-        log.warn('Printer initialized but not connected')
+        log.warn('Printer initialized but not connected: POS80 Printer')
       }
     } catch (error) {
-      log.error('Failed to initialize printer:', error)
+      log.error('Failed to initialize printer POS80:', error)
       this.isConnected = false
     }
   }
