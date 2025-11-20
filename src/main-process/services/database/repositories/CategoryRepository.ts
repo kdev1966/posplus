@@ -182,6 +182,38 @@ export class CategoryRepository {
       throw error
     }
   }
+
+  // Créer une catégorie depuis P2P sync (préserve l'ID)
+  createFromSync(categoryData: any): Category {
+    try {
+      const stmt = this.db.prepare(`
+        INSERT INTO categories (id, name, description, parent_id, is_active, display_order, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+
+      stmt.run(
+        categoryData.id,
+        categoryData.name,
+        categoryData.description || null,
+        categoryData.parentId || null,
+        categoryData.isActive ? 1 : 0,
+        categoryData.displayOrder || 0,
+        categoryData.createdAt || new Date().toISOString(),
+        categoryData.updatedAt || new Date().toISOString()
+      )
+
+      const category = this.findById(categoryData.id)
+      if (!category) {
+        throw new Error('Failed to create category from sync')
+      }
+
+      log.info(`P2P: Category synced: ${category.name} (ID: ${category.id})`)
+      return category
+    } catch (error) {
+      log.error('CategoryRepository.createFromSync failed:', error)
+      throw error
+    }
+  }
 }
 
 export default new CategoryRepository()

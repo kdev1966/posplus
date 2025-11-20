@@ -8,8 +8,8 @@ import { app } from 'electron'
 
 export interface SyncMessage {
   id: string // ID unique du message
-  type: 'ticket' | 'product' | 'stock' | 'customer' | 'user' | 'payment'
-  action: 'create' | 'update' | 'delete'
+  type: 'ticket' | 'product' | 'stock' | 'customer' | 'user' | 'payment' | 'full-sync-request' | 'full-sync-response'
+  action: 'create' | 'update' | 'delete' | 'sync'
   data: any
   timestamp: string
   sourcePos: string
@@ -157,6 +157,17 @@ class P2PSyncService {
       // Marquer comme traité
       this.processedMessages.add(message.id)
 
+      // Gérer les messages spéciaux de synchronisation
+      if (message.type === 'full-sync-request') {
+        this.handleFullSyncRequest(message)
+        return
+      }
+
+      if (message.type === 'full-sync-response') {
+        this.handleFullSyncResponse(message)
+        return
+      }
+
       // Appliquer les changements localement
       this.applySync(message)
     } catch (error) {
@@ -278,9 +289,115 @@ class P2PSyncService {
 
   // Demander synchronisation complète initiale
   private requestFullSync(peerId: string): void {
-    // TODO: Implémenter synchronisation initiale
-    // Comparer les timestamps et synchroniser les données manquantes
     log.info(`P2P: Requesting full sync from ${peerId}`)
+
+    const message: SyncMessage = {
+      id: uuidv4(),
+      type: 'full-sync-request',
+      action: 'sync',
+      data: { requestedBy: this.getPosId() },
+      timestamp: new Date().toISOString(),
+      sourcePos: this.getPosId(),
+    }
+
+    // Envoyer la demande au peer spécifique
+    const ws = this.connections.get(peerId)
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message))
+      log.info(`P2P: Full sync request sent to ${peerId}`)
+    }
+  }
+
+  // Gérer une demande de synchronisation complète
+  private handleFullSyncRequest(message: SyncMessage): void {
+    log.info(`P2P: Handling full sync request from ${message.sourcePos}`)
+
+    try {
+      // Récupérer toutes les données locales
+      const ProductRepository = require('../database/repositories/ProductRepository').default
+      const CategoryRepository = require('../database/repositories/CategoryRepository').default
+
+      const products = ProductRepository.findAll()
+      const categories = CategoryRepository.findAll()
+
+      // Préparer la réponse avec toutes les données
+      const responseMessage: SyncMessage = {
+        id: uuidv4(),
+        type: 'full-sync-response',
+        action: 'sync',
+        data: {
+          products,
+          categories,
+          syncedAt: new Date().toISOString(),
+        },
+        timestamp: new Date().toISOString(),
+        sourcePos: this.getPosId(),
+      }
+
+      // Envoyer la réponse au demandeur
+      for (const [peerId, ws] of this.connections.entries()) {
+        if (peerId === message.sourcePos && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(responseMessage))
+          log.info(`P2P: Full sync response sent with ${products.length} products and ${categories.length} categories`)
+          break
+        }
+      }
+    } catch (error) {
+      log.error('P2P: Failed to handle full sync request:', error)
+    }
+  }
+
+  // Gérer une réponse de synchronisation complète
+  private handleFullSyncResponse(message: SyncMessage): void {
+    log.info(`P2P: Handling full sync response from ${message.sourcePos}`)
+
+    try {
+      const { products, categories } = message.data
+
+      const ProductRepository = require('../database/repositories/ProductRepository').default
+      const CategoryRepository = require('../database/repositories/CategoryRepository').default
+
+      let categoriesCreated = 0
+      let productsCreated = 0
+
+      // D'abord, synchroniser les catégories
+      if (categories && Array.isArray(categories)) {
+        for (const category of categories) {
+          try {
+            // Vérifier si la catégorie existe déjà
+            const existing = CategoryRepository.findById(category.id)
+            if (!existing) {
+              // Créer la catégorie avec l'ID exact
+              CategoryRepository.createFromSync(category)
+              categoriesCreated++
+            }
+          } catch (error) {
+            log.error(`P2P: Failed to sync category ${category.name}:`, error)
+          }
+        }
+      }
+
+      // Ensuite, synchroniser les produits
+      if (products && Array.isArray(products)) {
+        for (const product of products) {
+          try {
+            // Vérifier si le produit existe déjà
+            const existing = ProductRepository.findById(product.id)
+            if (!existing) {
+              // Créer le produit avec l'ID exact
+              ProductRepository.createFromSync(product)
+              productsCreated++
+            }
+          } catch (error) {
+            log.error(`P2P: Failed to sync product ${product.name}:`, error)
+          }
+        }
+      }
+
+      log.info(`P2P: Full sync completed - Created ${categoriesCreated} categories and ${productsCreated} products`)
+    } catch (error) {
+      log.error('P2P: Failed to handle full sync response:', error)
+    }
   }
 
   // Récupérer l'ID du POS
