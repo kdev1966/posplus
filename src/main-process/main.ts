@@ -133,24 +133,54 @@ function createCustomerWindow() {
   log.info(`Available displays: ${displays.length}`)
 
   let targetDisplay = displays[0] // Default to primary display
+  let windowConfig: any = {}
+
   if (displays.length > 1) {
-    // Find external display (not primary)
+    // Production: External display (fullscreen)
     targetDisplay = displays.find(display => !display.internal) || displays[1]
     log.info(`Using external display: ${targetDisplay.bounds.width}x${targetDisplay.bounds.height}`)
+    windowConfig = {
+      x: targetDisplay.bounds.x,
+      y: targetDisplay.bounds.y,
+      width: targetDisplay.bounds.width,
+      height: targetDisplay.bounds.height,
+      frame: false,
+      fullscreen: true,
+      kiosk: false,
+      alwaysOnTop: false,
+    }
+  } else if (isDevelopment) {
+    // Development: Windowed mode on same screen
+    log.info('Development mode: Creating windowed customer display')
+    windowConfig = {
+      x: 1000,
+      y: 100,
+      width: 800,
+      height: 900,
+      frame: true,
+      fullscreen: false,
+      kiosk: false,
+      alwaysOnTop: true,
+      title: 'Customer Display',
+    }
   } else {
-    log.info('Only one display detected, using primary display')
+    // Production with single display: Use primary display fullscreen
+    log.info('Production mode: Using primary display fullscreen')
+    windowConfig = {
+      x: targetDisplay.bounds.x,
+      y: targetDisplay.bounds.y,
+      width: targetDisplay.bounds.width,
+      height: targetDisplay.bounds.height,
+      frame: false,
+      fullscreen: true,
+      kiosk: false,
+      alwaysOnTop: false,
+    }
   }
 
   customerWindow = new BrowserWindow({
-    x: targetDisplay.bounds.x,
-    y: targetDisplay.bounds.y,
-    width: targetDisplay.bounds.width,
-    height: targetDisplay.bounds.height,
-    frame: false,
-    fullscreen: true,
-    kiosk: false, // Not kiosk mode, just fullscreen
+    ...windowConfig,
     backgroundColor: '#0f172a',
-    alwaysOnTop: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
