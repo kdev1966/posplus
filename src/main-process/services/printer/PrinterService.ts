@@ -156,10 +156,20 @@ class PrinterService {
       this.printer.cut()
 
       // Execute print
-      await this.printer.execute()
+      log.info('Sending print job to printer...')
+      try {
+        const result = await this.printer.execute()
+        log.info('Print command executed, result:', result)
 
-      log.info(`Ticket printed successfully: ${ticket.ticketNumber}`)
-      return true
+        // Force clear buffer after execution
+        this.printer.clear()
+
+        log.info(`Ticket printed successfully: ${ticket.ticketNumber}`)
+        return true
+      } catch (execError) {
+        log.error('Execute failed:', execError)
+        throw execError
+      }
     } catch (error) {
       log.error('Failed to print ticket:', error)
       return false
