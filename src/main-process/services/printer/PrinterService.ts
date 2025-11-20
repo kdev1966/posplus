@@ -12,28 +12,46 @@ class PrinterService {
 
   private async initialize() {
     try {
-      // Initialize printer - Windows POS80 Printer on port CP001
-      log.info('Initializing printer: POS80 Printer on CP001')
+      // Try multiple interface configurations for POS80 Printer
+      const interfaces = [
+        'printer:POS80 Printer',  // Exact name
+        '//./CP001',              // Direct port access
+        '\\\\.\\CP001',           // Windows path format
+      ]
 
-      this.printer = new ThermalPrinter({
-        type: PrinterTypes.EPSON,
-        interface: 'printer:POS80 Printer', // Windows printer name
-        characterSet: 'SLOVENIA' as any,
-        removeSpecialCharacters: false,
-        lineCharacter: '=',
-        options: {
-          timeout: 5000,
-        },
-      })
+      log.info('Initializing printer: Trying multiple interfaces for POS80')
 
-      this.isConnected = await this.testConnection()
-      if (this.isConnected) {
-        log.info('Printer initialized and connected: POS80 Printer')
-      } else {
-        log.warn('Printer initialized but not connected: POS80 Printer')
+      for (const printerInterface of interfaces) {
+        try {
+          log.info(`Attempting interface: ${printerInterface}`)
+
+          this.printer = new ThermalPrinter({
+            type: PrinterTypes.EPSON,
+            interface: printerInterface,
+            characterSet: 'SLOVENIA' as any,
+            removeSpecialCharacters: false,
+            lineCharacter: '=',
+            options: {
+              timeout: 5000,
+            },
+          })
+
+          this.isConnected = await this.testConnection()
+          if (this.isConnected) {
+            log.info(`Printer connected successfully using interface: ${printerInterface}`)
+            return
+          }
+        } catch (err) {
+          log.warn(`Interface ${printerInterface} failed:`, err)
+          continue
+        }
       }
+
+      // If we get here, all interfaces failed
+      log.error('All printer interfaces failed')
+      this.isConnected = false
     } catch (error) {
-      log.error('Failed to initialize printer POS80:', error)
+      log.error('Failed to initialize printer:', error)
       this.isConnected = false
     }
   }
