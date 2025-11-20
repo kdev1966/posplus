@@ -38,6 +38,7 @@ export const translations = {
     users: 'Utilisateurs',
     settings: 'Paramètres',
     logout: 'Déconnexion',
+    quit: 'Quitter',
 
     // Dashboard
     dashboardTitle: 'Tableau de bord',
@@ -352,6 +353,14 @@ export const translations = {
     receipt: 'Reçu',
     thankYou: 'Merci pour votre achat !',
     comeAgain: 'À bientôt',
+
+    // Customer Display
+    customerDisplayWelcome: 'Bienvenue',
+    customerDisplaySubtitle: 'Votre ticket s\'affichera ici',
+    customerTotalTTC: 'Total TTC',
+    customerAmountReceived: 'Montant reçu',
+    customerChange: 'Rendu',
+    customerThankYou: '✨ Merci pour votre visite ! ✨',
   },
   ar: {
     // Common
@@ -389,6 +398,7 @@ export const translations = {
     users: 'المستخدمون',
     settings: 'الإعدادات',
     logout: 'تسجيل الخروج',
+    quit: 'خروج',
 
     // Dashboard
     dashboardTitle: 'لوحة القيادة',
@@ -703,6 +713,14 @@ export const translations = {
     receipt: 'إيصال',
     thankYou: '!شكراً لشرائك',
     comeAgain: 'نراكم قريباً',
+
+    // Customer Display
+    customerDisplayWelcome: 'أهلاً وسهلاً',
+    customerDisplaySubtitle: 'ستظهر فاتورتك هنا',
+    customerTotalTTC: 'المجموع شامل الضريبة',
+    customerAmountReceived: 'المبلغ المستلم',
+    customerChange: 'الباقي',
+    customerThankYou: '✨ !شكراً لزيارتك ✨',
   },
 }
 

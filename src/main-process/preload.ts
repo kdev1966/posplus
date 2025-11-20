@@ -94,12 +94,47 @@ const api: IPCApi = {
   generateExcelTemplate: () => ipcRenderer.invoke(IPC_CHANNELS.EXCEL_GENERATE_TEMPLATE),
   exportToExcel: () => ipcRenderer.invoke(IPC_CHANNELS.EXCEL_EXPORT_DATA),
   importFromExcel: () => ipcRenderer.invoke(IPC_CHANNELS.EXCEL_IMPORT_DATA),
+
+  // Application
+  quitApp: () => ipcRenderer.invoke(IPC_CHANNELS.APP_QUIT),
 }
 
 // Expose API to window
 contextBridge.exposeInMainWorld('api', api)
 
-// Also expose electron marker so renderer knows we're in Electron
-contextBridge.exposeInMainWorld('electron', { isElectron: true })
+// Also expose electron marker and IPC renderer for customer display
+contextBridge.exposeInMainWorld('electron', {
+  isElectron: true,
+  ipcRenderer: {
+    on: (channel: string, func: (...args: any[]) => void) => {
+      // Only allow specific channels for security
+      const validChannels = [
+        'customer-cart-updated',
+        'customer-payment-complete',
+        'customer-language-changed',
+      ]
+      if (validChannels.includes(channel)) {
+        const subscription = (_event: any, ...args: any[]) => func(...args)
+        ipcRenderer.on(channel, subscription)
+        // Return unsubscribe function
+        return () => {
+          ipcRenderer.removeListener(channel, subscription)
+        }
+      }
+      return () => {}
+    },
+    send: (channel: string, ...args: any[]) => {
+      // Only allow specific channels for security
+      const validChannels = [
+        'update-customer-display',
+        'customer-payment-complete',
+        'customer-language-change',
+      ]
+      if (validChannels.includes(channel)) {
+        ipcRenderer.send(channel, ...args)
+      }
+    },
+  },
+})
 
 console.log('[PRELOAD] Preload script loaded successfully - Electron APIs exposed')

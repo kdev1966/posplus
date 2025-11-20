@@ -40,6 +40,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     if (payments.length > 0 && totalPaid >= total) {
+      // Notify customer display of payment completion
+      if (window.electron?.ipcRenderer) {
+        console.log('[PAYMENT MODAL] Sending payment completion to customer display:', {
+          received: totalPaid,
+        })
+        window.electron.ipcRenderer.send('customer-payment-complete', { received: totalPaid })
+      }
+
       onConfirm(payments)
     }
   }

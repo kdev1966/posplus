@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { useSessionStore } from './store/sessionStore'
 import { useThemeStore } from './store/themeStore'
@@ -14,6 +14,7 @@ import { Stock } from './pages/Stock'
 import { History } from './pages/History'
 import { Users } from './pages/Users'
 import { Settings } from './pages/Settings'
+import { CustomerDisplay } from './pages/CustomerDisplay'
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuthStore()
@@ -59,7 +60,7 @@ export const App: React.FC = () => {
   }, [])
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
@@ -126,9 +127,10 @@ export const App: React.FC = () => {
             </ProtectedRoute>
           }
         />
+        <Route path="/customer" element={<CustomerDisplay />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }

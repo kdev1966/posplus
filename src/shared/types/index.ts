@@ -290,6 +290,9 @@ export const IPC_CHANNELS = {
   EXCEL_GENERATE_TEMPLATE: 'excel:generate-template',
   EXCEL_EXPORT_DATA: 'excel:export-data',
   EXCEL_IMPORT_DATA: 'excel:import-data',
+
+  // Application
+  APP_QUIT: 'app:quit',
 } as const
 
 // ---------- IPC API Interface ----------
@@ -387,6 +390,9 @@ export interface IPCApi {
     errors?: string[]
     error?: string
   }>
+
+  // Application
+  quitApp: () => Promise<void>
 }
 
 // Expose API to window object

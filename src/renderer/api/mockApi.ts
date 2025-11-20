@@ -663,4 +663,9 @@ export const createMockApi = (): IPCApi => ({
     console.log('[Mock API] Importing from CSV (mock)')
     return { success: true, categoriesImported: 4, productsImported: 4 }
   },
+
+  // Application handlers (mock)
+  quitApp: async () => {
+    console.log('[Mock API] Quit app (mock - does nothing in web mode)')
+  },
 })

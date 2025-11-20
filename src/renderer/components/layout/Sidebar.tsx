@@ -18,6 +18,17 @@ export const Sidebar: React.FC = () => {
   const location = useLocation()
   const t = useLanguageStore((state) => state.t)
 
+  const handleQuit = async () => {
+    const confirmMessage = 'Êtes-vous sûr de vouloir quitter l\'application ?'
+    if (window.confirm(confirmMessage)) {
+      try {
+        await window.api.quitApp()
+      } catch (error) {
+        console.error('Failed to quit app:', error)
+      }
+    }
+  }
+
   return (
     <aside className="w-64 glass border-r border-white/10 flex flex-col">
       <div className="p-6">
@@ -47,7 +58,14 @@ export const Sidebar: React.FC = () => {
         })}
       </nav>
 
-      <div className="p-4 border-t border-white/10">
+      <div className="p-3 border-t border-white/10 space-y-2">
+        <button
+          onClick={handleQuit}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all"
+        >
+          <span className="text-xl">🚪</span>
+          <span className="font-medium">{t('quit')}</span>
+        </button>
         <div className="text-xs text-gray-500 text-center">
           v1.0.0 · POSPlus © 2025
         </div>

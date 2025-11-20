@@ -108,5 +108,19 @@ export const useCartStore = create<CartState>((set, get) => ({
     const total = subtotal - discount
 
     set({ subtotal, discount, total })
+
+    // Notify customer display of cart changes
+    if (window.electron?.ipcRenderer) {
+      const customerCart = items.map((item) => ({
+        nom: item.product.name,
+        quantite: item.quantity,
+        prix: item.product.price,
+        total: item.total,
+      }))
+      console.log('[CART STORE] Sending cart update to customer display:', customerCart)
+      window.electron.ipcRenderer.send('update-customer-display', customerCart)
+    } else {
+      console.log('[CART STORE] window.electron.ipcRenderer not available')
+    }
   },
 }))

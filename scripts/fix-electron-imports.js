@@ -32,12 +32,12 @@ function fixElectronImports(filePath) {
   // Fix esModuleInterop issue: replace electron_1.default with direct require
   // Pattern: const electron_1 = __importDefault(require("electron"));
   // followed by: const { app, BrowserWindow } = electron_1.default;
-  // Replace the destructuring to use direct require
+  // Replace with two-line approach for better CommonJS compatibility
   if (modified.includes('electron_1.default')) {
-    // Replace destructuring from electron_1.default with direct require
+    // Replace destructuring from electron_1.default with two-line approach
     modified = modified.replace(
       /const\s*\{\s*([\w\s,]+)\s*\}\s*=\s*electron_1\.default;?/g,
-      'const { $1 } = require("electron");'
+      'const electron = require("electron");\nconst { $1 } = electron;'
     )
     // Remove the __importDefault line for electron if it exists
     modified = modified.replace(
@@ -47,7 +47,7 @@ function fixElectronImports(filePath) {
   }
 
   // Fix namespace import: const electron_1 = require("electron");
-  // Replace with destructuring of commonly used exports
+  // Replace with two-line approach for better CommonJS compatibility
   // This handles files like main.js that use electron_1.app, electron_1.BrowserWindow, etc.
   if (modified.includes('const electron_1 = require("electron")')) {
     // Find all electron_1.XXXX usages in the file
@@ -55,10 +55,10 @@ function fixElectronImports(filePath) {
     const uniqueExports = [...new Set(electronUsages.map(m => m[1]))]
 
     if (uniqueExports.length > 0) {
-      // Replace the import line with destructuring
+      // Replace the import line with two-line approach
       modified = modified.replace(
         /const electron_1 = require\("electron"\);?/,
-        `const { ${uniqueExports.join(', ')} } = require("electron");`
+        `const electron = require("electron");\nconst { ${uniqueExports.join(', ')} } = electron;`
       )
 
       // Replace all electron_1.XXXX with just XXXX

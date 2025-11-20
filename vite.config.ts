@@ -28,8 +28,12 @@ function removeModuleType(): Plugin {
   }
 }
 
-export default defineConfig({
-  plugins: [react(), removeModuleType()],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    // Only apply removeModuleType in production build for Electron
+    ...(mode === 'production' ? [removeModuleType()] : [])
+  ],
   base: './',
   build: {
     outDir: 'dist/renderer',
@@ -61,4 +65,4 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
-})
+}))

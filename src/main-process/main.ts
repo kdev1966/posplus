@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, screen, ipcMain } from 'electron'
 import path from 'path'
 import log from 'electron-log'
 import { db } from './services/database/db'
@@ -8,6 +8,7 @@ log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
 
 let mainWindow: BrowserWindow | null = null
+let customerWindow: BrowserWindow | null = null
 
 // Check if running in development mode
 // Development = NODE_ENV is explicitly 'development'
@@ -121,6 +122,67 @@ function createWindow() {
   log.info('Main window created')
 }
 
+function createCustomerWindow() {
+  log.info('Creating customer display window...')
+
+  // Try to get external display dimensions first
+  const displays = screen.getAllDisplays()
+  log.info(`Available displays: ${displays.length}`)
+
+  let targetDisplay = displays[0] // Default to primary display
+  if (displays.length > 1) {
+    // Find external display (not primary)
+    targetDisplay = displays.find(display => !display.internal) || displays[1]
+    log.info(`Using external display: ${targetDisplay.bounds.width}x${targetDisplay.bounds.height}`)
+  } else {
+    log.info('Only one display detected, using primary display')
+  }
+
+  customerWindow = new BrowserWindow({
+    x: targetDisplay.bounds.x,
+    y: targetDisplay.bounds.y,
+    width: targetDisplay.bounds.width,
+    height: targetDisplay.bounds.height,
+    frame: false,
+    fullscreen: true,
+    kiosk: false, // Not kiosk mode, just fullscreen
+    backgroundColor: '#0f172a',
+    alwaysOnTop: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: isDevelopment,
+    },
+    show: false,
+  })
+
+  // Load the customer display route
+  if (isDevelopment) {
+    customerWindow.loadURL('http://localhost:5173/#/customer')
+  } else {
+    const appPath = app.getAppPath()
+    const indexPath = path.join(appPath, 'dist', 'renderer', 'index.html')
+
+    customerWindow.loadFile(indexPath, { hash: '/customer' }).catch(err => {
+      log.error('Failed to load customer display:', err)
+    })
+  }
+
+  customerWindow.once('ready-to-show', () => {
+    log.info('Customer window ready to show')
+    customerWindow?.show()
+  })
+
+  customerWindow.on('closed', () => {
+    log.info('Customer window closed')
+    customerWindow = null
+  })
+
+  log.info('Customer window created')
+}
+
 // App initialization
 app.whenReady().then(() => {
   log.info('App is ready')
@@ -148,13 +210,40 @@ app.whenReady().then(() => {
   require('./handlers/maintenanceHandlers')
   require('./handlers/backupHandlers')
   require('./handlers/excelHandlers')
+  require('./handlers/appHandlers')
   log.info('IPC handlers registered')
 
+  // Setup IPC for customer display
+  ipcMain.on('update-customer-display', (_event, cart) => {
+    log.info('Received cart update for customer display')
+    if (customerWindow && !customerWindow.isDestroyed()) {
+      customerWindow.webContents.send('customer-cart-updated', cart)
+    }
+  })
+
+  // Setup IPC for payment completion
+  ipcMain.on('customer-payment-complete', (_event, paymentData) => {
+    log.info('Received payment completion for customer display:', paymentData)
+    if (customerWindow && !customerWindow.isDestroyed()) {
+      customerWindow.webContents.send('customer-payment-complete', paymentData)
+    }
+  })
+
+  // Setup IPC for language change
+  ipcMain.on('customer-language-change', (_event, language) => {
+    log.info('Received language change for customer display:', language)
+    if (customerWindow && !customerWindow.isDestroyed()) {
+      customerWindow.webContents.send('customer-language-changed', language)
+    }
+  })
+
   createWindow()
+  createCustomerWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
+      createCustomerWindow()
     }
   })
 })

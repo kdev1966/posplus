@@ -19,6 +19,12 @@ export const useLanguageStore = create<LanguageState>()(
         // Update document direction for RTL support
         document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'
         document.documentElement.lang = lang
+
+        // Notify customer display of language change
+        if (window.electron?.ipcRenderer) {
+          console.log('[LANGUAGE STORE] Sending language update to customer display:', lang)
+          window.electron.ipcRenderer.send('customer-language-change', lang)
+        }
       },
 
       t: (key: TranslationKey) => {
