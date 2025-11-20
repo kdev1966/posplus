@@ -320,7 +320,9 @@ class P2PSyncService {
       const products = ProductRepository.findAll()
       const categories = CategoryRepository.findAll()
 
-      // Préparer la réponse avec toutes les données
+      log.info(`P2P: Local data - ${products.length} products, ${categories.length} categories`)
+
+      // Même si vide, envoyer la réponse (le demandeur pourrait en avoir besoin)
       const responseMessage: SyncMessage = {
         id: uuidv4(),
         type: 'full-sync-response',
@@ -354,14 +356,19 @@ class P2PSyncService {
     try {
       const { products, categories } = message.data
 
+      log.info(`P2P: Received ${categories?.length || 0} categories and ${products?.length || 0} products`)
+
       const ProductRepository = require('../database/repositories/ProductRepository').default
       const CategoryRepository = require('../database/repositories/CategoryRepository').default
 
       let categoriesCreated = 0
       let productsCreated = 0
+      let categoriesSkipped = 0
+      let productsSkipped = 0
 
       // D'abord, synchroniser les catégories
       if (categories && Array.isArray(categories)) {
+        log.info(`P2P: Starting category sync (${categories.length} items)`)
         for (const category of categories) {
           try {
             // Vérifier si la catégorie existe déjà
@@ -370,15 +377,19 @@ class P2PSyncService {
               // Créer la catégorie avec l'ID exact
               CategoryRepository.createFromSync(category)
               categoriesCreated++
+              log.info(`P2P: ✓ Category synced: ${category.name} (ID: ${category.id})`)
+            } else {
+              categoriesSkipped++
             }
           } catch (error) {
-            log.error(`P2P: Failed to sync category ${category.name}:`, error)
+            log.error(`P2P: ✗ Failed to sync category ${category.name}:`, error)
           }
         }
       }
 
       // Ensuite, synchroniser les produits
       if (products && Array.isArray(products)) {
+        log.info(`P2P: Starting product sync (${products.length} items)`)
         for (const product of products) {
           try {
             // Vérifier si le produit existe déjà
@@ -387,14 +398,21 @@ class P2PSyncService {
               // Créer le produit avec l'ID exact
               ProductRepository.createFromSync(product)
               productsCreated++
+              if (productsCreated <= 5) {
+                log.info(`P2P: ✓ Product synced: ${product.name} (ID: ${product.id})`)
+              }
+            } else {
+              productsSkipped++
             }
           } catch (error) {
-            log.error(`P2P: Failed to sync product ${product.name}:`, error)
+            log.error(`P2P: ✗ Failed to sync product ${product.name}:`, error)
           }
         }
       }
 
-      log.info(`P2P: Full sync completed - Created ${categoriesCreated} categories and ${productsCreated} products`)
+      log.info(`P2P: ===== Full sync completed =====`)
+      log.info(`P2P: Created: ${categoriesCreated} categories, ${productsCreated} products`)
+      log.info(`P2P: Skipped (already exist): ${categoriesSkipped} categories, ${productsSkipped} products`)
     } catch (error) {
       log.error('P2P: Failed to handle full sync response:', error)
     }
