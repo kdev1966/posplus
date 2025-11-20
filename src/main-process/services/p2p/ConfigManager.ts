@@ -32,21 +32,24 @@ class ConfigManager {
       if (existsSync(this.configPath)) {
         // Charger config existante
         const configData = readFileSync(this.configPath, 'utf-8')
-        this.config = JSON.parse(configData)
-        log.info('P2P: Loaded existing config:', this.config?.posId)
+        const parsedConfig = JSON.parse(configData) as POSConfig
+        this.config = parsedConfig
+        log.info('P2P: Loaded existing config:', parsedConfig.posId)
+        return parsedConfig
       } else {
         // Créer nouvelle config
-        this.config = this.createDefaultConfig()
+        const newConfig = this.createDefaultConfig()
+        this.config = newConfig
         this.saveConfig()
-        log.info('P2P: Created new config:', this.config.posId)
+        log.info('P2P: Created new config:', newConfig.posId)
+        return newConfig
       }
-
-      return this.config
     } catch (error) {
       log.error('P2P: Failed to load config:', error)
       // Créer config par défaut en cas d'erreur
-      this.config = this.createDefaultConfig()
-      return this.config
+      const defaultConfig = this.createDefaultConfig()
+      this.config = defaultConfig
+      return defaultConfig
     }
   }
 
