@@ -128,23 +128,27 @@ function createCustomerWindow() {
   // Try to get external display dimensions first
   const displays = screen.getAllDisplays()
   log.info(`Available displays: ${displays.length}`)
+  displays.forEach((display, index) => {
+    log.info(`Display ${index}: ${display.bounds.width}x${display.bounds.height} at (${display.bounds.x}, ${display.bounds.y}) - ${display.internal ? 'Internal' : 'External'}`)
+  })
 
   let targetDisplay = displays[0] // Default to primary display
   let windowConfig: any = {}
 
   if (displays.length > 1) {
-    // Production: External display (fullscreen)
-    targetDisplay = displays.find(display => !display.internal) || displays[1]
-    log.info(`Using external display: ${targetDisplay.bounds.width}x${targetDisplay.bounds.height}`)
+    // Production: Force second display (Windows extended desktop)
+    // On Windows extended desktop: displays[0] = primary, displays[1] = secondary
+    targetDisplay = displays[1] // Always use second display
+    log.info(`Using second display: ${targetDisplay.bounds.width}x${targetDisplay.bounds.height} at (${targetDisplay.bounds.x}, ${targetDisplay.bounds.y})`)
     windowConfig = {
       x: targetDisplay.bounds.x,
       y: targetDisplay.bounds.y,
       width: targetDisplay.bounds.width,
       height: targetDisplay.bounds.height,
       frame: false,
-      fullscreen: true,
+      fullscreen: false, // Don't use fullscreen, just maximize
       kiosk: false,
-      alwaysOnTop: false,
+      alwaysOnTop: true, // Keep on top to prevent being hidden
     }
   } else if (isDevelopment) {
     // Development: Windowed mode on same screen
