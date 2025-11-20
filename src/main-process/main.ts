@@ -1,4 +1,5 @@
 import { app, BrowserWindow, screen, ipcMain } from 'electron'
+import type { BrowserWindow as BrowserWindowType } from 'electron'
 import path from 'path'
 import log from 'electron-log'
 import { db } from './services/database/db'
@@ -10,8 +11,8 @@ import ConfigManager from './services/p2p/ConfigManager'
 log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
 
-let mainWindow: BrowserWindow | null = null
-let customerWindow: BrowserWindow | null = null
+let mainWindow: BrowserWindowType | null = null
+let customerWindow: BrowserWindowType | null = null
 
 // Check if running in development mode
 // Development = NODE_ENV is explicitly 'development'
