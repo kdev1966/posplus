@@ -19,6 +19,7 @@ class P2PSyncService {
   private server: WebSocketServer | null = null
   private connections: Map<string, WebSocket> = new Map()
   private processedMessages: Set<string> = new Set() // Éviter doublons
+  private syncRequested: Set<string> = new Set() // Éviter demandes multiples
   private port = 3030
 
   // Démarrer le serveur WebSocket
@@ -51,6 +52,10 @@ class P2PSyncService {
         ws.on('error', (error) => {
           log.error(`P2P: WebSocket error from ${clientIp}:`, error)
         })
+
+        // IMPORTANT: Quand on reçoit une connexion entrante,
+        // on attend de recevoir le premier message pour identifier le peer,
+        // puis on demande aussi un full sync
       })
 
       log.info(`P2P: Server started on port ${this.port}`)
@@ -289,7 +294,14 @@ class P2PSyncService {
 
   // Demander synchronisation complète initiale
   private requestFullSync(peerId: string): void {
+    // Éviter de demander plusieurs fois au même peer
+    if (this.syncRequested.has(peerId)) {
+      log.info(`P2P: Full sync already requested from ${peerId}, skipping`)
+      return
+    }
+
     log.info(`P2P: Requesting full sync from ${peerId}`)
+    this.syncRequested.add(peerId)
 
     const message: SyncMessage = {
       id: uuidv4(),
@@ -341,6 +353,12 @@ class P2PSyncService {
         if (peerId === message.sourcePos && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify(responseMessage))
           log.info(`P2P: Full sync response sent with ${products.length} products and ${categories.length} categories`)
+
+          // BIDIRECTIONNEL: Si le demandeur nous envoie une requête,
+          // on lui envoie nos données ET on lui demande les siennes aussi
+          log.info(`P2P: Requesting bidirectional full sync from ${peerId}`)
+          this.requestFullSync(peerId)
+
           break
         }
       }
