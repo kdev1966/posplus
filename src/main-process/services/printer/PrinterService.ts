@@ -7,12 +7,13 @@ class PrinterService {
   private printer: ThermalPrinter | null = null
   private isConnected = false
   private useStandardPrinter = false
+  private initPromise: Promise<void>
 
   constructor() {
-    this.initialize()
+    this.initPromise = this.initialize()
   }
 
-  private async initialize() {
+  private async initialize(): Promise<void> {
     try {
       // On macOS, skip thermal printer attempts and go straight to standard printer
       if (process.platform === 'darwin') {
@@ -99,6 +100,8 @@ class PrinterService {
   }
 
   async printTicket(ticketId: number): Promise<boolean> {
+    await this.initPromise
+
     if (!this.isConnected) {
       log.error('Printer not initialized')
       return false
@@ -220,6 +223,8 @@ class PrinterService {
   }
 
   async printTestTicket(): Promise<boolean> {
+    await this.initPromise
+
     if (!this.isConnected) {
       log.error('Printer not initialized')
       return false
@@ -333,6 +338,8 @@ class PrinterService {
   }
 
   async openDrawer(): Promise<boolean> {
+    await this.initPromise
+
     if (!this.isConnected) {
       log.error('Printer not initialized')
       return false
@@ -362,6 +369,14 @@ class PrinterService {
   }
 
   async getStatus(): Promise<{ connected: boolean; ready: boolean }> {
+    await this.initPromise
+
+    // Delegate to standard printer if using it
+    if (this.useStandardPrinter) {
+      return await StandardPrinterService.getStatus()
+    }
+
+    // Otherwise test thermal printer connection
     const connected = await this.testConnection()
     this.isConnected = connected
 

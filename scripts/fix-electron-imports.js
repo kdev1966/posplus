@@ -46,28 +46,10 @@ function fixElectronImports(filePath) {
     )
   }
 
-  // Fix namespace import: const electron_1 = require("electron");
-  // Replace with two-line approach for better CommonJS compatibility
-  // This handles files like main.js that use electron_1.app, electron_1.BrowserWindow, etc.
-  if (modified.includes('const electron_1 = require("electron")')) {
-    // Find all electron_1.XXXX usages in the file
-    const electronUsages = [...modified.matchAll(/electron_1\.(\w+)/g)]
-    const uniqueExports = [...new Set(electronUsages.map(m => m[1]))]
-
-    if (uniqueExports.length > 0) {
-      // Replace the import line with two-line approach
-      modified = modified.replace(
-        /const electron_1 = require\("electron"\);?/,
-        `const electron = require("electron");\nconst { ${uniqueExports.join(', ')} } = electron;`
-      )
-
-      // Replace all electron_1.XXXX with just XXXX
-      uniqueExports.forEach(exportName => {
-        const regex = new RegExp(`electron_1\\.${exportName}`, 'g')
-        modified = modified.replace(regex, exportName)
-      })
-    }
-  }
+  // NOTE: We do NOT fix namespace import: const electron_1 = require("electron");
+  // because electron_1.app, electron_1.BrowserWindow work correctly in Electron context
+  // Electron module properly exports these as properties when run in Electron runtime
+  // DO NOT convert to destructuring as it breaks in normal Node.js context
 
   // Fix shared types import in preload (must use correct relative path)
   // preload.js is in dist/main/main-process/preload.js
