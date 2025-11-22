@@ -32,48 +32,56 @@ class PrinterService {
       }
 
       // Windows: Try thermal printer interfaces first (for POS with thermal printer)
-      const interfaces = [
-        'printer:POS80 Printer',  // Printer name via Windows (CONFIRMED)
-        'CP001',                  // Direct port name (CONFIRMED)
-        '//./CP001',              // Device path format
-        '\\\\.\\CP001',           // Windows device path
-        'tcp://localhost:9100',   // Network fallback (if configured)
+      // Try different combinations of interface and printer type
+      const configurations = [
+        // EPSON types (most common for POS80)
+        { interface: 'printer:POS80 Printer', type: PrinterTypes.EPSON },
+        { interface: 'CP001', type: PrinterTypes.EPSON },
+        // STAR types (alternative brand)
+        { interface: 'printer:POS80 Printer', type: PrinterTypes.STAR },
+        { interface: 'CP001', type: PrinterTypes.STAR },
+        // Device paths
+        { interface: '//./CP001', type: PrinterTypes.EPSON },
+        { interface: '\\\\.\\CP001', type: PrinterTypes.EPSON },
       ]
 
-      log.info('Initializing printer: Trying thermal printer interfaces')
-      log.info('Available interfaces to test:', interfaces)
+      log.info('Initializing printer: Trying thermal printer configurations')
+      log.info(`Total configurations to test: ${configurations.length}`)
 
-      for (const printerInterface of interfaces) {
+      for (const config of configurations) {
         try {
-          log.info(`Testing thermal interface: ${printerInterface}`)
+          log.info(`Testing: interface="${config.interface}", type=${config.type}`)
 
           this.printer = new ThermalPrinter({
-            type: PrinterTypes.EPSON,
-            interface: printerInterface,
-            characterSet: CharacterSet.PC850_MULTILINGUAL,  // Multilingual for better compatibility
+            type: config.type,
+            interface: config.interface,
+            characterSet: CharacterSet.PC850_MULTILINGUAL,
             removeSpecialCharacters: false,
-            lineCharacter: '-',  // Standard dash character
+            lineCharacter: '-',
             options: {
               timeout: 5000,
             },
           })
 
-          log.info(`Created ThermalPrinter instance for: ${printerInterface}`)
+          log.info(`Created ThermalPrinter instance`)
 
           this.isConnected = await this.testConnection()
-          log.info(`Connection test result for ${printerInterface}: ${this.isConnected}`)
+          log.info(`Connection test result: ${this.isConnected}`)
 
           if (this.isConnected) {
-            log.info(`✓ Thermal printer CONNECTED via: ${printerInterface}`)
+            log.info(`✅ SUCCESS! Thermal printer connected`)
+            log.info(`   Interface: ${config.interface}`)
+            log.info(`   Type: ${config.type}`)
             return
           } else {
-            log.warn(`✗ Connection test failed for: ${printerInterface}`)
+            log.warn(`✗ Connection test failed`)
           }
         } catch (err: any) {
-          log.error(`✗ Thermal interface ${printerInterface} error:`, {
+          log.error(`✗ Configuration failed:`, {
+            interface: config.interface,
+            type: config.type,
             message: err.message,
             code: err.code,
-            stack: err.stack?.split('\n')[0],
           })
           continue
         }
