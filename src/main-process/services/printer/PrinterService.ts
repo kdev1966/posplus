@@ -1,6 +1,6 @@
 import TicketRepository from '../database/repositories/TicketRepository'
 import log from 'electron-log'
-import { ThermalPrinter, PrinterTypes } from 'node-thermal-printer'
+import { ThermalPrinter, PrinterTypes, CharacterSet } from 'node-thermal-printer'
 import StandardPrinterService from './StandardPrinterService'
 
 class PrinterService {
@@ -34,8 +34,8 @@ class PrinterService {
 
       // Windows: Try thermal printer interfaces first (for POS with thermal printer)
       const interfaces = [
-        'printer:POS80 Printer',  // Printer name via Windows
-        'CP001',                  // Direct port name
+        'printer:POS80 Printer',  // Printer name via Windows (CONFIRMED)
+        'CP001',                  // Direct port name (CONFIRMED)
         '//./CP001',              // Device path format
         '\\\\.\\CP001',           // Windows device path
         'tcp://localhost:9100',   // Network fallback (if configured)
@@ -51,9 +51,9 @@ class PrinterService {
           this.printer = new ThermalPrinter({
             type: PrinterTypes.EPSON,
             interface: printerInterface,
-            characterSet: 'SLOVENIA' as any,
+            characterSet: CharacterSet.PC850_MULTILINGUAL,  // Multilingual for better compatibility
             removeSpecialCharacters: false,
-            lineCharacter: '=',
+            lineCharacter: '-',  // Standard dash character
             options: {
               timeout: 5000,
             },
