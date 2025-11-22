@@ -14,7 +14,24 @@ class PrinterService {
 
   private async initialize() {
     try {
-      // Try thermal printer interfaces first (for Windows POS with thermal printer)
+      // On macOS, skip thermal printer attempts and go straight to standard printer
+      if (process.platform === 'darwin') {
+        log.info('macOS detected, using standard printer service')
+        const standardStatus = await StandardPrinterService.getStatus()
+
+        if (standardStatus.connected) {
+          log.info('Standard printer service connected successfully')
+          this.isConnected = true
+          this.useStandardPrinter = true
+          return
+        } else {
+          log.error('Standard printer not available on macOS')
+          this.isConnected = false
+          return
+        }
+      }
+
+      // Windows: Try thermal printer interfaces first (for POS with thermal printer)
       const interfaces = [
         'printer:POS80 Printer',  // Exact name
         '//./CP001',              // Direct port access
@@ -50,7 +67,7 @@ class PrinterService {
         }
       }
 
-      // If thermal printer failed, try standard printer (macOS laser/PDF)
+      // If thermal printer failed on Windows, try standard printer as fallback
       log.info('Thermal printer not found, trying standard printer service')
       const standardStatus = await StandardPrinterService.getStatus()
 
