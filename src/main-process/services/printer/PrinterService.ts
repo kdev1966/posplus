@@ -1,10 +1,12 @@
 import TicketRepository from '../database/repositories/TicketRepository'
 import log from 'electron-log'
 import { ThermalPrinter, PrinterTypes, CharacterSet } from 'node-thermal-printer'
+import { getPrinterConfig } from '../../utils/printerConfig'
 
 class PrinterService {
   private printer: ThermalPrinter | null = null
   private isConnected = false
+  private lastError: string | null = null
   private initPromise: Promise<void>
 
   constructor() {
@@ -15,13 +17,26 @@ class PrinterService {
     try {
       // Try thermal printer interfaces for all platforms (Windows, macOS, Linux)
       // POS80 is a generic ESC/POS thermal printer
-      // Priority: printer name interface (best for sending data) > port interface (connection only)
+      // Priority: configured printer name/port interface (best for sending data) > fallback interfaces
+      const cfg = await getPrinterConfig()
+
+      const configuredInterfaces = [] as { interface: string; type: any }[]
+      if (cfg && cfg.printerName) {
+        configuredInterfaces.push({ interface: `printer:${cfg.printerName}`, type: PrinterTypes.EPSON })
+      }
+      if (cfg && cfg.port) {
+        configuredInterfaces.push({ interface: `//./${cfg.port}`, type: PrinterTypes.EPSON })
+        configuredInterfaces.push({ interface: `\\.\\${cfg.port}`, type: PrinterTypes.EPSON })
+        configuredInterfaces.push({ interface: `${cfg.port}`, type: PrinterTypes.EPSON })
+      }
+
       const configurations = [
-        // PRIORITY: Printer name interface with EPSON (generic ESC/POS)
+        // Configured first
+        ...configuredInterfaces,
+        // Defaults / fallbacks
         { interface: 'printer:POS80 Printer', type: PrinterTypes.EPSON },
-        // Alternative: Direct port interfaces with device path format
         { interface: '//./CP001', type: PrinterTypes.EPSON },
-        { interface: '\\\\.\\CP001', type: PrinterTypes.EPSON },
+        { interface: '\\.\\CP001', type: PrinterTypes.EPSON },
         { interface: 'CP001', type: PrinterTypes.EPSON },
         // Fallback: Try STAR if EPSON doesn't work
         { interface: 'printer:POS80 Printer', type: PrinterTypes.STAR },
@@ -53,29 +68,35 @@ class PrinterService {
           this.isConnected = await this.testConnection()
           log.info(`Connection test result: ${this.isConnected}`)
 
+          if (!this.isConnected) {
+            log.info(`isPrinterConnected returned false for interface: ${config.interface}`)
+          }
+
           if (this.isConnected) {
             // IMPORTANT: Try a real print test to verify data can be sent
             log.info(`Connection successful, testing actual print capability...`)
 
             try {
-              this.printer.clear()
-              this.printer.println('TEST')
-              await this.printer.execute()
-              this.printer.clear()
+                    this.printer.clear()
+                    this.printer.println('TEST')
+                    await this.printer.execute()
+                    this.printer.clear()
 
               log.info(`✅ SUCCESS! Thermal printer connected AND printing works`)
               log.info(`   Interface: ${config.interface}`)
               log.info(`   Type: ${config.type}`)
               return
             } catch (printErr: any) {
-              log.warn(`Connection OK but print test failed: ${printErr.message}`)
+                    log.warn(`Connection OK but print test failed: ${printErr.message}`)
               log.warn(`Trying next configuration...`)
-              this.printer = null
-              this.isConnected = false
+                    this.printer = null
+                    this.isConnected = false
+                    this.lastError = printErr?.message || String(printErr)
               continue
             }
           } else {
             log.warn(`✗ Connection test failed`)
+            this.lastError = `Connection test failed for interface ${config.interface}`
           }
         } catch (err: any) {
           log.error(`✗ Configuration failed:`, {
@@ -84,6 +105,7 @@ class PrinterService {
             message: err.message,
             code: err.code,
           })
+          this.lastError = err?.message || String(err)
           continue
         }
       }
@@ -92,6 +114,7 @@ class PrinterService {
       // StandardPrinterService uses 'print' command which sends raw text
       // Thermal printers require ESC/POS binary commands
       log.error('❌ All thermal printer interfaces failed')
+      this.lastError = 'All thermal printer interfaces failed'
       log.error('THERMAL PRINTER REQUIRED: Application cannot use standard printer')
       log.error('Please check:')
       log.error('  1. Printer name is exactly: "POS80 Printer"')
@@ -102,6 +125,7 @@ class PrinterService {
       this.isConnected = false
     } catch (error) {
       log.error('Failed to initialize printer:', error)
+      this.lastError = error?.message || String(error)
       this.isConnected = false
     }
   }
@@ -113,6 +137,7 @@ class PrinterService {
       await this.printer.isPrinterConnected()
       return true
     } catch (error) {
+      this.lastError = error?.message || String(error)
       return false
     }
   }
@@ -226,6 +251,7 @@ class PrinterService {
       }
     } catch (error) {
       log.error('Failed to print ticket:', error)
+      this.lastError = error?.message || String(error)
       return false
     }
   }
@@ -327,10 +353,12 @@ class PrinterService {
         return true
       } catch (execError) {
         log.error('Test print execute failed:', execError)
+        this.lastError = execError?.message || String(execError)
         throw execError
       }
     } catch (error) {
       log.error('Failed to print test ticket:', error)
+      this.lastError = error?.message || String(error)
       return false
     }
   }
@@ -352,11 +380,12 @@ class PrinterService {
       return true
     } catch (error) {
       log.error('Failed to open cash drawer:', error)
+      this.lastError = error?.message || String(error)
       return false
     }
   }
 
-  async getStatus(): Promise<{ connected: boolean; ready: boolean }> {
+  async getStatus(): Promise<{ connected: boolean; ready: boolean; error?: string | null }> {
     await this.initPromise
 
     // Test thermal printer connection
@@ -366,6 +395,7 @@ class PrinterService {
     return {
       connected,
       ready: connected,
+      error: this.lastError,
     }
   }
 

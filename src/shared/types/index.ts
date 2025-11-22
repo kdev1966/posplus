@@ -267,6 +267,9 @@ export const IPC_CHANNELS = {
   PRINTER_PRINT_TICKET: 'printer:print-ticket',
   PRINTER_PRINT_TEST: 'printer:print-test',
   PRINTER_OPEN_DRAWER: 'printer:open-drawer',
+  PRINTER_GET_CONFIG: 'printer:get-config',
+  PRINTER_SET_CONFIG: 'printer:set-config',
+  PRINTER_RECONNECT: 'printer:reconnect',
   PRINTER_GET_STATUS: 'printer:get-status',
 
   // Sync
@@ -361,7 +364,10 @@ export interface IPCApi {
   printTicket: (ticketId: number) => Promise<boolean>
   printTestTicket: () => Promise<boolean>
   openDrawer: () => Promise<boolean>
-  getPrinterStatus: () => Promise<{ connected: boolean; ready: boolean }>
+  getPrinterStatus: () => Promise<{ connected: boolean; ready: boolean; error?: string }>
+  getPrinterConfig: () => Promise<{ printerName: string; port: string; type?: string }>
+  setPrinterConfig: (cfg: { printerName: string; port: string; type?: string }) => Promise<boolean>
+  reconnectPrinter: () => Promise<boolean>
 
   // Sync
   startSync: () => Promise<boolean>

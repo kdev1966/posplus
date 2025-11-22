@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '@shared/types'
 import PrinterService from '../services/printer/PrinterService'
+import { getPrinterConfig, setPrinterConfig } from '../utils/printerConfig'
 import log from 'electron-log'
 import { requirePermission, requireAuth } from './handlerUtils'
 
@@ -51,5 +52,42 @@ ipcMain.handle(IPC_CHANNELS.PRINTER_GET_STATUS, async () => {
       ready: false,
       error: error?.message || 'Unable to get printer status',
     }
+  }
+})
+
+ipcMain.handle(IPC_CHANNELS.PRINTER_GET_CONFIG, async () => {
+  try {
+    requireAuth()
+    return await getPrinterConfig()
+  } catch (error: any) {
+    log.error('PRINTER_GET_CONFIG handler error:', error)
+    return {
+      printerName: 'POS80 Printer',
+      port: 'CP001',
+      type: 'EPSON',
+      error: error?.message,
+    } as any
+  }
+})
+
+ipcMain.handle(IPC_CHANNELS.PRINTER_SET_CONFIG, async (_event, cfg) => {
+  try {
+    requireAuth()
+    await setPrinterConfig(cfg)
+    return true
+  } catch (error: any) {
+    log.error('PRINTER_SET_CONFIG handler error:', error)
+    return false
+  }
+})
+
+ipcMain.handle(IPC_CHANNELS.PRINTER_RECONNECT, async () => {
+  try {
+    requireAuth()
+    const success = await PrinterService.reconnect()
+    return success
+  } catch (error: any) {
+    log.error('PRINTER_RECONNECT handler error:', error)
+    return false
   }
 })

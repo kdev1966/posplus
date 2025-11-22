@@ -14,6 +14,11 @@ export const Settings: React.FC = () => {
   const { currentSession, isSessionOpen, openSession, closeSession, fetchCurrentSession } = useSessionStore()
   const { t, currentLanguage, setLanguage } = useLanguageStore()
 
+  const [printerName, setPrinterName] = useState('POS80 Printer')
+  const [printerPort, setPrinterPort] = useState('CP001')
+  const [printerStatus, setPrinterStatus] = useState<{ connected: boolean; ready: boolean; error?: string | null } | null>(null)
+  const [isCheckingPrinter, setIsCheckingPrinter] = useState(false)
+
   const [openingCash, setOpeningCash] = useState('0.000')
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false)
   const [isRepairing, setIsRepairing] = useState(false)
@@ -50,11 +55,40 @@ export const Settings: React.FC = () => {
   useEffect(() => {
     fetchCurrentSession()
     fetchP2PStatus()
-
+    fetchPrinterConfig()
     // Actualiser P2P status toutes les 10 secondes
     const interval = setInterval(fetchP2PStatus, 10000)
     return () => clearInterval(interval)
   }, [])
+
+  const fetchPrinterConfig = async () => {
+    try {
+      const cfg = await window.api.getPrinterConfig()
+      if (cfg) {
+        setPrinterName(cfg.printerName || 'POS80 Printer')
+        setPrinterPort(cfg.port || 'CP001')
+      }
+    } catch (error) {
+      console.error('Failed to fetch printer config:', error)
+    }
+  }
+
+  const checkPrinterStatus = async (showAlert = false) => {
+    setIsCheckingPrinter(true)
+    try {
+      const status = await window.api.getPrinterStatus()
+      setPrinterStatus(status)
+      if (showAlert) {
+        if (status.connected) alert(t('printerConnected'))
+        else alert(`${t('printerNotConnected')}${status.error ? ' - ' + status.error : ''}`)
+      }
+    } catch (error) {
+      console.error('Failed to check printer status:', error)
+      if (showAlert) alert(t('printerCheckFailed'))
+    } finally {
+      setIsCheckingPrinter(false)
+    }
+  }
 
   const fetchP2PStatus = async () => {
     try {
@@ -397,6 +431,50 @@ export const Settings: React.FC = () => {
         <Card>
           <h2 className="text-xl font-bold text-white mb-4">{t('printerSettings')}</h2>
           <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Input
+                label="Nom de l'imprimante"
+                value={printerName}
+                onChange={(e) => setPrinterName(e.target.value)}
+                placeholder="POS80 Printer"
+              />
+              <Input
+                label="Port"
+                value={printerPort}
+                onChange={(e) => setPrinterPort(e.target.value)}
+                placeholder="CP001"
+              />
+            </div>
+
+            <div className="flex gap-3 items-center">
+              <Button variant="primary" onClick={async () => {
+                try {
+                  const ok = await window.api.setPrinterConfig({ printerName, port: printerPort })
+                  if (ok) {
+                    await window.api.reconnectPrinter()
+                    alert('✅ Configuration enregistrée et tentative de reconnexion lancée')
+                    checkPrinterStatus()
+                  } else {
+                    alert('❌ Échec de la sauvegarde de la configuration')
+                  }
+                } catch (error) {
+                  alert('❌ Erreur lors de la sauvegarde de la configuration')
+                }
+              }}>
+                Enregistrer la configuration
+              </Button>
+
+              <div className="ml-2 inline-flex items-center gap-3">
+                <div className={`inline-flex items-center px-2 py-1 rounded text-sm font-semibold ${printerStatus?.connected ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
+                  {printerStatus ? (printerStatus.connected ? t('printerConnected') : t('printerNotConnected')) : '—'}
+                </div>
+                <div className="text-xs text-gray-400">{printerStatus?.error ?? ''}</div>
+                <Button variant="ghost" onClick={() => checkPrinterStatus(true)} disabled={isCheckingPrinter}>
+                  {isCheckingPrinter ? '⏳' : t('checkPrinterStatus')}
+                </Button>
+              </div>
+            </div>
+
             <Button variant="primary" onClick={async () => {
               try {
                 await window.api.openDrawer()
@@ -406,17 +484,6 @@ export const Settings: React.FC = () => {
               }
             }}>
               {t('openCashDrawer')}
-            </Button>
-
-            <Button variant="ghost" onClick={async () => {
-              try {
-                const status = await window.api.getPrinterStatus()
-                alert(status.connected ? t('printerConnected') : t('printerNotConnected'))
-              } catch (error) {
-                alert(t('printerCheckFailed'))
-              }
-            }}>
-              {t('checkPrinterStatus')}
             </Button>
 
             <Button variant="secondary" onClick={async () => {

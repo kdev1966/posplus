@@ -70,6 +70,9 @@ const api: IPCApi = {
   printTestTicket: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_PRINT_TEST),
   openDrawer: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_OPEN_DRAWER),
   getPrinterStatus: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_STATUS),
+  getPrinterConfig: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_CONFIG),
+  setPrinterConfig: (cfg) => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_SET_CONFIG, cfg),
+  reconnectPrinter: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_RECONNECT),
 
   // Sync
   startSync: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_START),
