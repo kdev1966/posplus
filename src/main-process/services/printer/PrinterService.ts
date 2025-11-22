@@ -34,16 +34,19 @@ class PrinterService {
 
       // Windows: Try thermal printer interfaces first (for POS with thermal printer)
       const interfaces = [
-        'printer:POS80 Printer',  // Exact name
-        '//./CP001',              // Direct port access
-        '\\\\.\\CP001',           // Windows path format
+        'printer:POS80 Printer',  // Printer name via Windows
+        'CP001',                  // Direct port name
+        '//./CP001',              // Device path format
+        '\\\\.\\CP001',           // Windows device path
+        'tcp://localhost:9100',   // Network fallback (if configured)
       ]
 
-      log.info('Initializing printer: Trying thermal printer interfaces first')
+      log.info('Initializing printer: Trying thermal printer interfaces')
+      log.info('Available interfaces to test:', interfaces)
 
       for (const printerInterface of interfaces) {
         try {
-          log.info(`Attempting thermal interface: ${printerInterface}`)
+          log.info(`Testing thermal interface: ${printerInterface}`)
 
           this.printer = new ThermalPrinter({
             type: PrinterTypes.EPSON,
@@ -56,14 +59,24 @@ class PrinterService {
             },
           })
 
+          log.info(`Created ThermalPrinter instance for: ${printerInterface}`)
+
           this.isConnected = await this.testConnection()
+          log.info(`Connection test result for ${printerInterface}: ${this.isConnected}`)
+
           if (this.isConnected) {
-            log.info(`Thermal printer connected successfully using interface: ${printerInterface}`)
+            log.info(`✓ Thermal printer CONNECTED via: ${printerInterface}`)
             this.useStandardPrinter = false
             return
+          } else {
+            log.warn(`✗ Connection test failed for: ${printerInterface}`)
           }
-        } catch (err) {
-          log.warn(`Thermal interface ${printerInterface} failed:`, err)
+        } catch (err: any) {
+          log.error(`✗ Thermal interface ${printerInterface} error:`, {
+            message: err.message,
+            code: err.code,
+            stack: err.stack?.split('\n')[0],
+          })
           continue
         }
       }
