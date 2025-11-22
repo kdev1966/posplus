@@ -614,6 +614,7 @@ export const createMockApi = (): IPCApi => ({
 
   // Printer handlers (mock)
   printTicket: async () => false,
+  printTestTicket: async () => false,
   openDrawer: async () => false,
   getPrinterStatus: async () => ({ connected: false, ready: false }),
 
