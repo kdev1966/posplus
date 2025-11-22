@@ -16,6 +16,18 @@ ipcMain.handle(IPC_CHANNELS.PRINTER_PRINT_TICKET, async (_event, ticketId) => {
   }
 })
 
+ipcMain.handle(IPC_CHANNELS.PRINTER_PRINT_TEST, async () => {
+  try {
+    requireAuth()
+    const success = await PrinterService.printTestTicket()
+    return { success, error: success ? null : 'Failed to print test ticket' }
+  } catch (error: any) {
+    log.error('PRINTER_PRINT_TEST handler error:', error)
+    const errorMessage = error?.message || 'Printer test error occurred'
+    return { success: false, error: errorMessage }
+  }
+})
+
 ipcMain.handle(IPC_CHANNELS.PRINTER_OPEN_DRAWER, async () => {
   try {
     requirePermission('session.update')

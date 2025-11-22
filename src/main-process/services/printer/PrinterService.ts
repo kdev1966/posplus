@@ -176,6 +176,107 @@ class PrinterService {
     }
   }
 
+  async printTestTicket(): Promise<boolean> {
+    if (!this.printer) {
+      log.error('Printer not initialized')
+      return false
+    }
+
+    try {
+      log.info('Printing test ticket')
+
+      this.printer.clear()
+
+      // Header
+      this.printer.alignCenter()
+      this.printer.setTextSize(1, 1)
+      this.printer.bold(true)
+      this.printer.println('POSPlus - TEST TICKET')
+      this.printer.bold(false)
+      this.printer.setTextNormal()
+      this.printer.println('Point of Sale System')
+      this.printer.drawLine()
+      this.printer.newLine()
+
+      // Test info
+      this.printer.alignLeft()
+      this.printer.println(`Test Date: ${new Date().toLocaleString()}`)
+      this.printer.println('Printer Type: Thermal 80mm')
+      this.printer.println('Character Set: SLOVENIA')
+      this.printer.drawLine()
+      this.printer.newLine()
+
+      // Sample items
+      this.printer.println('Sample Product 1')
+      this.printer.println('  2 x 5.500 DT = 11.000 DT')
+      this.printer.newLine()
+      this.printer.println('Sample Product 2')
+      this.printer.println('  1 x 3.250 DT = 3.250 DT')
+      this.printer.newLine()
+      this.printer.println('Sample Product 3')
+      this.printer.println('  3 x 2.000 DT = 6.000 DT')
+
+      this.printer.newLine()
+      this.printer.drawLine()
+
+      // Totals
+      this.printer.alignRight()
+      this.printer.println('Subtotal: 20.250 DT')
+      this.printer.println('Discount: -2.000 DT')
+
+      this.printer.newLine()
+      this.printer.bold(true)
+      this.printer.setTextSize(1, 1)
+      this.printer.println('TOTAL: 18.250 DT')
+      this.printer.bold(false)
+      this.printer.setTextNormal()
+
+      this.printer.newLine()
+      this.printer.drawLine()
+
+      // Payment info
+      this.printer.alignLeft()
+      this.printer.println('Payment Method: CASH')
+      this.printer.println('Amount Paid: 20.000 DT')
+      this.printer.println('Change: 1.750 DT')
+
+      this.printer.newLine()
+      this.printer.drawLine()
+
+      // Footer
+      this.printer.alignCenter()
+      this.printer.println('This is a test ticket')
+      this.printer.println('Printer test successful!')
+      this.printer.newLine()
+      this.printer.println('POSPlus v1.0.0')
+      this.printer.newLine()
+      this.printer.newLine()
+      this.printer.newLine()
+
+      // Cut paper
+      this.printer.cut()
+
+      // Execute print
+      log.info('Sending test print job to printer...')
+      try {
+        const result = await this.printer.execute()
+        log.info('Test print command executed, result:', result)
+
+        // Force clear buffer after execution
+        this.printer.clear()
+
+        log.info('Test ticket printed successfully')
+        return true
+      } catch (execError) {
+        log.error('Test print execute failed:', execError)
+        throw execError
+      }
+    } catch (error) {
+      log.error('Failed to print test ticket:', error)
+      return false
+    }
+  }
+
   async openDrawer(): Promise<boolean> {
     if (!this.printer) {
       log.error('Printer not initialized')

@@ -418,6 +418,21 @@ export const Settings: React.FC = () => {
             }}>
               {t('checkPrinterStatus')}
             </Button>
+
+            <Button variant="secondary" onClick={async () => {
+              try {
+                const result = await window.api.printTestTicket()
+                if (result) {
+                  alert('✅ Ticket de test imprimé avec succès!')
+                } else {
+                  alert('❌ Échec de l\'impression du ticket de test')
+                }
+              } catch (error) {
+                alert('❌ Erreur lors de l\'impression du ticket de test')
+              }
+            }}>
+              🖨️ Imprimer ticket de test
+            </Button>
           </div>
         </Card>
 
