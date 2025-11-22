@@ -7,7 +7,6 @@ class PrinterService {
   private printer: ThermalPrinter | null = null
   private isConnected = false
   private lastError: string | null = null
-  private printTestPassed = false  // Track if real print test passed
   private initPromise: Promise<void>
 
   constructor() {
@@ -26,8 +25,8 @@ class PrinterService {
         configuredInterfaces.push({ interface: `printer:${cfg.printerName}`, type: PrinterTypes.EPSON })
       }
       if (cfg && cfg.port) {
+        configuredInterfaces.push({ interface: `\\\\.\\${cfg.port}`, type: PrinterTypes.EPSON })
         configuredInterfaces.push({ interface: `//./${cfg.port}`, type: PrinterTypes.EPSON })
-        configuredInterfaces.push({ interface: `\\.\\${cfg.port}`, type: PrinterTypes.EPSON })
         configuredInterfaces.push({ interface: `${cfg.port}`, type: PrinterTypes.EPSON })
       }
 
@@ -36,11 +35,12 @@ class PrinterService {
         ...configuredInterfaces,
         // Defaults / fallbacks
         { interface: 'printer:POS80 Printer', type: PrinterTypes.EPSON },
+        { interface: '\\\\.\\CP001', type: PrinterTypes.EPSON },
         { interface: '//./CP001', type: PrinterTypes.EPSON },
-        { interface: '\\.\\CP001', type: PrinterTypes.EPSON },
         { interface: 'CP001', type: PrinterTypes.EPSON },
         // Fallback: Try STAR if EPSON doesn't work
         { interface: 'printer:POS80 Printer', type: PrinterTypes.STAR },
+        { interface: '\\\\.\\CP001', type: PrinterTypes.STAR },
         { interface: '//./CP001', type: PrinterTypes.STAR },
       ]
 
@@ -80,8 +80,8 @@ class PrinterService {
             log.info(`⚠️  Physical printing capability cannot be verified automatically`)
             log.info(`   Please test manually using "Print Test Ticket" button`)
 
-            // DO NOT mark printTestPassed here because execute() returns success
-            // even when no physical printer is connected. User must verify manually.
+            // Physical printing capability cannot be verified automatically
+            // User must test manually using "Print Test Ticket" button
             return
           } else {
             log.warn(`✗ Connection test failed`)
@@ -112,12 +112,10 @@ class PrinterService {
       log.error('  4. Driver is installed correctly')
 
       this.isConnected = false
-      this.printTestPassed = false
     } catch (error) {
       log.error('Failed to initialize printer:', error)
       this.lastError = (error as any)?.message || String(error)
       this.isConnected = false
-      this.printTestPassed = false
     }
   }
 
@@ -278,7 +276,7 @@ class PrinterService {
       this.printer.alignLeft()
       this.printer.println(`Test Date: ${new Date().toLocaleString()}`)
       this.printer.println('Printer Type: Thermal 80mm')
-      this.printer.println('Character Set: SLOVENIA')
+      this.printer.println('Character Set: PC850 Multilingual')
       this.printer.drawLine()
       this.printer.newLine()
 
@@ -341,16 +339,12 @@ class PrinterService {
         // Force clear buffer after execution
         this.printer.clear()
 
-        // Mark that we successfully sent print commands
-        // User must verify if physical printing occurred
-        this.printTestPassed = true
         log.info('✅ Print commands sent successfully')
         log.info('⚠️  Check if ticket printed physically - if yes, printer is working')
         return true
       } catch (execError) {
         log.error('Test print execute failed:', execError)
         this.lastError = (execError as any)?.message || String(execError)
-        this.printTestPassed = false
         throw execError
       }
     } catch (error) {
@@ -385,9 +379,9 @@ class PrinterService {
   async getStatus(): Promise<{ connected: boolean; ready: boolean; error?: string | null }> {
     await this.initPromise
 
-    // Only report as connected if the real print test passed during initialization
-    // isPrinterConnected() can return false positives
-    const connected = this.isConnected && this.printTestPassed
+    // Report connection status based on interface connection test
+    // Note: Physical printing capability can only be verified by manual test
+    const connected = this.isConnected
 
     return {
       connected,
