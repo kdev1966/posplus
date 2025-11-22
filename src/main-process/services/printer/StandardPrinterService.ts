@@ -15,12 +15,13 @@ const execAsync = promisify(exec)
 class StandardPrinterService {
   private isConnected = false
   private printerName: string | null = null
+  private initPromise: Promise<void>
 
   constructor() {
-    this.initialize()
+    this.initPromise = this.initialize()
   }
 
-  private async initialize() {
+  private async initialize(): Promise<void> {
     try {
       log.info('StandardPrinter: Initializing standard printer service')
 
@@ -270,6 +271,8 @@ class StandardPrinterService {
   }
 
   async printTicket(ticketId: number): Promise<boolean> {
+    await this.initPromise // Wait for initialization
+
     if (!this.isConnected) {
       log.error('StandardPrinter: Printer not connected')
       return false
@@ -292,6 +295,8 @@ class StandardPrinterService {
   }
 
   async printTestTicket(): Promise<boolean> {
+    await this.initPromise // Wait for initialization
+
     if (!this.isConnected) {
       log.error('StandardPrinter: Printer not connected')
       return false
@@ -308,11 +313,13 @@ class StandardPrinterService {
   }
 
   async openDrawer(): Promise<boolean> {
+    await this.initPromise // Wait for initialization
     log.warn('StandardPrinter: Cash drawer not supported on standard printers')
     return false
   }
 
   async getStatus(): Promise<{ connected: boolean; ready: boolean }> {
+    await this.initPromise // Wait for initialization
     return {
       connected: this.isConnected,
       ready: this.isConnected,
