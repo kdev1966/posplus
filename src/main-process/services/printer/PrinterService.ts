@@ -1,12 +1,10 @@
 import TicketRepository from '../database/repositories/TicketRepository'
 import log from 'electron-log'
 import { ThermalPrinter, PrinterTypes, CharacterSet } from 'node-thermal-printer'
-import StandardPrinterService from './StandardPrinterService'
 
 class PrinterService {
   private printer: ThermalPrinter | null = null
   private isConnected = false
-  private isMacOS = process.platform === 'darwin'
   private initPromise: Promise<void>
 
   constructor() {
@@ -15,23 +13,7 @@ class PrinterService {
 
   private async initialize(): Promise<void> {
     try {
-      // On macOS, skip thermal printer attempts and go straight to standard printer
-      if (process.platform === 'darwin') {
-        log.info('macOS detected, using standard printer service')
-        const standardStatus = await StandardPrinterService.getStatus()
-
-        if (standardStatus.connected) {
-          log.info('Standard printer service connected successfully')
-          this.isConnected = true
-          return
-        } else {
-          log.error('Standard printer not available on macOS')
-          this.isConnected = false
-          return
-        }
-      }
-
-      // Windows: Try thermal printer interfaces first (for POS with thermal printer)
+      // Try thermal printer interfaces for all platforms (Windows, macOS, Linux)
       // POS80 is a generic ESC/POS thermal printer
       // Priority: printer name interface (best for sending data) > port interface (connection only)
       const configurations = [
@@ -138,12 +120,7 @@ class PrinterService {
   async printTicket(ticketId: number): Promise<boolean> {
     await this.initPromise
 
-    // On macOS, delegate to StandardPrinterService
-    if (this.isMacOS) {
-      return await StandardPrinterService.printTicket(ticketId)
-    }
-
-    // Windows: Require thermal printer
+    // Require thermal printer
     if (!this.isConnected || !this.printer) {
       log.error('❌ Thermal printer not connected - Cannot print ticket')
       log.error('Please check printer connection and restart application')
@@ -256,12 +233,7 @@ class PrinterService {
   async printTestTicket(): Promise<boolean> {
     await this.initPromise
 
-    // On macOS, delegate to StandardPrinterService
-    if (this.isMacOS) {
-      return await StandardPrinterService.printTestTicket()
-    }
-
-    // Windows: Require thermal printer
+    // Require thermal printer
     if (!this.isConnected || !this.printer) {
       log.error('❌ Thermal printer not connected - Cannot print test ticket')
       log.error('Please check printer connection and restart application')
@@ -366,12 +338,7 @@ class PrinterService {
   async openDrawer(): Promise<boolean> {
     await this.initPromise
 
-    // On macOS, delegate to StandardPrinterService (will return false)
-    if (this.isMacOS) {
-      return await StandardPrinterService.openDrawer()
-    }
-
-    // Windows: Require thermal printer
+    // Require thermal printer
     if (!this.isConnected || !this.printer) {
       log.error('❌ Thermal printer not connected - Cannot open cash drawer')
       return false
@@ -392,12 +359,7 @@ class PrinterService {
   async getStatus(): Promise<{ connected: boolean; ready: boolean }> {
     await this.initPromise
 
-    // On macOS, delegate to StandardPrinterService
-    if (this.isMacOS) {
-      return await StandardPrinterService.getStatus()
-    }
-
-    // Windows: Test thermal printer connection
+    // Test thermal printer connection
     const connected = await this.testConnection()
     this.isConnected = connected
 
