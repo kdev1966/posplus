@@ -7,6 +7,7 @@ class PrinterService {
   private printer: ThermalPrinter | null = null
   private isConnected = false
   private lastError: string | null = null
+  private printTestPassed = false  // Track if real print test passed
   private initPromise: Promise<void>
 
   constructor() {
@@ -85,12 +86,14 @@ class PrinterService {
               log.info(`✅ SUCCESS! Thermal printer connected AND printing works`)
               log.info(`   Interface: ${config.interface}`)
               log.info(`   Type: ${config.type}`)
+              this.printTestPassed = true  // Mark that real print test succeeded
               return
             } catch (printErr: any) {
                     log.warn(`Connection OK but print test failed: ${printErr.message}`)
               log.warn(`Trying next configuration...`)
                     this.printer = null
                     this.isConnected = false
+                    this.printTestPassed = false
                     this.lastError = (printErr as any)?.message || String(printErr)
               continue
             }
@@ -123,10 +126,12 @@ class PrinterService {
       log.error('  4. Driver is installed correctly')
 
       this.isConnected = false
+      this.printTestPassed = false
     } catch (error) {
       log.error('Failed to initialize printer:', error)
       this.lastError = (error as any)?.message || String(error)
       this.isConnected = false
+      this.printTestPassed = false
     }
   }
 
@@ -388,9 +393,9 @@ class PrinterService {
   async getStatus(): Promise<{ connected: boolean; ready: boolean; error?: string | null }> {
     await this.initPromise
 
-    // Test thermal printer connection
-    const connected = await this.testConnection()
-    this.isConnected = connected
+    // Only report as connected if the real print test passed during initialization
+    // isPrinterConnected() can return false positives
+    const connected = this.isConnected && this.printTestPassed
 
     return {
       connected,
