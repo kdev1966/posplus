@@ -32,17 +32,18 @@ class PrinterService {
       }
 
       // Windows: Try thermal printer interfaces first (for POS with thermal printer)
-      // Try different combinations of interface and printer type
+      // POS80 is a generic ESC/POS thermal printer
+      // Priority: printer name interface (best for sending data) > port interface (connection only)
       const configurations = [
-        // EPSON types (most common for POS80)
+        // PRIORITY: Printer name interface with EPSON (generic ESC/POS)
         { interface: 'printer:POS80 Printer', type: PrinterTypes.EPSON },
-        { interface: 'CP001', type: PrinterTypes.EPSON },
-        // STAR types (alternative brand)
-        { interface: 'printer:POS80 Printer', type: PrinterTypes.STAR },
-        { interface: 'CP001', type: PrinterTypes.STAR },
-        // Device paths
+        // Alternative: Direct port interfaces with device path format
         { interface: '//./CP001', type: PrinterTypes.EPSON },
         { interface: '\\\\.\\CP001', type: PrinterTypes.EPSON },
+        { interface: 'CP001', type: PrinterTypes.EPSON },
+        // Fallback: Try STAR if EPSON doesn't work
+        { interface: 'printer:POS80 Printer', type: PrinterTypes.STAR },
+        { interface: '//./CP001', type: PrinterTypes.STAR },
       ]
 
       log.info('Initializing printer: Trying thermal printer configurations')
@@ -58,6 +59,7 @@ class PrinterService {
             characterSet: CharacterSet.PC850_MULTILINGUAL,
             removeSpecialCharacters: false,
             lineCharacter: '-',
+            width: 48,  // 80mm paper = 48 characters
             options: {
               timeout: 5000,
             },
@@ -65,14 +67,31 @@ class PrinterService {
 
           log.info(`Created ThermalPrinter instance`)
 
+          // Test connection
           this.isConnected = await this.testConnection()
           log.info(`Connection test result: ${this.isConnected}`)
 
           if (this.isConnected) {
-            log.info(`✅ SUCCESS! Thermal printer connected`)
-            log.info(`   Interface: ${config.interface}`)
-            log.info(`   Type: ${config.type}`)
-            return
+            // IMPORTANT: Try a real print test to verify data can be sent
+            log.info(`Connection successful, testing actual print capability...`)
+
+            try {
+              this.printer.clear()
+              this.printer.println('TEST')
+              await this.printer.execute()
+              this.printer.clear()
+
+              log.info(`✅ SUCCESS! Thermal printer connected AND printing works`)
+              log.info(`   Interface: ${config.interface}`)
+              log.info(`   Type: ${config.type}`)
+              return
+            } catch (printErr: any) {
+              log.warn(`Connection OK but print test failed: ${printErr.message}`)
+              log.warn(`Trying next configuration...`)
+              this.printer = null
+              this.isConnected = false
+              continue
+            }
           } else {
             log.warn(`✗ Connection test failed`)
           }
