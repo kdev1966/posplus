@@ -91,7 +91,7 @@ class PrinterService {
               log.warn(`Trying next configuration...`)
                     this.printer = null
                     this.isConnected = false
-                    this.lastError = printErr?.message || String(printErr)
+                    this.lastError = (printErr as any)?.message || String(printErr)
               continue
             }
           } else {
@@ -105,7 +105,7 @@ class PrinterService {
             message: err.message,
             code: err.code,
           })
-          this.lastError = err?.message || String(err)
+          this.lastError = (err as any)?.message || String(err)
           continue
         }
       }
@@ -125,7 +125,7 @@ class PrinterService {
       this.isConnected = false
     } catch (error) {
       log.error('Failed to initialize printer:', error)
-      this.lastError = error?.message || String(error)
+      this.lastError = (error as any)?.message || String(error)
       this.isConnected = false
     }
   }
@@ -137,7 +137,7 @@ class PrinterService {
       await this.printer.isPrinterConnected()
       return true
     } catch (error) {
-      this.lastError = error?.message || String(error)
+      this.lastError = (error as any)?.message || String(error)
       return false
     }
   }
@@ -251,7 +251,7 @@ class PrinterService {
       }
     } catch (error) {
       log.error('Failed to print ticket:', error)
-      this.lastError = error?.message || String(error)
+      this.lastError = (error as any)?.message || String(error)
       return false
     }
   }
@@ -353,12 +353,12 @@ class PrinterService {
         return true
       } catch (execError) {
         log.error('Test print execute failed:', execError)
-        this.lastError = execError?.message || String(execError)
+        this.lastError = (execError as any)?.message || String(execError)
         throw execError
       }
     } catch (error) {
       log.error('Failed to print test ticket:', error)
-      this.lastError = error?.message || String(error)
+      this.lastError = (error as any)?.message || String(error)
       return false
     }
   }
@@ -380,7 +380,7 @@ class PrinterService {
       return true
     } catch (error) {
       log.error('Failed to open cash drawer:', error)
-      this.lastError = error?.message || String(error)
+      this.lastError = (error as any)?.message || String(error)
       return false
     }
   }

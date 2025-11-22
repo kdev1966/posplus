@@ -617,6 +617,9 @@ export const createMockApi = (): IPCApi => ({
   printTestTicket: async () => false,
   openDrawer: async () => false,
   getPrinterStatus: async () => ({ connected: false, ready: false }),
+  getPrinterConfig: async () => ({ printerName: 'POS80 Printer', port: 'CP001', type: 'EPSON' }),
+  setPrinterConfig: async () => true,
+  reconnectPrinter: async () => true,
 
   // Sync handlers (mock)
   startSync: async () => false,
