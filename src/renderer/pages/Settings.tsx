@@ -490,9 +490,9 @@ export const Settings: React.FC = () => {
               try {
                 const result = await window.api.printTestTicket()
                 if (result) {
-                  alert('✅ Ticket de test imprimé avec succès!')
+                  alert('✅ Commandes d\'impression envoyées\n\n⚠️ Vérifiez si le ticket s\'est imprimé physiquement.\n\nSi rien ne s\'imprime:\n• Vérifiez que l\'imprimante est allumée\n• Vérifiez le nom et le port dans les paramètres\n• Consultez les logs pour plus de détails')
                 } else {
-                  alert('❌ Échec de l\'impression du ticket de test')
+                  alert('❌ Échec de l\'envoi des commandes d\'impression')
                 }
               } catch (error) {
                 alert('❌ Erreur lors de l\'impression du ticket de test')

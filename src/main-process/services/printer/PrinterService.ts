@@ -74,29 +74,15 @@ class PrinterService {
           }
 
           if (this.isConnected) {
-            // IMPORTANT: Try a real print test to verify data can be sent
-            log.info(`Connection successful, testing actual print capability...`)
+            // Connection test passed - save this configuration
+            log.info(`✅ Thermal printer interface connected: ${config.interface}`)
+            log.info(`   Type: ${config.type}`)
+            log.info(`⚠️  Physical printing capability cannot be verified automatically`)
+            log.info(`   Please test manually using "Print Test Ticket" button`)
 
-            try {
-                    this.printer.clear()
-                    this.printer.println('TEST')
-                    await this.printer.execute()
-                    this.printer.clear()
-
-              log.info(`✅ SUCCESS! Thermal printer connected AND printing works`)
-              log.info(`   Interface: ${config.interface}`)
-              log.info(`   Type: ${config.type}`)
-              this.printTestPassed = true  // Mark that real print test succeeded
-              return
-            } catch (printErr: any) {
-                    log.warn(`Connection OK but print test failed: ${printErr.message}`)
-              log.warn(`Trying next configuration...`)
-                    this.printer = null
-                    this.isConnected = false
-                    this.printTestPassed = false
-                    this.lastError = (printErr as any)?.message || String(printErr)
-              continue
-            }
+            // DO NOT mark printTestPassed here because execute() returns success
+            // even when no physical printer is connected. User must verify manually.
+            return
           } else {
             log.warn(`✗ Connection test failed`)
             this.lastError = `Connection test failed for interface ${config.interface}`
@@ -273,6 +259,7 @@ class PrinterService {
 
     try {
       log.info('Printing test ticket (thermal)')
+      log.info('⚠️  If ticket prints successfully, printer is working correctly')
 
       this.printer.clear()
 
@@ -354,11 +341,16 @@ class PrinterService {
         // Force clear buffer after execution
         this.printer.clear()
 
-        log.info('Test ticket printed successfully')
+        // Mark that we successfully sent print commands
+        // User must verify if physical printing occurred
+        this.printTestPassed = true
+        log.info('✅ Print commands sent successfully')
+        log.info('⚠️  Check if ticket printed physically - if yes, printer is working')
         return true
       } catch (execError) {
         log.error('Test print execute failed:', execError)
         this.lastError = (execError as any)?.message || String(execError)
+        this.printTestPassed = false
         throw execError
       }
     } catch (error) {
