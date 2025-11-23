@@ -465,6 +465,61 @@ export class ProductRepository {
     }
   }
 
+  // Méthode pour mettre à jour un produit depuis sync P2P
+  updateFromSync(productData: any): Product | null {
+    try {
+      log.info(`P2P: Updating product from sync: ${productData.name}`)
+
+      const stmt = this.db.prepare(`
+        UPDATE products SET
+          sku = ?,
+          barcode = ?,
+          name = ?,
+          description = ?,
+          category_id = ?,
+          price = ?,
+          cost = ?,
+          discount_rate = ?,
+          stock = ?,
+          min_stock = ?,
+          max_stock = ?,
+          unit = ?,
+          image_url = ?,
+          is_active = ?,
+          updated_at = ?
+        WHERE id = ?
+      `)
+
+      stmt.run(
+        productData.sku,
+        productData.barcode || null,
+        productData.name,
+        productData.description || null,
+        productData.categoryId,
+        productData.price,
+        productData.cost,
+        productData.discountRate || 0,
+        productData.stock,
+        productData.minStock,
+        productData.maxStock || null,
+        productData.unit,
+        productData.imageUrl || null,
+        productData.isActive ? 1 : 0,
+        productData.updatedAt,
+        productData.id
+      )
+
+      const product = this.findById(productData.id)
+      if (product) {
+        log.info(`P2P: Product ${product.name} updated from sync successfully`)
+      }
+      return product
+    } catch (error) {
+      log.error('ProductRepository.updateFromSync failed:', error)
+      throw error
+    }
+  }
+
   // Méthode pour mettre à jour le stock depuis sync P2P
   updateStockFromSync(productId: number, quantity: number): void {
     try {

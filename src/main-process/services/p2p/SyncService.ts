@@ -529,7 +529,7 @@ class P2PSyncService {
               )
 
               if (conflict.winner === 'remote') {
-                ProductRepository.update(data)
+                ProductRepository.updateFromSync(data)
                 log.info(`P2P: Synced product update ${data.name} (conflict: remote wins)`)
                 this.logSyncEvent(
                   message.sourcePos,

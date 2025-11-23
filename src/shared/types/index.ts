@@ -301,6 +301,9 @@ export const IPC_CHANNELS = {
   // P2P Sync
   P2P_GET_STATUS: 'p2p:get-status',
   P2P_GET_DETAILED_STATS: 'p2p:get-detailed-stats',
+  P2P_GET_SYNC_LOGS: 'p2p:get-sync-logs',
+  P2P_GET_CONFLICTS: 'p2p:get-conflicts',
+  P2P_GET_CONNECTION_METRICS: 'p2p:get-connection-metrics',
   P2P_RECONNECT: 'p2p:reconnect',
   P2P_TOGGLE: 'p2p:toggle',
 } as const

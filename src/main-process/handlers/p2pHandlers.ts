@@ -105,4 +105,70 @@ ipcMain.handle(IPC_CHANNELS.P2P_GET_DETAILED_STATS, async () => {
   }
 })
 
+// Obtenir les logs de synchronisation P2P
+ipcMain.handle(IPC_CHANNELS.P2P_GET_SYNC_LOGS, async (_event, options?: { limit?: number; offset?: number }) => {
+  try {
+    requireAuth()
+    const db = require('../services/database/db').default.getInstance().getDatabase()
+
+    const limit = options?.limit || 100
+    const offset = options?.offset || 0
+
+    const stmt = db.prepare(`
+      SELECT * FROM p2p_sync_logs
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `)
+
+    return stmt.all(limit, offset)
+  } catch (error: any) {
+    log.error('P2P_GET_SYNC_LOGS handler error:', error)
+    return []
+  }
+})
+
+// Obtenir les conflits P2P
+ipcMain.handle(IPC_CHANNELS.P2P_GET_CONFLICTS, async (_event, options?: { limit?: number; offset?: number }) => {
+  try {
+    requireAuth()
+    const db = require('../services/database/db').default.getInstance().getDatabase()
+
+    const limit = options?.limit || 50
+    const offset = options?.offset || 0
+
+    const stmt = db.prepare(`
+      SELECT * FROM p2p_conflicts
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `)
+
+    return stmt.all(limit, offset)
+  } catch (error: any) {
+    log.error('P2P_GET_CONFLICTS handler error:', error)
+    return []
+  }
+})
+
+// Obtenir les métriques de connexion P2P
+ipcMain.handle(IPC_CHANNELS.P2P_GET_CONNECTION_METRICS, async (_event, options?: { limit?: number; offset?: number }) => {
+  try {
+    requireAuth()
+    const db = require('../services/database/db').default.getInstance().getDatabase()
+
+    const limit = options?.limit || 100
+    const offset = options?.offset || 0
+
+    const stmt = db.prepare(`
+      SELECT * FROM p2p_connection_metrics
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `)
+
+    return stmt.all(limit, offset)
+  } catch (error: any) {
+    log.error('P2P_GET_CONNECTION_METRICS handler error:', error)
+    return []
+  }
+})
+
 log.info('P2P handlers registered')
