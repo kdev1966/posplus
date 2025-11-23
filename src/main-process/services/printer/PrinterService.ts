@@ -370,6 +370,10 @@ class PrinterService {
       log.info('Opening cash drawer')
       this.printer.openCashDrawer()
       await this.printer.execute()
+
+      // Force clear buffer after execution to prevent stale data
+      this.printer.clear()
+
       log.info('Cash drawer opened')
       return true
     } catch (error) {
@@ -395,7 +399,25 @@ class PrinterService {
 
   async reconnect(): Promise<boolean> {
     log.info('Attempting to reconnect printer')
-    await this.initialize()
+
+    // Clean up old printer instance to prevent resource leaks
+    if (this.printer) {
+      try {
+        this.printer.clear()
+      } catch (err) {
+        log.warn('Failed to clear old printer buffer during reconnect:', err)
+      }
+      this.printer = null
+    }
+
+    // Reset state
+    this.isConnected = false
+    this.lastError = null
+
+    // Reinitialize with new promise
+    this.initPromise = this.initialize()
+    await this.initPromise
+
     return this.isConnected
   }
 }

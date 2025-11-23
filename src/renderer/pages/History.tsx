@@ -98,11 +98,16 @@ export const History: React.FC = () => {
 
   const handlePrintTicket = async (ticketId: number) => {
     try {
-      await window.api.printTicket(ticketId)
-      alert(t('ticketPrintSuccess'))
-    } catch (error) {
+      const result = await window.api.printTicket(ticketId)
+      if (result) {
+        alert(t('ticketPrintSuccess'))
+      } else {
+        alert(t('ticketPrintError') + '\n\n' + t('checkPrinterConnection'))
+      }
+    } catch (error: any) {
       console.error('Failed to print ticket:', error)
-      alert(t('ticketPrintError'))
+      const errorMsg = error?.message || error?.toString() || t('ticketPrintError')
+      alert(t('ticketPrintError') + '\n\n' + errorMsg + '\n\n' + t('checkPrinterSettings'))
     }
   }
 
