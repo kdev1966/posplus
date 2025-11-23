@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -26,10 +26,20 @@ export const Categories: React.FC = () => {
     description: '',
     displayOrder: '',
   })
+  const categoryNameInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadCategories()
   }, [])
+
+  // Auto-focus sur le champ nom de la catégorie quand la modal s'ouvre
+  useEffect(() => {
+    if (isModalOpen) {
+      setTimeout(() => {
+        categoryNameInputRef.current?.focus()
+      }, 100)
+    }
+  }, [isModalOpen])
 
   const loadCategories = async () => {
     setLoading(true)
@@ -210,6 +220,7 @@ export const Categories: React.FC = () => {
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
+              ref={categoryNameInputRef}
               label={t('categoryName')}
               name="name"
               value={formData.name}

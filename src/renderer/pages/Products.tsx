@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -43,11 +43,21 @@ export const Products: React.FC = () => {
     categoryId: '',
     discountRate: '',
   })
+  const productNameInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadProducts()
     loadCategories()
   }, [])
+
+  // Auto-focus sur le champ nom du produit quand la modal s'ouvre
+  useEffect(() => {
+    if (isModalOpen) {
+      setTimeout(() => {
+        productNameInputRef.current?.focus()
+      }, 100)
+    }
+  }, [isModalOpen])
 
   const loadProducts = async () => {
     setLoading(true)
@@ -295,6 +305,7 @@ export const Products: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input
+                ref={productNameInputRef}
                 label={t('productName')}
                 name="name"
                 value={formData.name}

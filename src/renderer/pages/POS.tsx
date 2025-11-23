@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Layout } from '../components/layout/Layout'
 import { ProductGrid } from '../components/pos/ProductGrid'
 import { Cart } from '../components/pos/Cart'
@@ -20,6 +20,7 @@ export const POS: React.FC = () => {
 
   const [showPayment, setShowPayment] = useState(false)
   const [barcode, setBarcode] = useState('')
+  const barcodeInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetchProducts()
@@ -113,12 +114,21 @@ export const POS: React.FC = () => {
       clearCart()
       setShowPayment(false)
 
+      // Clear search fields
+      setBarcode('')
+      setSearchQuery('')
+
       // Show appropriate message based on print result
       if (printSucceeded) {
         alert(`${t('saleCompleted')} - ${t('ticket')} #${ticket.ticketNumber}`)
       } else {
         alert(`⚠️ ${t('saleCompleted')} - ${t('ticket')} #${ticket.ticketNumber}\n\n${t('printFailed')}\n${t('canReprintFromHistory')}`)
       }
+
+      // Refocus on barcode input after modal closes
+      setTimeout(() => {
+        barcodeInputRef.current?.focus()
+      }, 100)
     } catch (error) {
       console.error('Failed to complete sale:', error)
       alert(t('failedToCompleteSale'))
@@ -150,6 +160,7 @@ export const POS: React.FC = () => {
           <div className="mb-4 space-y-3">
             <form onSubmit={handleBarcodeSubmit}>
               <Input
+                ref={barcodeInputRef}
                 placeholder={t('scanBarcode')}
                 value={barcode || searchQuery}
                 onChange={(e) => {
