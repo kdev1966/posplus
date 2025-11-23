@@ -211,8 +211,39 @@ export class ProductRepository {
     }
   }
 
+  private generateSKU(): string {
+    // Génère un SKU automatique au format: SKU-YYYYMMDD-XXXXX
+    const now = new Date()
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '')
+
+    // Trouve le dernier SKU généré aujourd'hui
+    const stmt = this.db.prepare(`
+      SELECT sku FROM products
+      WHERE sku LIKE ?
+      ORDER BY sku DESC
+      LIMIT 1
+    `)
+    const pattern = `SKU-${dateStr}-%`
+    const result = stmt.get(pattern) as any
+
+    let nextNumber = 1
+    if (result && result.sku) {
+      // Extrait le numéro du dernier SKU et incrémente
+      const match = result.sku.match(/SKU-\d{8}-(\d{5})/)
+      if (match) {
+        nextNumber = parseInt(match[1]) + 1
+      }
+    }
+
+    // Format: SKU-20251123-00001
+    return `SKU-${dateStr}-${nextNumber.toString().padStart(5, '0')}`
+  }
+
   create(data: CreateProductDTO): Product {
     try {
+      // Générer un SKU automatiquement s'il n'est pas fourni
+      const sku = data.sku && data.sku.trim() !== '' ? data.sku : this.generateSKU()
+
       const stmt = this.db.prepare(`
         INSERT INTO products (
           sku, barcode, name, description, category_id,
@@ -221,7 +252,7 @@ export class ProductRepository {
       `)
 
       const result = stmt.run(
-        data.sku,
+        sku,
         data.barcode || null,
         data.name,
         data.description || null,
