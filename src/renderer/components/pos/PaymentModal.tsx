@@ -76,16 +76,18 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <p className="text-4xl font-bold text-primary-300">{formatCurrency(total)}</p>
         </div>
 
-        {/* Indicateur de mode de paiement en espèces */}
-        <div className="flex justify-center">
-          <div className="p-4 rounded-lg border-2 border-primary-500 bg-primary-500/20">
-            <div className="text-4xl mb-2 text-center">💵</div>
-            <div className="font-semibold text-center text-primary-300">{t('cash')}</div>
-          </div>
-        </div>
-
         {/* Champ de saisie du montant en espèces */}
         <div>
+          <style>{`
+            input[type="number"].no-spinner::-webkit-outer-spin-button,
+            input[type="number"].no-spinner::-webkit-inner-spin-button {
+              -webkit-appearance: none;
+              margin: 0;
+            }
+            input[type="number"].no-spinner {
+              -moz-appearance: textfield;
+            }
+          `}</style>
           <Input
             ref={cashInputRef}
             label={t('cashAmount')}
@@ -95,6 +97,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             onChange={(e) => setCashAmount(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="0.000"
+            className="no-spinner"
             autoFocus
           />
         </div>
