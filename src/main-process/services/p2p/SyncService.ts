@@ -8,19 +8,47 @@ import { app } from 'electron'
 
 export interface SyncMessage {
   id: string // ID unique du message
-  type: 'ticket' | 'product' | 'stock' | 'customer' | 'user' | 'payment' | 'full-sync-request' | 'full-sync-response'
-  action: 'create' | 'update' | 'delete' | 'sync'
+  type:
+    | 'hello' // Nouveau: identification du peer
+    | 'hello-ack' // Nouveau: confirmation de l'identification
+    | 'ping' // Nouveau: heartbeat
+    | 'pong' // Nouveau: heartbeat response
+    | 'ticket'
+    | 'product'
+    | 'stock'
+    | 'customer'
+    | 'user'
+    | 'payment'
+    | 'full-sync-request'
+    | 'full-sync-response'
+  action: 'create' | 'update' | 'delete' | 'sync' | 'identify' | 'heartbeat'
   data: any
   timestamp: string
   sourcePos: string
 }
 
+interface PeerConnection {
+  ws: WebSocket
+  peerId: string
+  peerName: string
+  lastPing: Date
+  lastPong: Date
+  reconnectAttempts: number
+  reconnectTimer: NodeJS.Timeout | null
+}
+
 class P2PSyncService {
   private server: WebSocketServer | null = null
-  private connections: Map<string, WebSocket> = new Map()
+  private connections: Map<string, PeerConnection> = new Map()
   private processedMessages: Set<string> = new Set() // Éviter doublons
   private syncRequested: Set<string> = new Set() // Éviter demandes multiples
   private port = 3030
+  private heartbeatInterval: NodeJS.Timeout | null = null
+  private readonly HEARTBEAT_INTERVAL = 30000 // 30 secondes
+  private readonly HEARTBEAT_TIMEOUT = 10000 // 10 secondes
+  private readonly RECONNECT_BASE_DELAY = 5000 // 5 secondes
+  private readonly RECONNECT_MAX_DELAY = 60000 // 60 secondes
+  private readonly RECONNECT_MAX_ATTEMPTS = 10
 
   // Démarrer le serveur WebSocket
   async startServer(): Promise<void> {
@@ -29,11 +57,11 @@ class P2PSyncService {
 
       this.server.on('connection', (ws: WebSocket, req) => {
         const clientIp = req.socket.remoteAddress
-        log.info(`P2P: New connection from ${clientIp}`)
+        log.info(`P2P: New incoming connection from ${clientIp}`)
 
         // Gérer les messages entrants
         ws.on('message', (data: Buffer) => {
-          this.handleIncomingMessage(data.toString())
+          this.handleIncomingMessage(data.toString(), ws)
         })
 
         // Gérer la déconnexion
@@ -41,8 +69,8 @@ class P2PSyncService {
           log.info(`P2P: Connection closed from ${clientIp}`)
           // Retirer de la liste des connexions
           for (const [peerId, conn] of this.connections.entries()) {
-            if (conn === ws) {
-              this.connections.delete(peerId)
+            if (conn.ws === ws) {
+              this.handleDisconnection(peerId)
               break
             }
           }
@@ -53,10 +81,12 @@ class P2PSyncService {
           log.error(`P2P: WebSocket error from ${clientIp}:`, error)
         })
 
-        // IMPORTANT: Quand on reçoit une connexion entrante,
-        // on attend de recevoir le premier message pour identifier le peer,
-        // puis on demande aussi un full sync
+        // Note: On attend de recevoir le message HELLO pour identifier le peer
+        // et l'ajouter aux connexions
       })
+
+      // Démarrer le heartbeat
+      this.startHeartbeat()
 
       log.info(`P2P: Server started on port ${this.port}`)
     } catch (error) {
@@ -71,40 +101,202 @@ class P2PSyncService {
 
     for (const peer of peers) {
       if (!this.connections.has(peer.id)) {
-        try {
-          // Format address for WebSocket (handle IPv6 with brackets)
-          let address = peer.address
-          if (address.includes(':') && !address.startsWith('[')) {
-            // IPv6 address - add brackets
-            address = `[${address}]`
-          }
+        this.connectToPeer(peer.id, peer.address, peer.port, peer.name)
+      }
+    }
+  }
 
-          log.info(`P2P: Attempting to connect to ${peer.name} at ${address}:${peer.port}`)
-          const ws = new WebSocket(`ws://${address}:${peer.port}`)
+  // Connecter à un pair spécifique
+  private connectToPeer(
+    peerId: string,
+    address: string,
+    port: number,
+    name: string,
+    isReconnect = false
+  ): void {
+    try {
+      // Format address for WebSocket (handle IPv6 with brackets)
+      let addr = address
+      if (addr.includes(':') && !addr.startsWith('[')) {
+        addr = `[${addr}]`
+      }
 
-          ws.on('open', () => {
-            log.info(`P2P: Connected to peer ${peer.name}`)
-            this.connections.set(peer.id, ws)
+      const action = isReconnect ? 'Reconnecting to' : 'Connecting to'
+      log.info(`P2P: ${action} ${name} (${peerId}) at ${addr}:${port}`)
 
-            // Envoyer message de synchronisation initiale
-            this.requestFullSync(peer.id)
-          })
+      const ws = new WebSocket(`ws://${addr}:${port}`)
 
-          ws.on('message', (data: Buffer) => {
-            this.handleIncomingMessage(data.toString())
-          })
+      ws.on('open', () => {
+        log.info(`P2P: ✅ Connected to peer ${name}`)
 
-          ws.on('close', () => {
-            log.info(`P2P: Disconnected from peer ${peer.name}`)
-            this.connections.delete(peer.id)
-          })
-
-          ws.on('error', (error) => {
-            log.error(`P2P: Connection error with ${peer.name}:`, error)
-          })
-        } catch (error) {
-          log.error(`P2P: Failed to connect to peer ${peer.name}:`, error)
+        // Créer la connexion
+        const connection: PeerConnection = {
+          ws,
+          peerId,
+          peerName: name,
+          lastPing: new Date(),
+          lastPong: new Date(),
+          reconnectAttempts: 0,
+          reconnectTimer: null,
         }
+
+        this.connections.set(peerId, connection)
+
+        // Envoyer message HELLO pour s'identifier
+        this.sendHello(peerId)
+
+        // Attendre HELLO_ACK avant de demander la synchronisation
+      })
+
+      ws.on('message', (data: Buffer) => {
+        this.handleIncomingMessage(data.toString(), ws)
+      })
+
+      ws.on('close', () => {
+        log.info(`P2P: Disconnected from peer ${name}`)
+        this.handleDisconnection(peerId)
+      })
+
+      ws.on('error', (error) => {
+        log.error(`P2P: Connection error with ${name}:`, error)
+      })
+    } catch (error) {
+      log.error(`P2P: Failed to connect to peer ${name}:`, error)
+    }
+  }
+
+  // Envoyer message HELLO pour s'identifier
+  private sendHello(peerId: string): void {
+    const message: SyncMessage = {
+      id: uuidv4(),
+      type: 'hello',
+      action: 'identify',
+      data: {
+        posId: this.getPosId(),
+        posName: this.getPosName(),
+      },
+      timestamp: new Date().toISOString(),
+      sourcePos: this.getPosId(),
+    }
+
+    this.sendToPeer(peerId, message)
+    log.info(`P2P: Sent HELLO to ${peerId}`)
+  }
+
+  // Envoyer message HELLO_ACK
+  private sendHelloAck(peerId: string): void {
+    const message: SyncMessage = {
+      id: uuidv4(),
+      type: 'hello-ack',
+      action: 'identify',
+      data: {
+        posId: this.getPosId(),
+        posName: this.getPosName(),
+      },
+      timestamp: new Date().toISOString(),
+      sourcePos: this.getPosId(),
+    }
+
+    this.sendToPeer(peerId, message)
+    log.info(`P2P: Sent HELLO_ACK to ${peerId}`)
+  }
+
+  // Démarrer le heartbeat
+  private startHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval)
+    }
+
+    this.heartbeatInterval = setInterval(() => {
+      for (const [peerId, conn] of this.connections.entries()) {
+        // Vérifier si on a reçu un PONG récemment
+        const timeSinceLastPong = Date.now() - conn.lastPong.getTime()
+
+        if (timeSinceLastPong > this.HEARTBEAT_INTERVAL + this.HEARTBEAT_TIMEOUT) {
+          // Pas de PONG depuis trop longtemps - connexion morte
+          log.warn(`P2P: No PONG from ${conn.peerName} for ${timeSinceLastPong}ms - closing connection`)
+          conn.ws.close()
+          this.handleDisconnection(peerId)
+          continue
+        }
+
+        // Envoyer PING
+        const ping: SyncMessage = {
+          id: uuidv4(),
+          type: 'ping',
+          action: 'heartbeat',
+          data: {},
+          timestamp: new Date().toISOString(),
+          sourcePos: this.getPosId(),
+        }
+
+        conn.lastPing = new Date()
+        this.sendToPeer(peerId, ping)
+      }
+    }, this.HEARTBEAT_INTERVAL)
+  }
+
+  // Gérer la déconnexion et tenter reconnexion
+  private handleDisconnection(peerId: string): void {
+    const conn = this.connections.get(peerId)
+    if (!conn) return
+
+    log.info(`P2P: Handling disconnection from ${conn.peerName}`)
+
+    // Fermer la connexion si pas déjà fait
+    if (conn.ws.readyState !== WebSocket.CLOSED) {
+      conn.ws.close()
+    }
+
+    // Supprimer de la liste
+    this.connections.delete(peerId)
+
+    // Supprimer de la liste de sync requested
+    this.syncRequested.delete(peerId)
+
+    // Tenter reconnexion automatique
+    this.scheduleReconnect(peerId, conn)
+  }
+
+  // Planifier une reconnexion avec backoff exponentiel
+  private scheduleReconnect(peerId: string, conn: PeerConnection): void {
+    // Vérifier si le peer est toujours découvert par Bonjour
+    const peer = PeerDiscovery.getPeers().find((p) => p.id === peerId)
+    if (!peer || !peer.online) {
+      log.info(`P2P: Peer ${conn.peerName} is offline - not scheduling reconnect`)
+      return
+    }
+
+    if (conn.reconnectAttempts >= this.RECONNECT_MAX_ATTEMPTS) {
+      log.warn(`P2P: Max reconnect attempts reached for ${conn.peerName}`)
+      return
+    }
+
+    conn.reconnectAttempts++
+
+    // Backoff exponentiel: 5s, 10s, 20s, 40s, max 60s
+    const delay = Math.min(
+      this.RECONNECT_BASE_DELAY * Math.pow(2, conn.reconnectAttempts - 1),
+      this.RECONNECT_MAX_DELAY
+    )
+
+    log.info(
+      `P2P: Scheduling reconnect to ${conn.peerName} (attempt ${conn.reconnectAttempts}/${this.RECONNECT_MAX_ATTEMPTS}) in ${delay}ms`
+    )
+
+    conn.reconnectTimer = setTimeout(() => {
+      this.connectToPeer(peerId, peer.address, peer.port, peer.name, true)
+    }, delay)
+  }
+
+  // Envoyer un message à un peer spécifique
+  private sendToPeer(peerId: string, message: SyncMessage): void {
+    const conn = this.connections.get(peerId)
+    if (conn && conn.ws.readyState === WebSocket.OPEN) {
+      try {
+        conn.ws.send(JSON.stringify(message))
+      } catch (error) {
+        log.error(`P2P: Failed to send to ${peerId}:`, error)
       }
     }
   }
@@ -124,10 +316,10 @@ class P2PSyncService {
 
     // Envoyer à tous les pairs connectés
     let sentCount = 0
-    for (const [peerId, ws] of this.connections.entries()) {
-      if (ws.readyState === WebSocket.OPEN) {
+    for (const [peerId, conn] of this.connections.entries()) {
+      if (conn.ws.readyState === WebSocket.OPEN) {
         try {
-          ws.send(messageStr)
+          conn.ws.send(messageStr)
           sentCount++
         } catch (error) {
           log.error(`P2P: Failed to send to ${peerId}:`, error)
@@ -141,9 +333,28 @@ class P2PSyncService {
   }
 
   // Gérer les messages entrants
-  private handleIncomingMessage(messageStr: string): void {
+  private handleIncomingMessage(messageStr: string, ws: WebSocket): void {
     try {
       const message: SyncMessage = JSON.parse(messageStr)
+
+      // Gérer les messages de contrôle en premier
+      switch (message.type) {
+        case 'hello':
+          this.handleHello(message, ws)
+          return
+
+        case 'hello-ack':
+          this.handleHelloAck(message)
+          return
+
+        case 'ping':
+          this.handlePing(message)
+          return
+
+        case 'pong':
+          this.handlePong(message)
+          return
+      }
 
       // Ignorer si déjà traité (éviter boucles)
       if (this.processedMessages.has(message.id)) {
@@ -155,9 +366,7 @@ class P2PSyncService {
         return
       }
 
-      log.info(
-        `P2P: Received ${message.type}/${message.action} from ${message.sourcePos}`
-      )
+      log.info(`P2P: Received ${message.type}/${message.action} from ${message.sourcePos}`)
 
       // Marquer comme traité
       this.processedMessages.add(message.id)
@@ -180,6 +389,71 @@ class P2PSyncService {
     }
   }
 
+  // Gérer le message HELLO
+  private handleHello(message: SyncMessage, ws: WebSocket): void {
+    const { posId, posName } = message.data
+
+    log.info(`P2P: Received HELLO from ${posName} (${posId})`)
+
+    // Si ce n'est pas déjà dans les connexions, ajouter
+    if (!this.connections.has(posId)) {
+      const connection: PeerConnection = {
+        ws,
+        peerId: posId,
+        peerName: posName,
+        lastPing: new Date(),
+        lastPong: new Date(),
+        reconnectAttempts: 0,
+        reconnectTimer: null,
+      }
+
+      this.connections.set(posId, connection)
+      log.info(`P2P: Added incoming connection from ${posName}`)
+    }
+
+    // Envoyer HELLO_ACK
+    this.sendHelloAck(posId)
+  }
+
+  // Gérer le message HELLO_ACK
+  private handleHelloAck(message: SyncMessage): void {
+    const { posId, posName } = message.data
+
+    log.info(`P2P: Received HELLO_ACK from ${posName} (${posId})`)
+
+    // Connexion établie et identifiée - demander synchronisation
+    this.requestFullSync(posId, false) // false = pas bidirectionnel
+  }
+
+  // Gérer le message PING
+  private handlePing(message: SyncMessage): void {
+    const peerId = message.sourcePos
+
+    // Envoyer PONG
+    const pong: SyncMessage = {
+      id: uuidv4(),
+      type: 'pong',
+      action: 'heartbeat',
+      data: {},
+      timestamp: new Date().toISOString(),
+      sourcePos: this.getPosId(),
+    }
+
+    this.sendToPeer(peerId, pong)
+  }
+
+  // Gérer le message PONG
+  private handlePong(message: SyncMessage): void {
+    const peerId = message.sourcePos
+    const conn = this.connections.get(peerId)
+
+    if (conn) {
+      conn.lastPong = new Date()
+      // Réinitialiser les tentatives de reconnexion sur succès
+      conn.reconnectAttempts = 0
+    }
+  }
+
   // Appliquer les changements dans la BD locale
   private applySync(message: SyncMessage): void {
     const { type, action, data } = message
@@ -188,19 +462,16 @@ class P2PSyncService {
       switch (type) {
         case 'ticket':
           if (action === 'create') {
-            // Import dynamique pour éviter dépendances circulaires
-            const TicketRepository =
-              require('../database/repositories/TicketRepository').default
+            const TicketRepository = require('../database/repositories/TicketRepository').default
             TicketRepository.createFromSync(data)
             log.info(`P2P: Synced new ticket ${data.ticketNumber}`)
           }
           break
 
         case 'product':
-          const ProductRepository =
-            require('../database/repositories/ProductRepository').default
+          const ProductRepository = require('../database/repositories/ProductRepository').default
           if (action === 'update') {
-            ProductRepository.update(data.id, data)
+            ProductRepository.update(data)
             log.info(`P2P: Synced product update ${data.name}`)
           } else if (action === 'create') {
             ProductRepository.createFromSync(data)
@@ -217,13 +488,12 @@ class P2PSyncService {
           break
 
         case 'customer':
-          const CustomerRepository =
-            require('../database/repositories/CustomerRepository').default
+          const CustomerRepository = require('../database/repositories/CustomerRepository').default
           if (action === 'create') {
             CustomerRepository.createFromSync(data)
             log.info(`P2P: Synced new customer ${data.name}`)
           } else if (action === 'update') {
-            CustomerRepository.update(data.id, data)
+            CustomerRepository.update(data)
             log.info(`P2P: Synced customer update ${data.name}`)
           }
           break
@@ -293,36 +563,36 @@ class P2PSyncService {
   }
 
   // Demander synchronisation complète initiale
-  private requestFullSync(peerId: string): void {
+  private requestFullSync(peerId: string, bidirectional: boolean): void {
     // Éviter de demander plusieurs fois au même peer
     if (this.syncRequested.has(peerId)) {
       log.info(`P2P: Full sync already requested from ${peerId}, skipping`)
       return
     }
 
-    log.info(`P2P: Requesting full sync from ${peerId}`)
+    log.info(`P2P: Requesting full sync from ${peerId} (bidirectional: ${bidirectional})`)
     this.syncRequested.add(peerId)
 
     const message: SyncMessage = {
       id: uuidv4(),
       type: 'full-sync-request',
       action: 'sync',
-      data: { requestedBy: this.getPosId() },
+      data: {
+        requestedBy: this.getPosId(),
+        bidirectional, // Flag pour éviter boucle infinie
+      },
       timestamp: new Date().toISOString(),
       sourcePos: this.getPosId(),
     }
 
-    // Envoyer la demande au peer spécifique
-    const ws = this.connections.get(peerId)
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(message))
-      log.info(`P2P: Full sync request sent to ${peerId}`)
-    }
+    this.sendToPeer(peerId, message)
+    log.info(`P2P: Full sync request sent to ${peerId}`)
   }
 
   // Gérer une demande de synchronisation complète
   private handleFullSyncRequest(message: SyncMessage): void {
-    log.info(`P2P: Handling full sync request from ${message.sourcePos}`)
+    const { requestedBy, bidirectional } = message.data
+    log.info(`P2P: Handling full sync request from ${requestedBy} (bidirectional: ${bidirectional})`)
 
     try {
       // Récupérer toutes les données locales
@@ -334,7 +604,7 @@ class P2PSyncService {
 
       log.info(`P2P: Local data - ${products.length} products, ${categories.length} categories`)
 
-      // Même si vide, envoyer la réponse (le demandeur pourrait en avoir besoin)
+      // Envoyer la réponse
       const responseMessage: SyncMessage = {
         id: uuidv4(),
         type: 'full-sync-response',
@@ -348,19 +618,18 @@ class P2PSyncService {
         sourcePos: this.getPosId(),
       }
 
-      // Envoyer la réponse au demandeur
-      for (const [peerId, ws] of this.connections.entries()) {
-        if (peerId === message.sourcePos && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify(responseMessage))
-          log.info(`P2P: Full sync response sent with ${products.length} products and ${categories.length} categories`)
+      // Envoyer au demandeur
+      this.sendToPeer(requestedBy, responseMessage)
+      log.info(
+        `P2P: Full sync response sent with ${products.length} products and ${categories.length} categories`
+      )
 
-          // BIDIRECTIONNEL: Si le demandeur nous envoie une requête,
-          // on lui envoie nos données ET on lui demande les siennes aussi
-          log.info(`P2P: Requesting bidirectional full sync from ${peerId}`)
-          this.requestFullSync(peerId)
-
-          break
-        }
+      // Si bidirectionnel, demander aussi les données du peer
+      if (bidirectional && !this.syncRequested.has(requestedBy)) {
+        log.info(`P2P: Requesting bidirectional full sync from ${requestedBy}`)
+        setTimeout(() => {
+          this.requestFullSync(requestedBy, false) // false pour éviter boucle
+        }, 1000)
       }
     } catch (error) {
       log.error('P2P: Failed to handle full sync request:', error)
@@ -389,10 +658,8 @@ class P2PSyncService {
         log.info(`P2P: Starting category sync (${categories.length} items)`)
         for (const category of categories) {
           try {
-            // Vérifier si la catégorie existe déjà
             const existing = CategoryRepository.findById(category.id)
             if (!existing) {
-              // Créer la catégorie avec l'ID exact
               CategoryRepository.createFromSync(category)
               categoriesCreated++
               log.info(`P2P: ✓ Category synced: ${category.name} (ID: ${category.id})`)
@@ -410,10 +677,8 @@ class P2PSyncService {
         log.info(`P2P: Starting product sync (${products.length} items)`)
         for (const product of products) {
           try {
-            // Vérifier si le produit existe déjà
             const existing = ProductRepository.findById(product.id)
             if (!existing) {
-              // Créer le produit avec l'ID exact
               ProductRepository.createFromSync(product)
               productsCreated++
               if (productsCreated <= 5) {
@@ -453,6 +718,23 @@ class P2PSyncService {
     }
   }
 
+  // Récupérer le nom du POS
+  private getPosName(): string {
+    try {
+      const configPath = join(app.getPath('userData'), 'pos-config.json')
+
+      if (existsSync(configPath)) {
+        const config = JSON.parse(readFileSync(configPath, 'utf-8'))
+        return config.posName || 'POS-UNKNOWN'
+      }
+
+      return 'POS-UNKNOWN'
+    } catch (error) {
+      log.error('P2P: Failed to read POS name from config:', error)
+      return 'POS-UNKNOWN'
+    }
+  }
+
   // Obtenir le statut de synchronisation
   public getStatus(): {
     serverRunning: boolean
@@ -468,9 +750,18 @@ class P2PSyncService {
 
   // Arrêter le service
   async stop(): Promise<void> {
+    // Arrêter le heartbeat
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval)
+      this.heartbeatInterval = null
+    }
+
     // Fermer toutes les connexions
-    for (const ws of this.connections.values()) {
-      ws.close()
+    for (const [peerId, conn] of this.connections.entries()) {
+      if (conn.reconnectTimer) {
+        clearTimeout(conn.reconnectTimer)
+      }
+      conn.ws.close()
     }
     this.connections.clear()
 
