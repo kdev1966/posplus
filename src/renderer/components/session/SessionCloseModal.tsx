@@ -65,22 +65,32 @@ export const SessionCloseModal: React.FC<SessionCloseModalProps> = ({
   const handlePrintAndClose = async () => {
     setPrinting(true)
     try {
-      // First close the session
+      // Validate closing cash amount
       const amount = parseFloat(closingCash)
       if (isNaN(amount) || amount < 0) {
         alert(t('error'))
+        setPrinting(false)
         return
       }
 
-      await onConfirm(amount)
+      // IMPORTANT: Print report FIRST before closing session
+      // If printing fails, session remains open and can be retried
+      try {
+        await window.api.generateZReport(session.id)
+      } catch (printError) {
+        console.error('Failed to print Z report:', printError)
+        alert(t('printError') + ' - ' + t('sessionNotClosed'))
+        setPrinting(false)
+        return
+      }
 
-      // Then print the report
-      await window.api.generateZReport(session.id)
+      // Only close session after successful print
+      await onConfirm(amount)
 
       alert(t('sessionClosedAndPrinted'))
     } catch (error) {
-      console.error('Failed to print report:', error)
-      alert(t('printError'))
+      console.error('Failed to close session:', error)
+      alert(t('error'))
     }
     setPrinting(false)
   }
