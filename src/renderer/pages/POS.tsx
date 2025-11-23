@@ -93,8 +93,18 @@ export const POS: React.FC = () => {
 
       const ticket = await window.api.createTicket(ticketData)
 
-      // Print ticket
-      await window.api.printTicket(ticket.id)
+      // Print ticket - don't fail the sale if printing fails
+      let printSucceeded = true
+      try {
+        const printResult = await window.api.printTicket(ticket.id)
+        if (!printResult) {
+          console.warn('Print command returned false for ticket:', ticket.id)
+          printSucceeded = false
+        }
+      } catch (printError) {
+        console.error('Failed to print ticket:', printError)
+        printSucceeded = false
+      }
 
       // Refresh product list to update stock quantities
       await fetchProducts()
@@ -103,7 +113,12 @@ export const POS: React.FC = () => {
       clearCart()
       setShowPayment(false)
 
-      alert(`${t('saleCompleted')} - ${t('ticket')} #${ticket.ticketNumber}`)
+      // Show appropriate message based on print result
+      if (printSucceeded) {
+        alert(`${t('saleCompleted')} - ${t('ticket')} #${ticket.ticketNumber}`)
+      } else {
+        alert(`⚠️ ${t('saleCompleted')} - ${t('ticket')} #${ticket.ticketNumber}\n\n${t('printFailed')}\n${t('canReprintFromHistory')}`)
+      }
     } catch (error) {
       console.error('Failed to complete sale:', error)
       alert(t('failedToCompleteSale'))
