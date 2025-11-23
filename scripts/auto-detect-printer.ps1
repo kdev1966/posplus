@@ -229,5 +229,5 @@ Write-Host ""
 Write-Host "Si POSPlus ne peut toujours pas imprimer:" -ForegroundColor White
 Write-Host "1. Consultez: PRINTER_TROUBLESHOOTING.md" -ForegroundColor Cyan
 Write-Host "2. Vérifiez les logs: %APPDATA%\POSPlus\logs\main.log" -ForegroundColor Cyan
-Write-Host "3. Exécutez: .\scripts\diagnose-printer-windows.ps1" -ForegroundColor Cyan
+Write-Host '3. Executez: .\scripts\diagnose-printer-windows.ps1' -ForegroundColor Cyan
 Write-Host ""

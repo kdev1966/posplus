@@ -3,6 +3,12 @@ export type Language = 'fr' | 'ar'
 
 export const translations = {
   fr: {
+    // --- Added for type safety (missing keys for TS) ---
+    sessionNotClosed: 'La session n\'est pas fermée',
+    checkPrinterConnection: 'Vérifiez la connexion de l\'imprimante',
+    checkPrinterSettings: 'Vérifiez les paramètres de l\'imprimante',
+    printFailed: 'Échec de l\'impression',
+    canReprintFromHistory: 'Vous pouvez réimprimer depuis l\'historique',
     // Common
     appName: 'POSPlus',
     loading: 'Chargement...',
@@ -363,6 +369,12 @@ export const translations = {
     customerThankYou: '✨ Merci pour votre visite ! ✨',
   },
   ar: {
+    // --- Added for type safety (missing keys for TS) ---
+    sessionNotClosed: 'الجلسة لم تغلق',
+    checkPrinterConnection: 'تحقق من اتصال الطابعة',
+    checkPrinterSettings: 'تحقق من إعدادات الطابعة',
+    printFailed: 'فشل الطباعة',
+    canReprintFromHistory: 'يمكنك إعادة الطباعة من السجل',
     // Common
     appName: 'POSPlus',
     loading: '...جاري التحميل',
