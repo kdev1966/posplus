@@ -304,6 +304,7 @@ export const IPC_CHANNELS = {
   P2P_GET_SYNC_LOGS: 'p2p:get-sync-logs',
   P2P_GET_CONFLICTS: 'p2p:get-conflicts',
   P2P_GET_CONNECTION_METRICS: 'p2p:get-connection-metrics',
+  P2P_SYNC_NOW: 'p2p:sync-now',
   P2P_RECONNECT: 'p2p:reconnect',
   P2P_TOGGLE: 'p2p:toggle',
 } as const
@@ -430,6 +431,7 @@ export interface IPCApi {
   }>
   reconnectP2P: () => Promise<{ success: boolean; error?: string }>
   toggleP2P: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
+  syncP2PNow: () => Promise<{ success: boolean; productsSynced: number; error?: string }>
 }
 
 // Expose API to window object

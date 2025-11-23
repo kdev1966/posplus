@@ -587,7 +587,22 @@ export const Settings: React.FC = () => {
             )}
 
             {/* Actions */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
+              <Button variant="success" onClick={async () => {
+                try {
+                  const result = await window.api.syncP2PNow()
+                  if (result.success) {
+                    alert(`✅ Synchronisation manuelle réussie!\n\n${result.productsSynced} produits ont été envoyés aux pairs connectés.`)
+                  } else {
+                    alert(`❌ Erreur de synchronisation: ${result.error || 'Erreur inconnue'}`)
+                  }
+                } catch (error: any) {
+                  alert(`❌ Erreur: ${error?.message || 'Échec de la synchronisation'}`)
+                }
+              }}>
+                📤 Synchroniser maintenant
+              </Button>
+
               <Button variant="primary" onClick={async () => {
                 try {
                   await window.api.reconnectP2P()

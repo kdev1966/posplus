@@ -106,6 +106,7 @@ const api: IPCApi = {
   getP2PStatus: () => ipcRenderer.invoke(IPC_CHANNELS.P2P_GET_STATUS),
   reconnectP2P: () => ipcRenderer.invoke(IPC_CHANNELS.P2P_RECONNECT),
   toggleP2P: (enabled: boolean) => ipcRenderer.invoke(IPC_CHANNELS.P2P_TOGGLE, enabled),
+  syncP2PNow: () => ipcRenderer.invoke(IPC_CHANNELS.P2P_SYNC_NOW),
 }
 
 // Expose API to window

@@ -171,4 +171,38 @@ ipcMain.handle(IPC_CHANNELS.P2P_GET_CONNECTION_METRICS, async (_event, options?:
   }
 })
 
+// Synchroniser manuellement tous les produits
+ipcMain.handle(IPC_CHANNELS.P2P_SYNC_NOW, async () => {
+  try {
+    requireAuth()
+
+    log.info('P2P: Manual sync requested from UI')
+
+    // Récupérer tous les produits
+    const ProductRepository = require('../services/database/repositories/ProductRepository').default
+    const products = ProductRepository.findAll()
+
+    log.info(`P2P: Syncing ${products.length} products manually`)
+
+    // Envoyer chaque produit via P2P
+    for (const product of products) {
+      P2PSyncService.syncProduct(product, 'update')
+    }
+
+    log.info(`P2P: Manual sync completed - ${products.length} products sent`)
+
+    return {
+      success: true,
+      productsSynced: products.length,
+    }
+  } catch (error: any) {
+    log.error('P2P_SYNC_NOW handler error:', error)
+    return {
+      success: false,
+      error: error.message,
+      productsSynced: 0,
+    }
+  }
+})
+
 log.info('P2P handlers registered')
