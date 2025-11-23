@@ -46,10 +46,29 @@ function fixElectronImports(filePath) {
     )
   }
 
-  // NOTE: We do NOT fix namespace import: const electron_1 = require("electron");
-  // because electron_1.app, electron_1.BrowserWindow work correctly in Electron context
-  // Electron module properly exports these as properties when run in Electron runtime
-  // DO NOT convert to destructuring as it breaks in normal Node.js context
+  // FIX: namespace import electron_1 does NOT work in Electron
+  // We MUST convert to destructuring
+  // Find all uses of electron_1.XXXX and extract them into a destructured import
+  if (modified.includes('const electron_1 = require("electron")')) {
+    // Extract all electron_1.XXXX usages
+    const usages = new Set()
+    const usageRegex = /electron_1\.(\w+)/g
+    let match
+    while ((match = usageRegex.exec(modified)) !== null) {
+      usages.add(match[1])
+    }
+
+    if (usages.size > 0) {
+      const imports = Array.from(usages).join(', ')
+      // Replace const electron_1 = require("electron") with destructured import
+      modified = modified.replace(
+        /const electron_1 = require\("electron"\);?/,
+        `const { ${imports} } = require("electron");`
+      )
+      // Replace all electron_1.XXXX with just XXXX
+      modified = modified.replace(/electron_1\.(\w+)/g, '$1')
+    }
+  }
 
   // Fix shared types import in preload (must use correct relative path)
   // preload.js is in dist/main/main-process/preload.js
