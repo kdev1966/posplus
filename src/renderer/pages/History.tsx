@@ -99,9 +99,9 @@ export const History: React.FC = () => {
   const handlePrintTicket = async (ticketId: number) => {
     try {
       const result = await window.api.printTicket(ticketId)
-      if (result) {
-        alert(t('ticketPrintSuccess'))
-      } else {
+      // Ne pas afficher d'alert en cas de succès pour ne pas alourdir l'expérience utilisateur
+      // Afficher uniquement en cas d'échec
+      if (!result) {
         alert(t('ticketPrintError') + '\n\n' + t('checkPrinterConnection'))
       }
     } catch (error: any) {

@@ -123,10 +123,12 @@ export const POS: React.FC = () => {
       setBarcode('')
       setSearchQuery('')
 
-      // Show appropriate message based on print result
+      // Log result without showing alert to avoid interrupting cashier workflow
       if (printSucceeded) {
-        alert(`${t('saleCompleted')} - ${t('ticket')} #${ticket.ticketNumber}`)
+        console.log(`[POS] Sale completed successfully - Ticket #${ticket.ticketNumber}`)
       } else {
+        console.warn(`[POS] Sale completed but print failed - Ticket #${ticket.ticketNumber}`)
+        // Only show alert if printing failed (cashier needs to know to reprint manually)
         alert(`⚠️ ${t('saleCompleted')} - ${t('ticket')} #${ticket.ticketNumber}\n\n${t('printFailed')}\n${t('canReprintFromHistory')}`)
       }
 

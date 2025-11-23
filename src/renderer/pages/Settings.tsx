@@ -504,16 +504,15 @@ export const Settings: React.FC = () => {
                 const status = await window.api.getPrinterStatus()
                 console.log('[SETTINGS] Printer status after test:', status)
 
-                if (result) {
-                  const message = status.error
-                    ? `✅ Commandes d'impression envoyées\n\n⚠️ Vérifiez si le ticket s'est imprimé physiquement.\n\nErreur détectée: ${status.error}\n\nSi rien ne s'imprime:\n• Vérifiez que l'imprimante est allumée\n• Vérifiez le nom et le port dans les paramètres\n• Consultez les logs pour plus de détails`
-                    : '✅ Commandes d\'impression envoyées\n\n⚠️ Vérifiez si le ticket s\'est imprimé physiquement.\n\nSi rien ne s\'imprime:\n• Vérifiez que l\'imprimante est allumée\n• Vérifiez le nom et le port dans les paramètres\n• Consultez les logs pour plus de détails'
-                  alert(message)
-                } else {
-                  alert('❌ Échec de l\'envoi des commandes d\'impression')
+                // Ne pas afficher d'alert pour ne pas alourdir l'expérience utilisateur
+                // Les résultats sont visibles dans les logs console
+                if (!result) {
+                  // Afficher uniquement en cas d'échec
+                  console.error('[SETTINGS] Test print failed')
                 }
               } catch (error) {
                 console.error('[SETTINGS] Test print error:', error)
+                // Afficher uniquement en cas d'erreur critique
                 alert('❌ Erreur lors de l\'impression du ticket de test: ' + (error as Error).message)
               }
             }}>
