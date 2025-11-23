@@ -93,17 +93,22 @@ export const POS: React.FC = () => {
       }
 
       const ticket = await window.api.createTicket(ticketData)
+      console.log('[POS] Ticket created successfully:', ticket.id, ticket.ticketNumber)
 
       // Print ticket - don't fail the sale if printing fails
       let printSucceeded = true
       try {
+        console.log('[POS] Attempting to print ticket:', ticket.id)
         const printResult = await window.api.printTicket(ticket.id)
+        console.log('[POS] Print result received:', printResult)
         if (!printResult) {
-          console.warn('Print command returned false for ticket:', ticket.id)
+          console.warn('[POS] Print command returned false for ticket:', ticket.id)
           printSucceeded = false
+        } else {
+          console.log('[POS] Print command succeeded for ticket:', ticket.id)
         }
       } catch (printError) {
-        console.error('Failed to print ticket:', printError)
+        console.error('[POS] Failed to print ticket:', printError)
         printSucceeded = false
       }
 
