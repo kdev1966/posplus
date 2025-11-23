@@ -19,14 +19,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onConfirm,
 }) => {
   const { t } = useLanguageStore()
-  const [cashAmount, setCashAmount] = useState(total.toString())
+  const [cashAmount, setCashAmount] = useState('')
   const cashInputRef = useRef<HTMLInputElement>(null)
 
   // Auto-focus sur le champ montant en espèces quand la modal s'ouvre
   useEffect(() => {
     if (isOpen) {
-      // Réinitialiser le montant au total à chaque ouverture
-      setCashAmount(total.toString())
+      // Réinitialiser le montant à vide à chaque ouverture pour saisir le montant donné par le client
+      setCashAmount('')
 
       // Focus et sélection du champ après un court délai
       setTimeout(() => {
@@ -55,8 +55,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
       onConfirm(payments)
 
-      // Réinitialiser pour la prochaine fois
-      setCashAmount(total.toString())
+      // Réinitialiser à vide pour la prochaine fois
+      setCashAmount('')
     }
   }
 

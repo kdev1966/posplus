@@ -27,6 +27,13 @@ export const POS: React.FC = () => {
     fetchCategories()
   }, [])
 
+  // Auto-focus sur le champ barcode au chargement de la page
+  useEffect(() => {
+    setTimeout(() => {
+      barcodeInputRef.current?.focus()
+    }, 100)
+  }, [])
+
   // Debug: Log categories when they change
   useEffect(() => {
     console.log('[POS] Categories:', categories)
