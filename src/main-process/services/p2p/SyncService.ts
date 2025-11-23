@@ -861,7 +861,7 @@ class P2PSyncService {
     }
 
     // Fermer toutes les connexions
-    for (const [peerId, conn] of this.connections.entries()) {
+    for (const [_peerId, conn] of this.connections.entries()) {
       if (conn.reconnectTimer) {
         clearTimeout(conn.reconnectTimer)
       }
