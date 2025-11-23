@@ -77,13 +77,21 @@ export const Settings: React.FC = () => {
     setIsCheckingPrinter(true)
     try {
       const status = await window.api.getPrinterStatus()
+      console.log('[SETTINGS] Printer status received:', status)
       setPrinterStatus(status)
       if (showAlert) {
-        if (status.connected) alert(t('printerConnected'))
-        else alert(`${t('printerNotConnected')}${status.error ? ' - ' + status.error : ''}`)
+        if (status.connected) {
+          if (status.error) {
+            alert(`${t('printerConnected')}\n\n⚠️ Erreur: ${status.error}`)
+          } else {
+            alert(t('printerConnected'))
+          }
+        } else {
+          alert(`${t('printerNotConnected')}${status.error ? '\n\nErreur: ' + status.error : ''}`)
+        }
       }
     } catch (error) {
-      console.error('Failed to check printer status:', error)
+      console.error('[SETTINGS] Failed to check printer status:', error)
       if (showAlert) alert(t('printerCheckFailed'))
     } finally {
       setIsCheckingPrinter(false)
@@ -488,14 +496,25 @@ export const Settings: React.FC = () => {
 
             <Button variant="secondary" onClick={async () => {
               try {
+                console.log('[SETTINGS] Attempting to print test ticket...')
                 const result = await window.api.printTestTicket()
+                console.log('[SETTINGS] Print test result:', result)
+
+                // Also get printer status to see any error
+                const status = await window.api.getPrinterStatus()
+                console.log('[SETTINGS] Printer status after test:', status)
+
                 if (result) {
-                  alert('✅ Commandes d\'impression envoyées\n\n⚠️ Vérifiez si le ticket s\'est imprimé physiquement.\n\nSi rien ne s\'imprime:\n• Vérifiez que l\'imprimante est allumée\n• Vérifiez le nom et le port dans les paramètres\n• Consultez les logs pour plus de détails')
+                  const message = status.error
+                    ? `✅ Commandes d'impression envoyées\n\n⚠️ Vérifiez si le ticket s'est imprimé physiquement.\n\nErreur détectée: ${status.error}\n\nSi rien ne s'imprime:\n• Vérifiez que l'imprimante est allumée\n• Vérifiez le nom et le port dans les paramètres\n• Consultez les logs pour plus de détails`
+                    : '✅ Commandes d\'impression envoyées\n\n⚠️ Vérifiez si le ticket s\'est imprimé physiquement.\n\nSi rien ne s\'imprime:\n• Vérifiez que l\'imprimante est allumée\n• Vérifiez le nom et le port dans les paramètres\n• Consultez les logs pour plus de détails'
+                  alert(message)
                 } else {
                   alert('❌ Échec de l\'envoi des commandes d\'impression')
                 }
               } catch (error) {
-                alert('❌ Erreur lors de l\'impression du ticket de test')
+                console.error('[SETTINGS] Test print error:', error)
+                alert('❌ Erreur lors de l\'impression du ticket de test: ' + (error as Error).message)
               }
             }}>
               🖨️ Imprimer ticket de test
