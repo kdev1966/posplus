@@ -10,28 +10,47 @@
 const Database = require('better-sqlite3')
 const path = require('path')
 const fs = require('fs')
-const { app } = require('electron')
+const os = require('os')
 
 // Options
 const isDryRun = process.argv.includes('--dry-run')
 
 // Trouve le chemin de la base de données
 function getDatabasePath() {
-  // En développement, chercher dans Application Support
+  const homeDir = os.homedir()
+
+  // Chemins possibles selon la plateforme
   const possiblePaths = [
-    path.join(process.env.HOME, 'Library/Application Support/posplus/posplus.db'),
-    path.join(process.env.HOME, 'Library/Application Support/POSPlus/posplus.db'),
+    // macOS
+    path.join(homeDir, 'Library/Application Support/posplus/posplus.db'),
+    path.join(homeDir, 'Library/Application Support/POSPlus/posplus.db'),
+    path.join(homeDir, 'Library/Application Support/Electron/posplus.db'),
+    // Windows
+    path.join(homeDir, 'AppData/Roaming/posplus/posplus.db'),
+    path.join(homeDir, 'AppData/Roaming/POSPlus/posplus.db'),
+    // Linux
+    path.join(homeDir, '.config/posplus/posplus.db'),
+    path.join(homeDir, '.config/POSPlus/posplus.db'),
+    // Développement local
     path.join(__dirname, '../posplus.db'),
     path.join(__dirname, '../pos.db'),
   ]
 
+  console.log('🔍 Recherche de la base de données...\n')
+
   for (const dbPath of possiblePaths) {
-    if (fs.existsSync(dbPath) && fs.statSync(dbPath).size > 0) {
-      return dbPath
+    if (fs.existsSync(dbPath)) {
+      const stats = fs.statSync(dbPath)
+      console.log(`   Trouvé: ${dbPath} (${stats.size} bytes)`)
+      if (stats.size > 0) {
+        return dbPath
+      }
     }
   }
 
-  throw new Error('Base de données introuvable. Assurez-vous que l\'application a été lancée au moins une fois.')
+  console.error('\n❌ Aucune base de données trouvée dans les emplacements suivants:')
+  possiblePaths.forEach(p => console.error(`   - ${p}`))
+  throw new Error('\nBase de données introuvable. Assurez-vous que l\'application a été lancée au moins une fois et qu\'elle contient des produits.')
 }
 
 // Génère un SKU au format SKU-YYYYMMDD-XXXXX
