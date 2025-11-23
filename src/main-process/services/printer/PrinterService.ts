@@ -2,12 +2,15 @@ import TicketRepository from '../database/repositories/TicketRepository'
 import log from 'electron-log'
 import { ThermalPrinter, PrinterTypes, CharacterSet } from 'node-thermal-printer'
 import { getPrinterConfig } from '../../utils/printerConfig'
+import { BrowserWindow } from 'electron'
 
 class PrinterService {
   private printer: ThermalPrinter | null = null
   private isConnected = false
   private lastError: string | null = null
   private initPromise: Promise<void>
+  private isWindows = process.platform === 'win32'
+  private windowsPrinterName: string | null = null
 
   constructor() {
     this.initPromise = this.initialize()
@@ -15,10 +18,24 @@ class PrinterService {
 
   private async initialize(): Promise<void> {
     try {
-      // Try thermal printer interfaces for all platforms (Windows, macOS, Linux)
-      // POS80 is a generic ESC/POS thermal printer
-      // Priority: configured printer name/port interface (best for sending data) > fallback interfaces
       const cfg = await getPrinterConfig()
+
+      // WINDOWS: Use Electron native printing with Windows printer spooler
+      if (this.isWindows && cfg && cfg.printerName) {
+        log.info('🪟 Windows platform detected - using Electron native printing')
+        log.info(`   Printer name: ${cfg.printerName}`)
+
+        this.windowsPrinterName = cfg.printerName
+        this.isConnected = true
+        this.lastError = null
+
+        log.info('✅ Windows printer configured successfully')
+        log.info('⚠️  Physical printing will be tested when you print a ticket')
+        return
+      }
+
+      // NON-WINDOWS: Use node-thermal-printer with serial/parallel ports
+      log.info('🐧 Non-Windows platform - using node-thermal-printer')
 
       const configuredInterfaces = [] as { interface: string; type: any }[]
       if (cfg && cfg.printerName) {
@@ -31,21 +48,17 @@ class PrinterService {
       }
 
       const configurations = [
-        // Configured first
         ...configuredInterfaces,
-        // Defaults / fallbacks
         { interface: 'printer:POS80 Printer', type: PrinterTypes.EPSON },
         { interface: '\\\\.\\CP001', type: PrinterTypes.EPSON },
         { interface: '//./CP001', type: PrinterTypes.EPSON },
         { interface: 'CP001', type: PrinterTypes.EPSON },
-        // Fallback: Try STAR if EPSON doesn't work
         { interface: 'printer:POS80 Printer', type: PrinterTypes.STAR },
         { interface: '\\\\.\\CP001', type: PrinterTypes.STAR },
         { interface: '//./CP001', type: PrinterTypes.STAR },
       ]
 
-      log.info('Initializing printer: Trying thermal printer configurations')
-      log.info(`Total configurations to test: ${configurations.length}`)
+      log.info(`Testing ${configurations.length} thermal printer configurations`)
 
       for (const config of configurations) {
         try {
@@ -57,63 +70,34 @@ class PrinterService {
             characterSet: CharacterSet.PC850_MULTILINGUAL,
             removeSpecialCharacters: false,
             lineCharacter: '-',
-            width: 48,  // 80mm paper = 48 characters
+            width: 48,
             options: {
               timeout: 5000,
             },
           })
 
-          log.info(`Created ThermalPrinter instance`)
-
-          // Test connection
           this.isConnected = await this.testConnection()
           log.info(`Connection test result: ${this.isConnected}`)
 
-          if (!this.isConnected) {
-            log.info(`isPrinterConnected returned false for interface: ${config.interface}`)
-          }
-
           if (this.isConnected) {
-            // Connection test passed - save this configuration
-            log.info(`✅ Thermal printer interface connected: ${config.interface}`)
+            log.info(`✅ Thermal printer connected: ${config.interface}`)
             log.info(`   Type: ${config.type}`)
-            log.info(`⚠️  Physical printing capability cannot be verified automatically`)
-            log.info(`   Please test manually using "Print Test Ticket" button`)
-
-            // Clear any previous errors since connection succeeded
             this.lastError = null
-
-            // Physical printing capability cannot be verified automatically
-            // User must test manually using "Print Test Ticket" button
             return
-          } else {
-            log.warn(`✗ Connection test failed`)
-            this.lastError = `Connection test failed for interface ${config.interface}`
           }
         } catch (err: any) {
           log.error(`✗ Configuration failed:`, {
             interface: config.interface,
             type: config.type,
             message: err.message,
-            code: err.code,
           })
           this.lastError = (err as any)?.message || String(err)
           continue
         }
       }
 
-      // ❌ DO NOT FALLBACK TO STANDARD PRINTER ON WINDOWS
-      // StandardPrinterService uses 'print' command which sends raw text
-      // Thermal printers require ESC/POS binary commands
       log.error('❌ All thermal printer interfaces failed')
       this.lastError = 'All thermal printer interfaces failed'
-      log.error('THERMAL PRINTER REQUIRED: Application cannot use standard printer')
-      log.error('Please check:')
-      log.error('  1. Printer name is exactly: "POS80 Printer"')
-      log.error('  2. Printer port is: CP001')
-      log.error('  3. Printer is powered on and ready')
-      log.error('  4. Driver is installed correctly')
-
       this.isConnected = false
     } catch (error) {
       log.error('Failed to initialize printer:', error)
@@ -134,13 +118,258 @@ class PrinterService {
     }
   }
 
+  private async printWithWindowsPrinter(html: string): Promise<boolean> {
+    if (!this.windowsPrinterName) {
+      log.error('Windows printer name not configured')
+      return false
+    }
+
+    return new Promise((resolve) => {
+      const printWindow = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+        },
+      })
+
+      printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+
+      printWindow.webContents.on('did-finish-load', () => {
+        printWindow.webContents.print(
+          {
+            silent: true,
+            printBackground: false,
+            deviceName: this.windowsPrinterName!,
+            margins: {
+              marginType: 'none',
+            },
+            pageSize: {
+              width: 80000, // 80mm in microns
+              height: 297000, // A4 height as max
+            },
+          },
+          (success, failureReason) => {
+            if (!success) {
+              log.error('Windows print failed:', failureReason)
+              this.lastError = failureReason || 'Print failed'
+            } else {
+              log.info('✅ Windows print completed successfully')
+              this.lastError = null
+            }
+
+            printWindow.close()
+            resolve(success)
+          }
+        )
+      })
+    })
+  }
+
+  private generateTicketHTML(ticket: any): string {
+    const lines = ticket.lines
+      .map(
+        (line: any) =>
+          `<tr>
+            <td colspan="3">${line.productName}</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 10px;">${line.quantity} x ${line.unitPrice.toFixed(3)} DT</td>
+            <td></td>
+            <td style="text-align: right;">${line.totalAmount.toFixed(3)} DT</td>
+          </tr>`
+      )
+      .join('')
+
+    const payments = ticket.payments
+      .map(
+        (payment: any) =>
+          `<tr>
+            <td style="padding-left: 10px;">${payment.method.toUpperCase()}</td>
+            <td></td>
+            <td style="text-align: right;">${payment.amount.toFixed(3)} DT</td>
+          </tr>`
+      )
+      .join('')
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+          body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 5mm;
+            width: 70mm;
+          }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .large { font-size: 16px; }
+          .line { border-top: 1px dashed #000; margin: 5px 0; }
+          table { width: 100%; border-collapse: collapse; }
+          td { padding: 2px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="center bold large">POSPlus</div>
+        <div class="center">Point of Sale System</div>
+        <div class="line"></div>
+
+        <div>Ticket: ${ticket.ticketNumber}</div>
+        <div>Date: ${new Date(ticket.createdAt).toLocaleString()}</div>
+        <div>Cashier: User #${ticket.userId}</div>
+        <div class="line"></div>
+
+        <table>
+          ${lines}
+        </table>
+
+        <div class="line"></div>
+        <table>
+          <tr>
+            <td>Subtotal:</td>
+            <td></td>
+            <td style="text-align: right;">${ticket.subtotal.toFixed(3)} DT</td>
+          </tr>
+          ${
+            ticket.discountAmount > 0
+              ? `<tr>
+                  <td>Discount:</td>
+                  <td></td>
+                  <td style="text-align: right;">-${ticket.discountAmount.toFixed(3)} DT</td>
+                </tr>`
+              : ''
+          }
+        </table>
+
+        <div class="line"></div>
+        <div class="center bold large">TOTAL: ${ticket.totalAmount.toFixed(3)} DT</div>
+        <div class="line"></div>
+
+        <div>Payments:</div>
+        <table>
+          ${payments}
+        </table>
+
+        <div class="line"></div>
+        <div class="center">Thank you for your purchase!</div>
+        <div class="center">Please come again</div>
+        <br><br><br>
+      </body>
+      </html>
+    `
+  }
+
+  private generateTestTicketHTML(): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+          body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 5mm;
+            width: 70mm;
+          }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .large { font-size: 16px; }
+          .line { border-top: 1px dashed #000; margin: 5px 0; }
+          table { width: 100%; border-collapse: collapse; }
+          td { padding: 2px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="center bold large">POSPlus - TEST TICKET</div>
+        <div class="center">Point of Sale System</div>
+        <div class="line"></div>
+
+        <div>Test Date: ${new Date().toLocaleString()}</div>
+        <div>Printer Type: Thermal 80mm</div>
+        <div>Platform: Windows</div>
+        <div class="line"></div>
+
+        <table>
+          <tr>
+            <td colspan="3">Sample Product 1</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 10px;">2 x 5.500 DT</td>
+            <td></td>
+            <td style="text-align: right;">11.000 DT</td>
+          </tr>
+          <tr>
+            <td colspan="3">Sample Product 2</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 10px;">1 x 3.250 DT</td>
+            <td></td>
+            <td style="text-align: right;">3.250 DT</td>
+          </tr>
+          <tr>
+            <td colspan="3">Sample Product 3</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 10px;">3 x 2.000 DT</td>
+            <td></td>
+            <td style="text-align: right;">6.000 DT</td>
+          </tr>
+        </table>
+
+        <div class="line"></div>
+        <table>
+          <tr>
+            <td>Subtotal:</td>
+            <td></td>
+            <td style="text-align: right;">20.250 DT</td>
+          </tr>
+          <tr>
+            <td>Discount:</td>
+            <td></td>
+            <td style="text-align: right;">-2.000 DT</td>
+          </tr>
+        </table>
+
+        <div class="line"></div>
+        <div class="center bold large">TOTAL: 18.250 DT</div>
+        <div class="line"></div>
+
+        <div>Payment Method: CASH</div>
+        <div>Amount Paid: 20.000 DT</div>
+        <div>Change: 1.750 DT</div>
+
+        <div class="line"></div>
+        <div class="center">This is a test ticket</div>
+        <div class="center">Printer test successful!</div>
+        <br>
+        <div class="center">POSPlus v1.0.0</div>
+        <br><br><br>
+      </body>
+      </html>
+    `
+  }
+
   async printTicket(ticketId: number): Promise<boolean> {
     await this.initPromise
 
-    // Require thermal printer
-    if (!this.isConnected || !this.printer) {
-      log.error('❌ Thermal printer not connected - Cannot print ticket')
-      log.error('Please check printer connection and restart application')
+    if (!this.isConnected) {
+      log.error('❌ Printer not connected - Cannot print ticket')
       return false
     }
 
@@ -148,6 +377,29 @@ class PrinterService {
       const ticket = TicketRepository.findById(ticketId)
       if (!ticket) {
         log.error(`Ticket not found: ${ticketId}`)
+        return false
+      }
+
+      log.info(`Printing ticket: ${ticket.ticketNumber}`)
+
+      // WINDOWS: Use Electron native printing
+      if (this.isWindows && this.windowsPrinterName) {
+        log.info(`🪟 Using Windows printer: ${this.windowsPrinterName}`)
+        const html = this.generateTicketHTML(ticket)
+        const success = await this.printWithWindowsPrinter(html)
+
+        if (success) {
+          log.info(`✅ Ticket printed successfully: ${ticket.ticketNumber}`)
+        } else {
+          log.error(`❌ Failed to print ticket: ${ticket.ticketNumber}`)
+        }
+
+        return success
+      }
+
+      // NON-WINDOWS: Use node-thermal-printer
+      if (!this.printer) {
+        log.error('❌ Thermal printer not available')
         return false
       }
 
@@ -228,19 +480,14 @@ class PrinterService {
 
       // Execute print
       log.info('Sending print job to printer...')
-      try {
-        const result = await this.printer.execute()
-        log.info('Print command executed, result:', result)
+      const result = await this.printer.execute()
+      log.info('Print command executed, result:', result)
 
-        // Force clear buffer after execution
-        this.printer.clear()
+      // Force clear buffer after execution
+      this.printer.clear()
 
-        log.info(`Ticket printed successfully: ${ticket.ticketNumber}`)
-        return true
-      } catch (execError) {
-        log.error('Execute failed:', execError)
-        throw execError
-      }
+      log.info(`Ticket printed successfully: ${ticket.ticketNumber}`)
+      return true
     } catch (error) {
       log.error('Failed to print ticket:', error)
       this.lastError = (error as any)?.message || String(error)
@@ -251,16 +498,37 @@ class PrinterService {
   async printTestTicket(): Promise<boolean> {
     await this.initPromise
 
-    // Require thermal printer
-    if (!this.isConnected || !this.printer) {
-      log.error('❌ Thermal printer not connected - Cannot print test ticket')
-      log.error('Please check printer connection and restart application')
+    if (!this.isConnected) {
+      log.error('❌ Printer not connected - Cannot print test ticket')
       return false
     }
 
     try {
+      log.info('Printing test ticket')
+
+      // WINDOWS: Use Electron native printing
+      if (this.isWindows && this.windowsPrinterName) {
+        log.info(`🪟 Using Windows printer: ${this.windowsPrinterName}`)
+        const html = this.generateTestTicketHTML()
+        const success = await this.printWithWindowsPrinter(html)
+
+        if (success) {
+          log.info('✅ Test ticket printed successfully')
+          log.info('⚠️  Check if ticket printed physically')
+        } else {
+          log.error('❌ Failed to print test ticket')
+        }
+
+        return success
+      }
+
+      // NON-WINDOWS: Use node-thermal-printer
+      if (!this.printer) {
+        log.error('❌ Thermal printer not available')
+        return false
+      }
+
       log.info('Printing test ticket (thermal)')
-      log.info('⚠️  If ticket prints successfully, printer is working correctly')
 
       this.printer.clear()
 
@@ -335,21 +603,15 @@ class PrinterService {
 
       // Execute print
       log.info('Sending test print job to printer...')
-      try {
-        const result = await this.printer.execute()
-        log.info('Test print command executed, result:', result)
+      const result = await this.printer.execute()
+      log.info('Test print command executed, result:', result)
 
-        // Force clear buffer after execution
-        this.printer.clear()
+      // Force clear buffer after execution
+      this.printer.clear()
 
-        log.info('✅ Print commands sent successfully')
-        log.info('⚠️  Check if ticket printed physically - if yes, printer is working')
-        return true
-      } catch (execError) {
-        log.error('Test print execute failed:', execError)
-        this.lastError = (execError as any)?.message || String(execError)
-        throw execError
-      }
+      log.info('✅ Print commands sent successfully')
+      log.info('⚠️  Check if ticket printed physically')
+      return true
     } catch (error) {
       log.error('Failed to print test ticket:', error)
       this.lastError = (error as any)?.message || String(error)
@@ -360,9 +622,22 @@ class PrinterService {
   async openDrawer(): Promise<boolean> {
     await this.initPromise
 
-    // Require thermal printer
-    if (!this.isConnected || !this.printer) {
-      log.error('❌ Thermal printer not connected - Cannot open cash drawer')
+    if (!this.isConnected) {
+      log.error('❌ Printer not connected - Cannot open cash drawer')
+      return false
+    }
+
+    // WINDOWS: Cash drawer control via Windows spooler not supported
+    if (this.isWindows && this.windowsPrinterName) {
+      log.warn('⚠️  Cash drawer control not available via Windows printing')
+      log.warn('   Cash drawer can only be opened via ESC/POS commands on direct port connection')
+      this.lastError = 'Cash drawer control not available on Windows'
+      return false
+    }
+
+    // NON-WINDOWS: Use node-thermal-printer
+    if (!this.printer) {
+      log.error('❌ Thermal printer not available')
       return false
     }
 
@@ -371,7 +646,7 @@ class PrinterService {
       this.printer.openCashDrawer()
       await this.printer.execute()
 
-      // Force clear buffer after execution to prevent stale data
+      // Force clear buffer after execution
       this.printer.clear()
 
       log.info('Cash drawer opened')
@@ -413,6 +688,7 @@ class PrinterService {
     // Reset state
     this.isConnected = false
     this.lastError = null
+    this.windowsPrinterName = null
 
     // Reinitialize with new promise
     this.initPromise = this.initialize()
