@@ -80,6 +80,9 @@ class PrinterService {
             log.info(`⚠️  Physical printing capability cannot be verified automatically`)
             log.info(`   Please test manually using "Print Test Ticket" button`)
 
+            // Clear any previous errors since connection succeeded
+            this.lastError = null
+
             // Physical printing capability cannot be verified automatically
             // User must test manually using "Print Test Ticket" button
             return
