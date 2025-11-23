@@ -88,4 +88,21 @@ ipcMain.handle(IPC_CHANNELS.P2P_TOGGLE, async (_event, enabled: boolean) => {
   }
 })
 
+// Obtenir les statistiques détaillées P2P
+ipcMain.handle(IPC_CHANNELS.P2P_GET_DETAILED_STATS, async () => {
+  try {
+    requireAuth()
+    return P2PSyncService.getDetailedStats()
+  } catch (error: any) {
+    log.error('P2P_GET_DETAILED_STATS handler error:', error)
+    return {
+      connections: [],
+      totalMessagesSent: 0,
+      totalMessagesReceived: 0,
+      totalBytesSent: 0,
+      totalBytesReceived: 0,
+    }
+  }
+})
+
 log.info('P2P handlers registered')

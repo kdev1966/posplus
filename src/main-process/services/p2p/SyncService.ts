@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { app } from 'electron'
+import DatabaseService from '../database/db'
 
 export interface SyncMessage {
   id: string // ID unique du message
@@ -35,6 +36,21 @@ interface PeerConnection {
   lastPong: Date
   reconnectAttempts: number
   reconnectTimer: NodeJS.Timeout | null
+  messagesSent: number
+  messagesReceived: number
+  bytesSent: number
+  bytesReceived: number
+}
+
+interface ConflictResolution {
+  entityType: string
+  entityId: number
+  localData: any
+  remoteData: any
+  localUpdatedAt: Date | null
+  remoteUpdatedAt: Date | null
+  strategy: 'local_wins' | 'remote_wins' | 'last_write_wins'
+  winner: 'local' | 'remote'
 }
 
 class P2PSyncService {
@@ -138,9 +154,16 @@ class P2PSyncService {
           lastPong: new Date(),
           reconnectAttempts: 0,
           reconnectTimer: null,
+          messagesSent: 0,
+          messagesReceived: 0,
+          bytesSent: 0,
+          bytesReceived: 0,
         }
 
         this.connections.set(peerId, connection)
+
+        // Log connection event
+        this.logConnectionMetric(peerId, name, 'connected')
 
         // Envoyer message HELLO pour s'identifier
         this.sendHello(peerId)
@@ -243,6 +266,14 @@ class P2PSyncService {
 
     log.info(`P2P: Handling disconnection from ${conn.peerName}`)
 
+    // Logger la déconnexion avec statistiques
+    this.logConnectionMetric(peerId, conn.peerName, 'disconnected', {
+      messagesSent: conn.messagesSent,
+      messagesReceived: conn.messagesReceived,
+      bytesSent: conn.bytesSent,
+      bytesReceived: conn.bytesReceived,
+    })
+
     // Fermer la connexion si pas déjà fait
     if (conn.ws.readyState !== WebSocket.CLOSED) {
       conn.ws.close()
@@ -294,7 +325,11 @@ class P2PSyncService {
     const conn = this.connections.get(peerId)
     if (conn && conn.ws.readyState === WebSocket.OPEN) {
       try {
-        conn.ws.send(JSON.stringify(message))
+        const messageStr = JSON.stringify(message)
+        conn.ws.send(messageStr)
+
+        // Tracker les statistiques
+        this.trackMessageStats(peerId, 'sent', messageStr.length)
       } catch (error) {
         log.error(`P2P: Failed to send to ${peerId}:`, error)
       }
@@ -336,6 +371,12 @@ class P2PSyncService {
   private handleIncomingMessage(messageStr: string, ws: WebSocket): void {
     try {
       const message: SyncMessage = JSON.parse(messageStr)
+
+      // Tracker les statistiques de réception
+      const peerId = message.sourcePos
+      if (peerId) {
+        this.trackMessageStats(peerId, 'received', messageStr.length)
+      }
 
       // Gérer les messages de contrôle en premier
       switch (message.type) {
@@ -405,6 +446,10 @@ class P2PSyncService {
         lastPong: new Date(),
         reconnectAttempts: 0,
         reconnectTimer: null,
+        messagesSent: 0,
+        messagesReceived: 0,
+        bytesSent: 0,
+        bytesReceived: 0,
       }
 
       this.connections.set(posId, connection)
@@ -471,11 +516,70 @@ class P2PSyncService {
         case 'product':
           const ProductRepository = require('../database/repositories/ProductRepository').default
           if (action === 'update') {
-            ProductRepository.update(data)
-            log.info(`P2P: Synced product update ${data.name}`)
+            // Vérifier s'il y a un conflit
+            const localProduct = ProductRepository.findById(data.id)
+            if (localProduct) {
+              const conflict = this.resolveConflict(
+                'product',
+                data.id,
+                localProduct,
+                data,
+                message.sourcePos,
+                this.connections.get(message.sourcePos)?.peerName || 'Unknown'
+              )
+
+              if (conflict.winner === 'remote') {
+                ProductRepository.update(data)
+                log.info(`P2P: Synced product update ${data.name} (conflict: remote wins)`)
+                this.logSyncEvent(
+                  message.sourcePos,
+                  this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+                  'product',
+                  'update',
+                  'product',
+                  data.id,
+                  'conflict',
+                  { resolutionStrategy: conflict.strategy }
+                )
+              } else {
+                log.info(`P2P: Skipped product update ${data.name} (conflict: local wins)`)
+                this.logSyncEvent(
+                  message.sourcePos,
+                  this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+                  'product',
+                  'update',
+                  'product',
+                  data.id,
+                  'skipped',
+                  { conflictReason: 'Local data is newer' }
+                )
+              }
+            } else {
+              // Pas de conflit, créer le produit
+              ProductRepository.createFromSync(data)
+              log.info(`P2P: Created product from update ${data.name}`)
+              this.logSyncEvent(
+                message.sourcePos,
+                this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+                'product',
+                'update',
+                'product',
+                data.id,
+                'success'
+              )
+            }
           } else if (action === 'create') {
             ProductRepository.createFromSync(data)
             log.info(`P2P: Synced new product ${data.name}`)
+            this.logSyncEvent(
+              message.sourcePos,
+              this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+              'product',
+              'create',
+              'product',
+              data.id,
+              'success'
+            )
           }
           break
 
@@ -772,6 +876,296 @@ class P2PSyncService {
     }
 
     log.info('P2P: Sync service stopped')
+  }
+
+  // ============================================================================
+  // PHASE 5: CONFLICT RESOLUTION
+  // ============================================================================
+
+  /**
+   * Résoudre un conflit entre données locales et distantes
+   * Stratégie: last-write-wins (celui avec updated_at le plus récent gagne)
+   */
+  private resolveConflict(
+    entityType: string,
+    entityId: number,
+    localData: any,
+    remoteData: any,
+    peerId: string,
+    peerName: string
+  ): ConflictResolution {
+    const localUpdatedAt = localData?.updatedAt ? new Date(localData.updatedAt) : null
+    const remoteUpdatedAt = remoteData?.updatedAt ? new Date(remoteData.updatedAt) : null
+
+    let strategy: 'local_wins' | 'remote_wins' | 'last_write_wins' = 'last_write_wins'
+    let winner: 'local' | 'remote'
+
+    // Si pas de timestamp local, remote gagne
+    if (!localUpdatedAt && remoteUpdatedAt) {
+      winner = 'remote'
+      strategy = 'remote_wins'
+    }
+    // Si pas de timestamp remote, local gagne
+    else if (localUpdatedAt && !remoteUpdatedAt) {
+      winner = 'local'
+      strategy = 'local_wins'
+    }
+    // Si les deux ont des timestamps, comparer
+    else if (localUpdatedAt && remoteUpdatedAt) {
+      winner = remoteUpdatedAt > localUpdatedAt ? 'remote' : 'local'
+      strategy = 'last_write_wins'
+    }
+    // Si aucun timestamp, local gagne par défaut
+    else {
+      winner = 'local'
+      strategy = 'local_wins'
+    }
+
+    log.info(
+      `P2P: Conflict resolution for ${entityType} #${entityId}: ${winner} wins (strategy: ${strategy})`
+    )
+
+    // Logger le conflit dans la base de données
+    this.logConflict({
+      peerId,
+      peerName,
+      entityType,
+      entityId,
+      entityName: remoteData?.name || localData?.name || `${entityType}-${entityId}`,
+      conflictType: 'update_conflict',
+      localData: JSON.stringify(localData),
+      remoteData: JSON.stringify(remoteData),
+      localUpdatedAt: localUpdatedAt?.toISOString() || null,
+      remoteUpdatedAt: remoteUpdatedAt?.toISOString() || null,
+      resolutionStrategy: strategy,
+      finalData: JSON.stringify(winner === 'local' ? localData : remoteData),
+      resolvedBy: 'system',
+      notes: `Automatic conflict resolution using ${strategy}`,
+    })
+
+    return {
+      entityType,
+      entityId,
+      localData,
+      remoteData,
+      localUpdatedAt,
+      remoteUpdatedAt,
+      strategy,
+      winner,
+    }
+  }
+
+  /**
+   * Logger un conflit dans la base de données
+   */
+  private logConflict(conflict: {
+    peerId: string
+    peerName: string
+    entityType: string
+    entityId: number
+    entityName: string
+    conflictType: string
+    localData: string
+    remoteData: string
+    localUpdatedAt: string | null
+    remoteUpdatedAt: string | null
+    resolutionStrategy: string
+    finalData: string
+    resolvedBy: string
+    notes: string
+  }): void {
+    try {
+      const db = DatabaseService.getInstance().getDatabase()
+      const stmt = db.prepare(`
+        INSERT INTO p2p_conflicts (
+          peer_id, peer_name, entity_type, entity_id, entity_name,
+          conflict_type, local_data, remote_data, local_updated_at, remote_updated_at,
+          resolution_strategy, final_data, resolved_by, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+
+      stmt.run(
+        conflict.peerId,
+        conflict.peerName,
+        conflict.entityType,
+        conflict.entityId,
+        conflict.entityName,
+        conflict.conflictType,
+        conflict.localData,
+        conflict.remoteData,
+        conflict.localUpdatedAt,
+        conflict.remoteUpdatedAt,
+        conflict.resolutionStrategy,
+        conflict.finalData,
+        conflict.resolvedBy,
+        conflict.notes
+      )
+
+      log.debug(`P2P: Logged conflict for ${conflict.entityType} #${conflict.entityId}`)
+    } catch (error) {
+      log.error('P2P: Failed to log conflict:', error)
+    }
+  }
+
+  // ============================================================================
+  // PHASE 6: METRICS AND LOGGING
+  // ============================================================================
+
+  /**
+   * Logger une métrique de connexion
+   */
+  private logConnectionMetric(
+    peerId: string,
+    peerName: string,
+    eventType: 'connected' | 'disconnected' | 'reconnected' | 'heartbeat_timeout' | 'sync_completed' | 'sync_failed',
+    details?: {
+      messagesSent?: number
+      messagesReceived?: number
+      bytesSent?: number
+      bytesReceived?: number
+      syncDurationMs?: number
+      errorMessage?: string
+    }
+  ): void {
+    try {
+      const db = DatabaseService.getInstance().getDatabase()
+      const stmt = db.prepare(`
+        INSERT INTO p2p_connection_metrics (
+          peer_id, peer_name, event_type, messages_sent, messages_received,
+          bytes_sent, bytes_received, sync_duration_ms, error_message
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+
+      stmt.run(
+        peerId,
+        peerName,
+        eventType,
+        details?.messagesSent || 0,
+        details?.messagesReceived || 0,
+        details?.bytesSent || 0,
+        details?.bytesReceived || 0,
+        details?.syncDurationMs || null,
+        details?.errorMessage || null
+      )
+
+      log.debug(`P2P: Logged ${eventType} metric for ${peerName}`)
+    } catch (error) {
+      log.error('P2P: Failed to log connection metric:', error)
+    }
+  }
+
+  /**
+   * Logger un événement de synchronisation
+   */
+  private logSyncEvent(
+    peerId: string,
+    peerName: string,
+    messageType: string,
+    messageAction: string,
+    entityType: string,
+    entityId: number | null,
+    status: 'success' | 'conflict' | 'error' | 'skipped',
+    details?: {
+      conflictReason?: string
+      resolutionStrategy?: string
+      errorMessage?: string
+    }
+  ): void {
+    try {
+      const db = DatabaseService.getInstance().getDatabase()
+      const stmt = db.prepare(`
+        INSERT INTO p2p_sync_logs (
+          peer_id, peer_name, message_type, message_action, entity_type, entity_id,
+          status, conflict_reason, resolution_strategy, details
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+
+      stmt.run(
+        peerId,
+        peerName,
+        messageType,
+        messageAction,
+        entityType,
+        entityId,
+        status,
+        details?.conflictReason || null,
+        details?.resolutionStrategy || null,
+        details?.errorMessage || null
+      )
+
+      log.debug(`P2P: Logged sync event: ${entityType}/${status}`)
+    } catch (error) {
+      log.error('P2P: Failed to log sync event:', error)
+    }
+  }
+
+  /**
+   * Tracker les statistiques de messages
+   */
+  private trackMessageStats(peerId: string, direction: 'sent' | 'received', messageSize: number): void {
+    const conn = this.connections.get(peerId)
+    if (!conn) return
+
+    if (direction === 'sent') {
+      conn.messagesSent++
+      conn.bytesSent += messageSize
+    } else {
+      conn.messagesReceived++
+      conn.bytesReceived += messageSize
+    }
+  }
+
+  /**
+   * Obtenir les statistiques détaillées
+   */
+  public getDetailedStats(): {
+    connections: Array<{
+      peerId: string
+      peerName: string
+      messagesSent: number
+      messagesReceived: number
+      bytesSent: number
+      bytesReceived: number
+      lastPing: string
+      lastPong: string
+      reconnectAttempts: number
+    }>
+    totalMessagesSent: number
+    totalMessagesReceived: number
+    totalBytesSent: number
+    totalBytesReceived: number
+  } {
+    const connections = Array.from(this.connections.values()).map((conn) => ({
+      peerId: conn.peerId,
+      peerName: conn.peerName,
+      messagesSent: conn.messagesSent,
+      messagesReceived: conn.messagesReceived,
+      bytesSent: conn.bytesSent,
+      bytesReceived: conn.bytesReceived,
+      lastPing: conn.lastPing.toISOString(),
+      lastPong: conn.lastPong.toISOString(),
+      reconnectAttempts: conn.reconnectAttempts,
+    }))
+
+    const totals = connections.reduce(
+      (acc, conn) => ({
+        totalMessagesSent: acc.totalMessagesSent + conn.messagesSent,
+        totalMessagesReceived: acc.totalMessagesReceived + conn.messagesReceived,
+        totalBytesSent: acc.totalBytesSent + conn.bytesSent,
+        totalBytesReceived: acc.totalBytesReceived + conn.bytesReceived,
+      }),
+      {
+        totalMessagesSent: 0,
+        totalMessagesReceived: 0,
+        totalBytesSent: 0,
+        totalBytesReceived: 0,
+      }
+    )
+
+    return {
+      connections,
+      ...totals,
+    }
   }
 }
 
