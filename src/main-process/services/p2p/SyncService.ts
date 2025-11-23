@@ -22,7 +22,8 @@ export interface SyncMessage {
     | 'payment'
     | 'full-sync-request'
     | 'full-sync-response'
-  action: 'create' | 'update' | 'delete' | 'sync' | 'identify' | 'heartbeat'
+    | 'manual-sync' // Synchronisation manuelle forcée
+  action: 'create' | 'update' | 'delete' | 'sync' | 'identify' | 'heartbeat' | 'force-update'
   data: any
   timestamp: string
   sourcePos: string
@@ -423,6 +424,12 @@ class P2PSyncService {
         return
       }
 
+      // Gérer la synchronisation manuelle forcée
+      if (message.type === 'manual-sync') {
+        this.handleManualSync(message)
+        return
+      }
+
       // Appliquer les changements localement
       this.applySync(message)
     } catch (error) {
@@ -638,6 +645,23 @@ class P2PSyncService {
     this.broadcast(message)
   }
 
+  // API publique: Synchronisation manuelle forcée (ignore la résolution de conflit)
+  public manualSync(products: any[]): void {
+    log.info(`P2P: Starting manual sync with ${products.length} products`)
+
+    const message: SyncMessage = {
+      id: uuidv4(),
+      type: 'manual-sync',
+      action: 'force-update',
+      data: { products },
+      timestamp: new Date().toISOString(),
+      sourcePos: this.getPosId(),
+    }
+
+    this.broadcast(message)
+    log.info(`P2P: Manual sync message broadcasted`)
+  }
+
   // API publique: Synchroniser le stock
   public syncStock(productId: number, quantity: number): void {
     const message: SyncMessage = {
@@ -802,6 +826,84 @@ class P2PSyncService {
       log.info(`P2P: Skipped (already exist): ${categoriesSkipped} categories, ${productsSkipped} products`)
     } catch (error) {
       log.error('P2P: Failed to handle full sync response:', error)
+    }
+  }
+
+  // Gérer la synchronisation manuelle forcée (ignore les conflits)
+  private handleManualSync(message: SyncMessage): void {
+    log.info(`P2P: Handling FORCED manual sync from ${message.sourcePos}`)
+
+    try {
+      const { products } = message.data
+
+      if (!products || !Array.isArray(products)) {
+        log.error('P2P: Invalid manual sync data - no products array')
+        return
+      }
+
+      log.info(`P2P: Force updating ${products.length} products (ignoring conflicts)`)
+
+      const ProductRepository = require('../database/repositories/ProductRepository').default
+      let updated = 0
+      let created = 0
+      let errors = 0
+
+      for (const product of products) {
+        try {
+          const existing = ProductRepository.findById(product.id)
+
+          if (existing) {
+            // FORCE UPDATE - ignore conflict resolution
+            ProductRepository.updateFromSync(product)
+            updated++
+
+            this.logSyncEvent(
+              message.sourcePos,
+              this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+              'manual-sync',
+              'force-update',
+              'product',
+              product.id,
+              'success',
+              { resolutionStrategy: 'force_update' }
+            )
+          } else {
+            // Créer le produit
+            ProductRepository.createFromSync(product)
+            created++
+
+            this.logSyncEvent(
+              message.sourcePos,
+              this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+              'manual-sync',
+              'force-update',
+              'product',
+              product.id,
+              'success'
+            )
+          }
+        } catch (error) {
+          errors++
+          log.error(`P2P: Failed to force update product ${product.name}:`, error)
+
+          this.logSyncEvent(
+            message.sourcePos,
+            this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+            'manual-sync',
+            'force-update',
+            'product',
+            product.id,
+            'error',
+            { errorMessage: error instanceof Error ? error.message : 'Unknown error' }
+          )
+        }
+      }
+
+      log.info(
+        `P2P: Manual sync complete - ${updated} updated, ${created} created, ${errors} errors`
+      )
+    } catch (error) {
+      log.error('P2P: Failed to handle manual sync:', error)
     }
   }
 

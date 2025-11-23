@@ -182,12 +182,10 @@ ipcMain.handle(IPC_CHANNELS.P2P_SYNC_NOW, async () => {
     const ProductRepository = require('../services/database/repositories/ProductRepository').default
     const products = ProductRepository.findAll()
 
-    log.info(`P2P: Syncing ${products.length} products manually`)
+    log.info(`P2P: Syncing ${products.length} products manually (forced sync)`)
 
-    // Envoyer chaque produit via P2P
-    for (const product of products) {
-      P2PSyncService.syncProduct(product, 'update')
-    }
+    // Envoyer une synchronisation forcée qui ignore les conflits
+    P2PSyncService.manualSync(products)
 
     log.info(`P2P: Manual sync completed - ${products.length} products sent`)
 
