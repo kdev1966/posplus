@@ -646,14 +646,14 @@ class P2PSyncService {
   }
 
   // API publique: Synchronisation manuelle forcée (ignore la résolution de conflit)
-  public manualSync(products: any[]): void {
-    log.info(`P2P: Starting manual sync with ${products.length} products`)
+  public manualSync(data: { products: any[]; categories: any[] }): void {
+    log.info(`P2P: Starting manual sync with ${data.categories.length} categories and ${data.products.length} products`)
 
     const message: SyncMessage = {
       id: uuidv4(),
       type: 'manual-sync',
       action: 'force-update',
-      data: { products },
+      data,
       timestamp: new Date().toISOString(),
       sourcePos: this.getPosId(),
     }
@@ -834,20 +834,77 @@ class P2PSyncService {
     log.info(`P2P: Handling FORCED manual sync from ${message.sourcePos}`)
 
     try {
-      const { products } = message.data
+      const { products, categories } = message.data
 
-      if (!products || !Array.isArray(products)) {
-        log.error('P2P: Invalid manual sync data - no products array')
+      if (!products || !Array.isArray(products) || !categories || !Array.isArray(categories)) {
+        log.error('P2P: Invalid manual sync data - missing products or categories array')
         return
       }
 
-      log.info(`P2P: Force updating ${products.length} products (ignoring conflicts)`)
+      log.info(`P2P: Force updating ${categories.length} categories and ${products.length} products (ignoring conflicts)`)
 
       const ProductRepository = require('../database/repositories/ProductRepository').default
-      let updated = 0
-      let created = 0
+      const CategoryRepository = require('../database/repositories/CategoryRepository').default
+
+      let categoriesUpdated = 0
+      let categoriesCreated = 0
+      let productsUpdated = 0
+      let productsCreated = 0
       let errors = 0
 
+      // Synchroniser les catégories en premier
+      for (const category of categories) {
+        try {
+          const existing = CategoryRepository.findById(category.id)
+
+          if (existing) {
+            // FORCE UPDATE - ignore conflict resolution
+            CategoryRepository.updateFromSync(category)
+            categoriesUpdated++
+
+            this.logSyncEvent(
+              message.sourcePos,
+              this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+              'manual-sync',
+              'force-update',
+              'category',
+              category.id,
+              'success',
+              { resolutionStrategy: 'force_update' }
+            )
+          } else {
+            // Créer la catégorie
+            CategoryRepository.createFromSync(category)
+            categoriesCreated++
+
+            this.logSyncEvent(
+              message.sourcePos,
+              this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+              'manual-sync',
+              'force-update',
+              'category',
+              category.id,
+              'success'
+            )
+          }
+        } catch (error) {
+          errors++
+          log.error(`P2P: Failed to force update category ${category.name}:`, error)
+
+          this.logSyncEvent(
+            message.sourcePos,
+            this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+            'manual-sync',
+            'force-update',
+            'category',
+            category.id,
+            'error',
+            { errorMessage: error instanceof Error ? error.message : 'Unknown error' }
+          )
+        }
+      }
+
+      // Ensuite synchroniser les produits
       for (const product of products) {
         try {
           const existing = ProductRepository.findById(product.id)
@@ -855,7 +912,7 @@ class P2PSyncService {
           if (existing) {
             // FORCE UPDATE - ignore conflict resolution
             ProductRepository.updateFromSync(product)
-            updated++
+            productsUpdated++
 
             this.logSyncEvent(
               message.sourcePos,
@@ -870,7 +927,7 @@ class P2PSyncService {
           } else {
             // Créer le produit
             ProductRepository.createFromSync(product)
-            created++
+            productsCreated++
 
             this.logSyncEvent(
               message.sourcePos,
@@ -900,7 +957,7 @@ class P2PSyncService {
       }
 
       log.info(
-        `P2P: Manual sync complete - ${updated} updated, ${created} created, ${errors} errors`
+        `P2P: Manual sync complete - Categories: ${categoriesUpdated} updated, ${categoriesCreated} created | Products: ${productsUpdated} updated, ${productsCreated} created | ${errors} errors`
       )
     } catch (error) {
       log.error('P2P: Failed to handle manual sync:', error)

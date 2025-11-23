@@ -592,7 +592,7 @@ export const Settings: React.FC = () => {
                 try {
                   const result = await window.api.syncP2PNow()
                   if (result.success) {
-                    alert(`✅ Synchronisation manuelle réussie!\n\n${result.productsSynced} produits ont été envoyés aux pairs connectés.`)
+                    alert(`✅ Synchronisation manuelle réussie!\n\n${result.categoriesSynced} catégories et ${result.productsSynced} produits ont été envoyés aux pairs connectés.`)
                   } else {
                     alert(`❌ Erreur de synchronisation: ${result.error || 'Erreur inconnue'}`)
                   }

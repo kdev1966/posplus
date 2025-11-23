@@ -431,7 +431,7 @@ export interface IPCApi {
   }>
   reconnectP2P: () => Promise<{ success: boolean; error?: string }>
   toggleP2P: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
-  syncP2PNow: () => Promise<{ success: boolean; productsSynced: number; error?: string }>
+  syncP2PNow: () => Promise<{ success: boolean; productsSynced: number; categoriesSynced: number; error?: string }>
 }
 
 // Expose API to window object

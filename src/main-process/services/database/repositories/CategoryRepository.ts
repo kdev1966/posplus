@@ -214,6 +214,43 @@ export class CategoryRepository {
       throw error
     }
   }
+
+  // Mettre à jour une catégorie depuis P2P sync (préserve updated_at)
+  updateFromSync(categoryData: any): Category | null {
+    try {
+      log.info(`P2P: Updating category from sync: ${categoryData.name}`)
+
+      const stmt = this.db.prepare(`
+        UPDATE categories SET
+          name = ?,
+          description = ?,
+          parent_id = ?,
+          is_active = ?,
+          display_order = ?,
+          updated_at = ?
+        WHERE id = ?
+      `)
+
+      stmt.run(
+        categoryData.name,
+        categoryData.description || null,
+        categoryData.parentId || null,
+        categoryData.isActive ? 1 : 0,
+        categoryData.displayOrder || 0,
+        categoryData.updatedAt,
+        categoryData.id
+      )
+
+      const category = this.findById(categoryData.id)
+      if (category) {
+        log.info(`P2P: Category ${category.name} updated from sync successfully`)
+      }
+      return category
+    } catch (error) {
+      log.error('CategoryRepository.updateFromSync failed:', error)
+      throw error
+    }
+  }
 }
 
 export default new CategoryRepository()
