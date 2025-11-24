@@ -230,7 +230,7 @@ class PrinterService {
         </style>
       </head>
       <body>
-        ${storeName ? `<div class="center bold large">${storeName}</div>` : '<div class="center bold large">POSPlus</div>'}
+        ${storeName ? `<div class="center bold large">${storeName}</div>` : '<div class="center bold large">POS+</div>'}
         ${storeSettings.storePhone ? `<div class="center">${storeSettings.storePhone}</div>` : '<div class="center">Point of Sale System</div>'}
         <div class="line"></div>
 
@@ -306,7 +306,7 @@ class PrinterService {
         </style>
       </head>
       <body>
-        <div class="center bold large">POSPlus - TEST TICKET</div>
+        <div class="center bold large">POS+ - TEST TICKET</div>
         <div class="center">Point of Sale System</div>
         <div class="line"></div>
 
@@ -368,7 +368,7 @@ class PrinterService {
         <div class="center">This is a test ticket</div>
         <div class="center">Printer test successful!</div>
         <br>
-        <div class="center">POSPlus v1.0.0</div>
+        <div class="center">POS+ v1.0.0</div>
         <br><br><br>
       </body>
       </html>
@@ -430,7 +430,7 @@ class PrinterService {
       if (storeName) {
         this.printer.println(storeName)
       } else {
-        this.printer.println('POSPlus')
+        this.printer.println('POS+')
       }
       this.printer.bold(false)
       this.printer.setTextNormal()
@@ -564,7 +564,7 @@ class PrinterService {
       this.printer.alignCenter()
       this.printer.setTextSize(1, 1)
       this.printer.bold(true)
-      this.printer.println('POSPlus - TEST TICKET')
+      this.printer.println('POS+ - TEST TICKET')
       this.printer.bold(false)
       this.printer.setTextNormal()
       this.printer.println('Point of Sale System')
@@ -621,7 +621,7 @@ class PrinterService {
       this.printer.println('This is a test ticket')
       this.printer.println('Printer test successful!')
       this.printer.newLine()
-      this.printer.println('POSPlus v1.0.0')
+      this.printer.println('POS+ v1.0.0')
       this.printer.newLine()
       this.printer.newLine()
       this.printer.newLine()

@@ -36,7 +36,7 @@ export const Login: React.FC = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-5xl font-bold text-gradient glow-text mb-2">
-            POSPlus
+            POS+
           </h1>
           <p className="text-gray-400">{t('posSystem')}</p>
         </div>

@@ -34,7 +34,7 @@ export const Sidebar: React.FC = () => {
     <aside className="w-64 glass border-r border-white/10 flex flex-col">
       <div className="p-6">
         <h1 className="text-3xl font-bold text-gradient glow-text">
-          POSPlus
+          POS+
         </h1>
         <p className="text-xs text-gray-400 mt-1">{t('posSystem')}</p>
       </div>
@@ -71,7 +71,7 @@ export const Sidebar: React.FC = () => {
           <span className="font-medium">{t('quit')}</span>
         </button>
         <div className="text-xs text-gray-500 text-center">
-          v1.0.0 · POSPlus © 2025
+          v1.0.0 · POS+ © 2025
         </div>
       </div>
     </aside>

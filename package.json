@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Point of Sale system with offline-first architecture",
   "main": "dist/main/main-process/main.js",
-  "author": "POSPlus Team",
+  "author": "POS+ Team",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -83,7 +83,7 @@
   },
   "build": {
     "appId": "com.posplus.app",
-    "productName": "POSPlus",
+    "productName": "POS+",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -116,8 +116,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "POSPlus",
-      "uninstallDisplayName": "POSPlus - Point of Sale",
+      "shortcutName": "POS+",
+      "uninstallDisplayName": "POS+ - Point of Sale",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
