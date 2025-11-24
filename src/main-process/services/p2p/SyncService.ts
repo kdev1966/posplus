@@ -474,8 +474,13 @@ class P2PSyncService {
 
     log.info(`P2P: Received HELLO_ACK from ${posName} (${posId})`)
 
-    // Connexion établie et identifiée - demander synchronisation
-    this.requestFullSync(posId, false) // false = pas bidirectionnel
+    // Connexion établie - déclencher synchronisation bidirectionnelle automatique
+    log.info(`P2P: Connection established with ${posName}, triggering automatic bidirectional sync`)
+
+    // Attendre 2 secondes pour que la connexion soit stable
+    setTimeout(() => {
+      this.triggerAutomaticSync()
+    }, 2000)
   }
 
   // Gérer le message PING
@@ -644,6 +649,27 @@ class P2PSyncService {
     }
 
     this.broadcast(message)
+  }
+
+  // Déclencher une synchronisation automatique (lors de la connexion initiale)
+  private triggerAutomaticSync(): void {
+    try {
+      log.info('P2P: Triggering automatic bidirectional sync')
+
+      // Récupérer tous les produits et catégories locaux
+      const ProductRepository = require('../database/repositories/ProductRepository').default
+      const CategoryRepository = require('../database/repositories/CategoryRepository').default
+
+      const products = ProductRepository.findAll()
+      const categories = CategoryRepository.findAll()
+
+      log.info(`P2P: Auto-sync will send ${categories.length} categories and ${products.length} products`)
+
+      // Utiliser la même logique que la synchronisation manuelle
+      this.manualSync({ products, categories })
+    } catch (error) {
+      log.error('P2P: Failed to trigger automatic sync:', error)
+    }
   }
 
   // API publique: Synchronisation manuelle bidirectionnelle avec merge
