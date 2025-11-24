@@ -20,15 +20,12 @@ export const History: React.FC = () => {
   const [endDate, setEndDate] = useState('')
   const [isEditMode, setIsEditMode] = useState(false)
   const [editedLines, setEditedLines] = useState<{ [key: number]: { quantity: number; discountRate: number } }>({})
-  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false)
-  const [isPartialRefundModalOpen, setIsPartialRefundModalOpen] = useState(false)
-  const [ticketToRefund, setTicketToRefund] = useState<Ticket | null>(null)
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
   const [ticketToCancel, setTicketToCancel] = useState<Ticket | null>(null)
-  const [ticketToPartialRefund, setTicketToPartialRefund] = useState<Ticket | null>(null)
-  const [refundReason, setRefundReason] = useState('')
+  const [ticketToRefund, setTicketToRefund] = useState<Ticket | null>(null)
   const [cancelReason, setCancelReason] = useState('')
-  const [partialRefundReason, setPartialRefundReason] = useState('')
+  const [refundReason, setRefundReason] = useState('')
   const [selectedLines, setSelectedLines] = useState<{ [lineId: number]: number }>({}) // lineId -> quantity to refund
 
   useEffect(() => {
@@ -222,34 +219,23 @@ export const History: React.FC = () => {
     }
   }
 
+  // Unified refund handler - opens partial refund modal with all items pre-selected
   const handleRefundTicket = (ticket: Ticket) => {
-    if (ticket.status !== 'completed') {
+    if (ticket.status !== 'completed' && ticket.status !== 'partially_refunded') {
       alert(t('cannotRefundTicket'))
       return
     }
+
+    // Pre-select all lines with their full quantities
+    const allLinesSelected: { [lineId: number]: number } = {}
+    ticket.lines.forEach((line) => {
+      allLinesSelected[line.id] = line.quantity
+    })
+
     setTicketToRefund(ticket)
+    setSelectedLines(allLinesSelected) // All products pre-selected
+    setRefundReason('')
     setIsRefundModalOpen(true)
-  }
-
-  const confirmRefund = async () => {
-    if (!ticketToRefund || !refundReason.trim()) {
-      alert(t('pleaseEnterReason'))
-      return
-    }
-
-    try {
-      const success = await window.api.refundTicket(ticketToRefund.id, refundReason)
-      if (success) {
-        alert(t('ticketRefundSuccess'))
-        setIsRefundModalOpen(false)
-        setTicketToRefund(null)
-        setRefundReason('')
-        loadHistory()
-      }
-    } catch (error: any) {
-      console.error('Failed to refund ticket:', error)
-      alert(error?.message || t('errorOccurred'))
-    }
   }
 
   const handleCancelTicket = (ticket: Ticket) => {
@@ -282,16 +268,6 @@ export const History: React.FC = () => {
     }
   }
 
-  const handlePartialRefund = (ticket: Ticket) => {
-    if (ticket.status !== 'completed' && ticket.status !== 'partially_refunded') {
-      alert(t('cannotRefundTicket'))
-      return
-    }
-    setTicketToPartialRefund(ticket)
-    setSelectedLines({})
-    setPartialRefundReason('')
-    setIsPartialRefundModalOpen(true)
-  }
 
   const toggleLineSelection = (lineId: number, maxQuantity: number) => {
     setSelectedLines((prev) => {
@@ -313,11 +289,11 @@ export const History: React.FC = () => {
   }
 
   const calculateRefundAmount = () => {
-    if (!ticketToPartialRefund) return 0
+    if (!ticketToRefund) return 0
     let total = 0
     for (const [lineIdStr, quantity] of Object.entries(selectedLines)) {
       const lineId = parseInt(lineIdStr)
-      const line = ticketToPartialRefund.lines.find((l) => l.id === lineId)
+      const line = ticketToRefund.lines.find((l) => l.id === lineId)
       if (line) {
         const unitPrice = line.totalAmount / line.quantity
         total += unitPrice * quantity
@@ -326,8 +302,8 @@ export const History: React.FC = () => {
     return total
   }
 
-  const confirmPartialRefund = async () => {
-    if (!ticketToPartialRefund || !partialRefundReason.trim()) {
+  const confirmRefund = async () => {
+    if (!ticketToRefund || !refundReason.trim()) {
       alert(t('pleaseEnterReason'))
       return
     }
@@ -344,21 +320,21 @@ export const History: React.FC = () => {
       }))
 
       const success = await window.api.partialRefundTicket(
-        ticketToPartialRefund.id,
+        ticketToRefund.id,
         lines,
-        partialRefundReason
+        refundReason
       )
 
       if (success) {
-        alert(t('ticketPartialRefundSuccess'))
-        setIsPartialRefundModalOpen(false)
-        setTicketToPartialRefund(null)
-        setPartialRefundReason('')
+        alert(t('ticketRefundSuccess'))
+        setIsRefundModalOpen(false)
+        setTicketToRefund(null)
+        setRefundReason('')
         setSelectedLines({})
         loadHistory()
       }
     } catch (error: any) {
-      console.error('Failed to partially refund ticket:', error)
+      console.error('Failed to refund ticket:', error)
       alert(error?.message || t('errorOccurred'))
     }
   }
@@ -493,12 +469,6 @@ export const History: React.FC = () => {
                           </button>
                           {(ticket.status === 'completed' || ticket.status === 'partially_refunded') && (
                             <>
-                              <button
-                                className="text-yellow-400 hover:text-yellow-300"
-                                onClick={() => handlePartialRefund(ticket)}
-                              >
-                                {t('partialRefund')}
-                              </button>
                               <button
                                 className="text-orange-400 hover:text-orange-300"
                                 onClick={() => handleRefundTicket(ticket)}
@@ -822,40 +792,40 @@ export const History: React.FC = () => {
         )}
       </Modal>
 
-      {/* Modal de remboursement partiel */}
+      {/* Modal de remboursement unifié */}
       <Modal
-        isOpen={isPartialRefundModalOpen}
+        isOpen={isRefundModalOpen}
         onClose={() => {
-          setIsPartialRefundModalOpen(false)
-          setTicketToPartialRefund(null)
-          setPartialRefundReason('')
+          setIsRefundModalOpen(false)
+          setTicketToRefund(null)
+          setRefundReason('')
           setSelectedLines({})
         }}
-        title={t('partialRefund')}
+        title={t('refund')}
         footer={
           <>
             <Button
               variant="secondary"
               onClick={() => {
-                setIsPartialRefundModalOpen(false)
-                setTicketToPartialRefund(null)
-                setPartialRefundReason('')
+                setIsRefundModalOpen(false)
+                setTicketToRefund(null)
+                setRefundReason('')
                 setSelectedLines({})
               }}
             >
               {t('cancel')}
             </Button>
-            <Button variant="primary" onClick={confirmPartialRefund}>
+            <Button variant="primary" onClick={confirmRefund}>
               {t('confirm')}
             </Button>
           </>
         }
       >
-        {ticketToPartialRefund && (
+        {ticketToRefund && (
           <div className="space-y-4">
             <div className="text-center py-3">
               <p className="text-white font-semibold mb-2">
-                {t('ticketId')} #{ticketToPartialRefund.ticketNumber}
+                {t('ticketId')} #{ticketToRefund.ticketNumber}
               </p>
             </div>
 
@@ -864,7 +834,7 @@ export const History: React.FC = () => {
                 {t('selectProductsToRefund')}
               </label>
               <div className="space-y-2 max-h-80 overflow-y-auto">
-                {ticketToPartialRefund.lines.map((line) => (
+                {ticketToRefund.lines.map((line) => (
                   <div
                     key={line.id}
                     className="border border-gray-700 rounded-lg p-3 space-y-2"
@@ -930,8 +900,8 @@ export const History: React.FC = () => {
                 {t('refundReason')} *
               </label>
               <textarea
-                value={partialRefundReason}
-                onChange={(e) => setPartialRefundReason(e.target.value)}
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
                 rows={3}
                 placeholder="Ex: Produit endommagé"
