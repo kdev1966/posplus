@@ -696,4 +696,13 @@ export const createMockApi = (): IPCApi => ({
     console.log('[Mock API] Toggle P2P (mock):', enabled)
     return { success: true }
   },
+
+  syncP2PNow: async () => {
+    console.log('[Mock API] Manual P2P sync (mock)')
+    return {
+      success: true,
+      productsSynced: 0,
+      categoriesSynced: 0
+    }
+  },
 })
