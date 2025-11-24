@@ -51,15 +51,60 @@ export const Settings: React.FC = () => {
     peers: []
   })
 
+  // Store settings state
+  const [storeNameFr, setStoreNameFr] = useState('')
+  const [storeNameAr, setStoreNameAr] = useState('')
+  const [storePhone, setStorePhone] = useState('')
+  const [ticketMessageFr, setTicketMessageFr] = useState('')
+  const [ticketMessageAr, setTicketMessageAr] = useState('')
+  const [isSavingStoreSettings, setIsSavingStoreSettings] = useState(false)
+
   // Fetch current session on component mount
   useEffect(() => {
     fetchCurrentSession()
     fetchP2PStatus()
     fetchPrinterConfig()
+    fetchStoreSettings()
     // Actualiser P2P status toutes les 10 secondes
     const interval = setInterval(fetchP2PStatus, 10000)
     return () => clearInterval(interval)
   }, [])
+
+  const fetchStoreSettings = async () => {
+    try {
+      const settings = await window.api.getStoreSettings()
+      setStoreNameFr(settings.storeNameFr)
+      setStoreNameAr(settings.storeNameAr)
+      setStorePhone(settings.storePhone)
+      setTicketMessageFr(settings.ticketMessageFr)
+      setTicketMessageAr(settings.ticketMessageAr)
+    } catch (error) {
+      console.error('Failed to fetch store settings:', error)
+    }
+  }
+
+  const handleSaveStoreSettings = async () => {
+    setIsSavingStoreSettings(true)
+    try {
+      await window.api.updateStoreSettings({
+        storeNameFr,
+        storeNameAr,
+        storePhone,
+        ticketMessageFr,
+        ticketMessageAr,
+      })
+      alert(currentLanguage === 'fr' ?
+        '✅ Paramètres du magasin enregistrés avec succès!' :
+        '✅ تم حفظ إعدادات المتجر بنجاح!')
+    } catch (error) {
+      console.error('Failed to save store settings:', error)
+      alert(currentLanguage === 'fr' ?
+        '❌ Erreur lors de l\'enregistrement des paramètres' :
+        '❌ خطأ في حفظ الإعدادات')
+    } finally {
+      setIsSavingStoreSettings(false)
+    }
+  }
 
   const fetchPrinterConfig = async () => {
     try {
@@ -675,6 +720,106 @@ export const Settings: React.FC = () => {
                   disabled={isBackingUp || isRestoring}
                 >
                   {isRestoring ? `⏳ ${t('restoringBackup')}` : `📥 ${t('restoreBackup')}`}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Store Settings - ADMINISTRATOR ONLY */}
+        {user?.roleId === 1 && (
+          <Card>
+            <h2 className="text-xl font-bold text-white mb-4">
+              🏪 {currentLanguage === 'fr' ? 'Informations du Magasin' : 'معلومات المتجر'}
+            </h2>
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
+              <p className="text-blue-400 text-sm flex items-center gap-2">
+                <span>ℹ️</span>
+                <span>
+                  {currentLanguage === 'fr'
+                    ? 'Ces informations apparaîtront sur les tickets imprimés'
+                    : 'ستظهر هذه المعلومات على التذاكر المطبوعة'}
+                </span>
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              {/* Store Name */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-300 mb-2 font-medium">
+                    {currentLanguage === 'fr' ? 'Nom du magasin (Français)' : 'اسم المتجر (فرنسي)'}
+                  </label>
+                  <Input
+                    value={storeNameFr}
+                    onChange={(e) => setStoreNameFr(e.target.value)}
+                    placeholder={currentLanguage === 'fr' ? 'Mon Super Magasin' : 'اسم المتجر بالفرنسية'}
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-300 mb-2 font-medium">
+                    {currentLanguage === 'fr' ? 'Nom du magasin (Arabe)' : 'اسم المتجر (عربي)'}
+                  </label>
+                  <Input
+                    value={storeNameAr}
+                    onChange={(e) => setStoreNameAr(e.target.value)}
+                    placeholder={currentLanguage === 'fr' ? 'اسم المتجر' : 'اسم المتجر بالعربية'}
+                    dir="rtl"
+                  />
+                </div>
+              </div>
+
+              {/* Store Phone */}
+              <div>
+                <label className="block text-gray-300 mb-2 font-medium">
+                  {currentLanguage === 'fr' ? 'Numéro de téléphone' : 'رقم الهاتف'}
+                </label>
+                <Input
+                  value={storePhone}
+                  onChange={(e) => setStorePhone(e.target.value)}
+                  placeholder={currentLanguage === 'fr' ? '0123456789' : '٠١٢٣٤٥٦٧٨٩'}
+                />
+              </div>
+
+              {/* Ticket Messages */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-300 mb-2 font-medium">
+                    {currentLanguage === 'fr' ? 'Message du ticket (Français)' : 'رسالة التذكرة (فرنسي)'}
+                  </label>
+                  <textarea
+                    value={ticketMessageFr}
+                    onChange={(e) => setTicketMessageFr(e.target.value)}
+                    placeholder={currentLanguage === 'fr' ? 'Merci de votre visite!' : 'رسالة بالفرنسية'}
+                    className="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-300 mb-2 font-medium">
+                    {currentLanguage === 'fr' ? 'Message du ticket (Arabe)' : 'رسالة التذكرة (عربي)'}
+                  </label>
+                  <textarea
+                    value={ticketMessageAr}
+                    onChange={(e) => setTicketMessageAr(e.target.value)}
+                    placeholder={currentLanguage === 'fr' ? 'شكرا لزيارتكم!' : 'رسالة بالعربية'}
+                    className="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
+                    rows={3}
+                    dir="rtl"
+                  />
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <div className="flex justify-end">
+                <Button
+                  variant="success"
+                  onClick={handleSaveStoreSettings}
+                  disabled={isSavingStoreSettings}
+                >
+                  {isSavingStoreSettings
+                    ? (currentLanguage === 'fr' ? '⏳ Enregistrement...' : '⏳ جاري الحفظ...')
+                    : (currentLanguage === 'fr' ? '💾 Enregistrer' : '💾 حفظ')}
                 </Button>
               </div>
             </div>

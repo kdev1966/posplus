@@ -207,6 +207,25 @@ export interface AuthResponse {
   error?: string
 }
 
+export interface StoreSettings {
+  id: number
+  storeNameFr: string
+  storeNameAr: string
+  storePhone: string
+  ticketMessageFr: string
+  ticketMessageAr: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UpdateStoreSettingsDTO {
+  storeNameFr?: string
+  storeNameAr?: string
+  storePhone?: string
+  ticketMessageFr?: string
+  ticketMessageAr?: string
+}
+
 // ---------- IPC Channel Names ----------
 export const IPC_CHANNELS = {
   // Auth
@@ -307,6 +326,10 @@ export const IPC_CHANNELS = {
   P2P_SYNC_NOW: 'p2p:sync-now',
   P2P_RECONNECT: 'p2p:reconnect',
   P2P_TOGGLE: 'p2p:toggle',
+
+  // Store Settings
+  STORE_SETTINGS_GET: 'store-settings:get',
+  STORE_SETTINGS_UPDATE: 'store-settings:update',
 } as const
 
 // ---------- IPC API Interface ----------
@@ -432,6 +455,10 @@ export interface IPCApi {
   reconnectP2P: () => Promise<{ success: boolean; error?: string }>
   toggleP2P: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
   syncP2PNow: () => Promise<{ success: boolean; productsSynced: number; categoriesSynced: number; error?: string }>
+
+  // Store Settings
+  getStoreSettings: () => Promise<StoreSettings>
+  updateStoreSettings: (data: UpdateStoreSettingsDTO) => Promise<StoreSettings>
 }
 
 // Expose API to window object

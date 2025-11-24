@@ -1,4 +1,5 @@
 import TicketRepository from '../database/repositories/TicketRepository'
+import StoreSettingsRepository from '../database/repositories/StoreSettingsRepository'
 import log from 'electron-log'
 import { ThermalPrinter, PrinterTypes, CharacterSet } from 'node-thermal-printer'
 import { getPrinterConfig } from '../../utils/printerConfig'
@@ -167,6 +168,15 @@ class PrinterService {
   }
 
   private generateTicketHTML(ticket: any): string {
+    // Get store settings
+    const storeSettings = StoreSettingsRepository.getSettings()
+
+    // Detect language from user preference or default to French
+    // For now, we'll use French as default. Can be enhanced to detect from user settings.
+    const isArabic = false // Can be enhanced to check user language preference
+    const storeName = isArabic ? storeSettings.storeNameAr : storeSettings.storeNameFr
+    const ticketMessage = isArabic ? storeSettings.ticketMessageAr : storeSettings.ticketMessageFr
+
     const lines = ticket.lines
       .map(
         (line: any) =>
@@ -213,14 +223,15 @@ class PrinterService {
           .center { text-align: center; }
           .bold { font-weight: bold; }
           .large { font-size: 16px; }
+          .medium { font-size: 14px; }
           .line { border-top: 1px dashed #000; margin: 5px 0; }
           table { width: 100%; border-collapse: collapse; }
           td { padding: 2px 0; }
         </style>
       </head>
       <body>
-        <div class="center bold large">POSPlus</div>
-        <div class="center">Point of Sale System</div>
+        ${storeName ? `<div class="center bold large">${storeName}</div>` : '<div class="center bold large">POSPlus</div>'}
+        ${storeSettings.storePhone ? `<div class="center">${storeSettings.storePhone}</div>` : '<div class="center">Point of Sale System</div>'}
         <div class="line"></div>
 
         <div>Ticket: ${ticket.ticketNumber}</div>
@@ -260,8 +271,7 @@ class PrinterService {
         </table>
 
         <div class="line"></div>
-        <div class="center">Thank you for your purchase!</div>
-        <div class="center">Please come again</div>
+        ${ticketMessage ? `<div class="center medium">${ticketMessage}</div>` : '<div class="center">Thank you for your purchase!</div>'}
         <br><br><br>
       </body>
       </html>
@@ -405,16 +415,30 @@ class PrinterService {
 
       log.info(`Printing ticket (thermal): ${ticket.ticketNumber}`)
 
+      // Get store settings
+      const storeSettings = StoreSettingsRepository.getSettings()
+      const isArabic = false // Can be enhanced to check user language preference
+      const storeName = isArabic ? storeSettings.storeNameAr : storeSettings.storeNameFr
+      const ticketMessage = isArabic ? storeSettings.ticketMessageAr : storeSettings.ticketMessageFr
+
       this.printer.clear()
 
-      // Header
+      // Header with store info
       this.printer.alignCenter()
       this.printer.setTextSize(1, 1)
       this.printer.bold(true)
-      this.printer.println('POSPlus')
+      if (storeName) {
+        this.printer.println(storeName)
+      } else {
+        this.printer.println('POSPlus')
+      }
       this.printer.bold(false)
       this.printer.setTextNormal()
-      this.printer.println('Point of Sale System')
+      if (storeSettings.storePhone) {
+        this.printer.println(storeSettings.storePhone)
+      } else {
+        this.printer.println('Point of Sale System')
+      }
       this.printer.drawLine()
       this.printer.newLine()
 
@@ -467,10 +491,14 @@ class PrinterService {
       this.printer.newLine()
       this.printer.drawLine()
 
-      // Footer
+      // Footer with custom message
       this.printer.alignCenter()
-      this.printer.println('Thank you for your purchase!')
-      this.printer.println('Please come again')
+      if (ticketMessage) {
+        this.printer.println(ticketMessage)
+      } else {
+        this.printer.println('Thank you for your purchase!')
+        this.printer.println('Please come again')
+      }
       this.printer.newLine()
       this.printer.newLine()
       this.printer.newLine()

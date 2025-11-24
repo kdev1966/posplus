@@ -705,4 +705,29 @@ export const createMockApi = (): IPCApi => ({
       categoriesSynced: 0
     }
   },
+
+  // Store Settings
+  getStoreSettings: async () => {
+    console.log('[Mock API] Get store settings (mock)')
+    return {
+      id: 1,
+      storeNameFr: 'Mon Magasin',
+      storeNameAr: 'متجري',
+      storePhone: '0123456789',
+      ticketMessageFr: 'Merci de votre visite!',
+      ticketMessageAr: 'شكرا لزيارتكم!',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+  },
+
+  updateStoreSettings: async (data: any) => {
+    console.log('[Mock API] Update store settings (mock):', data)
+    return {
+      id: 1,
+      ...data,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+  },
 })
