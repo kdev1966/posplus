@@ -59,6 +59,7 @@ class P2PSyncService {
   private connections: Map<string, PeerConnection> = new Map()
   private processedMessages: Set<string> = new Set() // Éviter doublons
   private syncRequested: Set<string> = new Set() // Éviter demandes multiples
+  private manualSyncInProgress: Set<string> = new Set() // Éviter boucles infinies de sync manuel
   private port = 3030
   private heartbeatInterval: NodeJS.Timeout | null = null
   private readonly HEARTBEAT_INTERVAL = 30000 // 30 secondes
@@ -645,21 +646,28 @@ class P2PSyncService {
     this.broadcast(message)
   }
 
-  // API publique: Synchronisation manuelle forcée (ignore la résolution de conflit)
+  // API publique: Synchronisation manuelle bidirectionnelle avec merge
   public manualSync(data: { products: any[]; categories: any[] }): void {
-    log.info(`P2P: Starting manual sync with ${data.categories.length} categories and ${data.products.length} products`)
+    log.info(`P2P: Starting bidirectional manual sync with ${data.categories.length} categories and ${data.products.length} products`)
+
+    // Marquer comme en cours pour éviter boucles infinies
+    const sessionId = `${this.getPosId()}-${Date.now()}`
 
     const message: SyncMessage = {
       id: uuidv4(),
       type: 'manual-sync',
       action: 'force-update',
-      data,
+      data: {
+        ...data,
+        sessionId, // Identifiant unique pour cette session de sync
+        initiator: this.getPosId(), // Celui qui a déclenché le sync
+      },
       timestamp: new Date().toISOString(),
       sourcePos: this.getPosId(),
     }
 
     this.broadcast(message)
-    log.info(`P2P: Manual sync message broadcasted`)
+    log.info(`P2P: Manual sync message broadcasted (session: ${sessionId})`)
   }
 
   // API publique: Synchroniser le stock
@@ -829,59 +837,98 @@ class P2PSyncService {
     }
   }
 
-  // Gérer la synchronisation manuelle forcée (ignore les conflits)
+  // Gérer la synchronisation manuelle bidirectionnelle avec merge
   private handleManualSync(message: SyncMessage): void {
-    log.info(`P2P: Handling FORCED manual sync from ${message.sourcePos}`)
-
     try {
-      const { products, categories } = message.data
+      const { products, categories, sessionId, initiator } = message.data
+
+      log.info(`P2P: Handling bidirectional manual sync from ${message.sourcePos} (session: ${sessionId})`)
 
       if (!products || !Array.isArray(products) || !categories || !Array.isArray(categories)) {
         log.error('P2P: Invalid manual sync data - missing products or categories array')
         return
       }
 
-      log.info(`P2P: Force updating ${categories.length} categories and ${products.length} products (ignoring conflicts)`)
+      // Vérifier si déjà en train de traiter cette session (éviter boucle infinie)
+      if (this.manualSyncInProgress.has(sessionId)) {
+        log.info(`P2P: Manual sync session ${sessionId} already in progress, skipping to prevent loop`)
+        return
+      }
+
+      // Marquer la session comme en cours
+      this.manualSyncInProgress.add(sessionId)
+
+      // Nettoyer après 30 secondes pour éviter accumulation en mémoire
+      setTimeout(() => {
+        this.manualSyncInProgress.delete(sessionId)
+      }, 30000)
+
+      log.info(`P2P: Merging ${categories.length} categories and ${products.length} products with last-write-wins strategy`)
 
       const ProductRepository = require('../database/repositories/ProductRepository').default
       const CategoryRepository = require('../database/repositories/CategoryRepository').default
 
       let categoriesUpdated = 0
       let categoriesCreated = 0
+      let categoriesSkipped = 0
       let productsUpdated = 0
       let productsCreated = 0
+      let productsSkipped = 0
       let errors = 0
 
-      // Synchroniser les catégories en premier
+      // Synchroniser les catégories en premier avec comparaison de timestamps
       for (const category of categories) {
         try {
           const existing = CategoryRepository.findById(category.id)
 
           if (existing) {
-            // FORCE UPDATE - ignore conflict resolution
-            CategoryRepository.updateFromSync(category)
-            categoriesUpdated++
+            // Comparer les timestamps pour last-write-wins
+            const localTime = new Date(existing.updatedAt).getTime()
+            const remoteTime = new Date(category.updatedAt).getTime()
 
-            this.logSyncEvent(
-              message.sourcePos,
-              this.connections.get(message.sourcePos)?.peerName || 'Unknown',
-              'manual-sync',
-              'force-update',
-              'category',
-              category.id,
-              'success',
-              { resolutionStrategy: 'force_update' }
-            )
+            if (remoteTime > localTime) {
+              // Distant plus récent, on met à jour
+              CategoryRepository.updateFromSync(category)
+              categoriesUpdated++
+              log.info(`P2P: ✓ Category ${category.name} updated (remote newer: ${category.updatedAt} > ${existing.updatedAt})`)
+
+              this.logSyncEvent(
+                message.sourcePos,
+                this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+                'manual-sync',
+                'update',
+                'category',
+                category.id,
+                'success',
+                { resolutionStrategy: 'last_write_wins_remote' }
+              )
+            } else {
+              // Local plus récent ou égal, on garde le local
+              categoriesSkipped++
+              log.info(`P2P: ↷ Category ${category.name} skipped (local newer or equal: ${existing.updatedAt} >= ${category.updatedAt})`)
+
+              this.logSyncEvent(
+                message.sourcePos,
+                this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+                'manual-sync',
+                'update',
+                'category',
+                category.id,
+                'skipped',
+                { resolutionStrategy: 'last_write_wins_local' }
+              )
+            }
           } else {
-            // Créer la catégorie
+            // N'existe pas localement, on le crée
             CategoryRepository.createFromSync(category)
             categoriesCreated++
+            log.info(`P2P: ✓ Category ${category.name} created (new)`)
 
             this.logSyncEvent(
               message.sourcePos,
               this.connections.get(message.sourcePos)?.peerName || 'Unknown',
               'manual-sync',
-              'force-update',
+              'create',
               'category',
               category.id,
               'success'
@@ -889,13 +936,13 @@ class P2PSyncService {
           }
         } catch (error) {
           errors++
-          log.error(`P2P: Failed to force update category ${category.name}:`, error)
+          log.error(`P2P: ✗ Failed to merge category ${category.name}:`, error)
 
           this.logSyncEvent(
             message.sourcePos,
             this.connections.get(message.sourcePos)?.peerName || 'Unknown',
             'manual-sync',
-            'force-update',
+            'update',
             'category',
             category.id,
             'error',
@@ -904,36 +951,68 @@ class P2PSyncService {
         }
       }
 
-      // Ensuite synchroniser les produits
+      // Ensuite synchroniser les produits avec comparaison de timestamps
       for (const product of products) {
         try {
           const existing = ProductRepository.findById(product.id)
 
           if (existing) {
-            // FORCE UPDATE - ignore conflict resolution
-            ProductRepository.updateFromSync(product)
-            productsUpdated++
+            // Comparer les timestamps pour last-write-wins
+            const localTime = new Date(existing.updatedAt).getTime()
+            const remoteTime = new Date(product.updatedAt).getTime()
 
-            this.logSyncEvent(
-              message.sourcePos,
-              this.connections.get(message.sourcePos)?.peerName || 'Unknown',
-              'manual-sync',
-              'force-update',
-              'product',
-              product.id,
-              'success',
-              { resolutionStrategy: 'force_update' }
-            )
+            if (remoteTime > localTime) {
+              // Distant plus récent, on met à jour
+              ProductRepository.updateFromSync(product)
+              productsUpdated++
+
+              if (productsUpdated <= 10) {
+                log.info(`P2P: ✓ Product ${product.name} updated (remote newer: ${product.updatedAt} > ${existing.updatedAt})`)
+              }
+
+              this.logSyncEvent(
+                message.sourcePos,
+                this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+                'manual-sync',
+                'update',
+                'product',
+                product.id,
+                'success',
+                { resolutionStrategy: 'last_write_wins_remote' }
+              )
+            } else {
+              // Local plus récent ou égal, on garde le local
+              productsSkipped++
+
+              if (productsSkipped <= 10) {
+                log.info(`P2P: ↷ Product ${product.name} skipped (local newer or equal: ${existing.updatedAt} >= ${product.updatedAt})`)
+              }
+
+              this.logSyncEvent(
+                message.sourcePos,
+                this.connections.get(message.sourcePos)?.peerName || 'Unknown',
+                'manual-sync',
+                'update',
+                'product',
+                product.id,
+                'skipped',
+                { resolutionStrategy: 'last_write_wins_local' }
+              )
+            }
           } else {
-            // Créer le produit
+            // N'existe pas localement, on le crée
             ProductRepository.createFromSync(product)
             productsCreated++
 
+            if (productsCreated <= 10) {
+              log.info(`P2P: ✓ Product ${product.name} created (new)`)
+            }
+
             this.logSyncEvent(
               message.sourcePos,
               this.connections.get(message.sourcePos)?.peerName || 'Unknown',
               'manual-sync',
-              'force-update',
+              'create',
               'product',
               product.id,
               'success'
@@ -941,13 +1020,13 @@ class P2PSyncService {
           }
         } catch (error) {
           errors++
-          log.error(`P2P: Failed to force update product ${product.name}:`, error)
+          log.error(`P2P: ✗ Failed to merge product ${product.name}:`, error)
 
           this.logSyncEvent(
             message.sourcePos,
             this.connections.get(message.sourcePos)?.peerName || 'Unknown',
             'manual-sync',
-            'force-update',
+            'update',
             'product',
             product.id,
             'error',
@@ -956,9 +1035,39 @@ class P2PSyncService {
         }
       }
 
-      log.info(
-        `P2P: Manual sync complete - Categories: ${categoriesUpdated} updated, ${categoriesCreated} created | Products: ${productsUpdated} updated, ${productsCreated} created | ${errors} errors`
-      )
+      log.info(`P2P: ===== Manual sync merge completed =====`)
+      log.info(`P2P: Categories - ${categoriesUpdated} updated, ${categoriesCreated} created, ${categoriesSkipped} skipped`)
+      log.info(`P2P: Products - ${productsUpdated} updated, ${productsCreated} created, ${productsSkipped} skipped`)
+      log.info(`P2P: ${errors} errors`)
+
+      // ========== BIDIRECTIONAL SYNC ==========
+      // Si c'est le destinataire initial (pas l'initiateur), envoyer nos données en retour
+      if (message.sourcePos === initiator && message.sourcePos !== this.getPosId()) {
+        log.info(`P2P: Sending reciprocal sync back to initiator ${initiator}`)
+
+        // Récupérer nos données locales
+        const localProducts = ProductRepository.findAll()
+        const localCategories = CategoryRepository.findAll()
+
+        // Envoyer un sync de retour avec le MÊME sessionId pour éviter boucle
+        const reciprocalMessage: SyncMessage = {
+          id: uuidv4(),
+          type: 'manual-sync',
+          action: 'force-update',
+          data: {
+            products: localProducts,
+            categories: localCategories,
+            sessionId, // MÊME session ID pour éviter boucle infinie
+            initiator, // Garder l'initiateur original
+          },
+          timestamp: new Date().toISOString(),
+          sourcePos: this.getPosId(),
+        }
+
+        // Envoyer uniquement à l'initiateur
+        this.sendToPeer(initiator, reciprocalMessage)
+        log.info(`P2P: Reciprocal sync sent - ${localCategories.length} categories and ${localProducts.length} products`)
+      }
     } catch (error) {
       log.error('P2P: Failed to handle manual sync:', error)
     }
