@@ -44,6 +44,8 @@ const api: IPCApi = {
   updateTicket: (id, data) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_UPDATE, id, data),
   cancelTicket: (id, reason) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_CANCEL, id, reason),
   refundTicket: (id, reason) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_REFUND, id, reason),
+  partialRefundTicket: (id, lines, reason) =>
+    ipcRenderer.invoke(IPC_CHANNELS.TICKET_PARTIAL_REFUND, id, lines, reason),
 
   // Cash Session
   openSession: (userId, openingCash) =>

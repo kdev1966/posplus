@@ -1,5 +1,5 @@
 import TicketRepository from '../database/repositories/TicketRepository'
-import { Ticket, CreateTicketDTO } from '@shared/types'
+import { Ticket, CreateTicketDTO, PartialRefundLineDTO } from '@shared/types'
 import log from 'electron-log'
 
 class TicketService {
@@ -78,6 +78,18 @@ class TicketService {
       return result
     } catch (error) {
       log.error('Failed to refund ticket:', error)
+      throw error
+    }
+  }
+
+  async partialRefundTicket(id: number, lines: PartialRefundLineDTO[], reason: string): Promise<boolean> {
+    try {
+      log.info(`Partial refund for ticket ${id} - ${lines.length} line(s)`)
+      const result = TicketRepository.partialRefund(id, lines, reason)
+      log.info(`Ticket ${id} partially refunded`)
+      return result
+    } catch (error) {
+      log.error('Failed to partially refund ticket:', error)
       throw error
     }
   }

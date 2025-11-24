@@ -208,9 +208,15 @@ export const Products: React.FC = () => {
       setIsDeleteModalOpen(false)
       setDeletingProduct(null)
       loadProducts()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete product:', error)
-      alert(t('errorOccurred'))
+
+      // Check if error is due to product having stock
+      if (error?.message?.includes('PRODUCT_HAS_STOCK')) {
+        alert(t('cannotDeleteProductWithStock'))
+      } else {
+        alert(t('errorOccurred'))
+      }
     }
   }
 

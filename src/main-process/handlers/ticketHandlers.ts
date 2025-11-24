@@ -73,3 +73,13 @@ ipcMain.handle(IPC_CHANNELS.TICKET_REFUND, async (_event, id, reason) => {
     throw error
   }
 })
+
+ipcMain.handle(IPC_CHANNELS.TICKET_PARTIAL_REFUND, async (_event, id, lines, reason) => {
+  try {
+    requirePermission('ticket.update')
+    return await TicketService.partialRefundTicket(id, lines, reason)
+  } catch (error) {
+    log.error('TICKET_PARTIAL_REFUND handler error:', error)
+    throw error
+  }
+})

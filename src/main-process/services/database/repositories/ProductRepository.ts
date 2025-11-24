@@ -432,8 +432,14 @@ export class ProductRepository {
 
       log.info(`Product deleted: ID ${id}`)
       return result.changes > 0
-    } catch (error) {
+    } catch (error: any) {
       log.error('ProductRepository.delete failed:', error)
+
+      // Check if error is from the trigger preventing deletion of products with stock
+      if (error?.message?.includes('Cannot delete product with stock')) {
+        throw new Error('PRODUCT_HAS_STOCK')
+      }
+
       throw error
     }
   }

@@ -1,5 +1,5 @@
 import DatabaseService from '../db'
-import { Ticket, TicketLine, Payment, CreateTicketDTO } from '@shared/types'
+import { Ticket, TicketLine, Payment, CreateTicketDTO, PartialRefundLineDTO } from '@shared/types'
 import log from 'electron-log'
 import StockRepository from './StockRepository'
 import P2PSyncService from '../../p2p/SyncService'
@@ -424,6 +424,109 @@ export class TicketRepository {
     return transaction()
   }
 
+  partialRefund(id: number, linesToRefund: PartialRefundLineDTO[], reason: string, userId?: number): boolean {
+    const transaction = this.db.transaction(() => {
+      try {
+        const ticket = this.findById(id)
+        if (!ticket) {
+          throw new Error('Ticket not found')
+        }
+
+        if (ticket.status !== 'completed' && ticket.status !== 'partially_refunded') {
+          throw new Error('Only completed or partially refunded tickets can be refunded')
+        }
+
+        // Validate and process each line to refund
+        let totalRefundAmount = 0
+        const lineUpdates: Array<{ lineId: number; newQuantity: number; refundAmount: number }> = []
+
+        for (const refundLine of linesToRefund) {
+          const originalLine = ticket.lines.find((l) => l.id === refundLine.lineId)
+          if (!originalLine) {
+            throw new Error(`Line ${refundLine.lineId} not found in ticket`)
+          }
+
+          if (refundLine.quantity <= 0 || refundLine.quantity > originalLine.quantity) {
+            throw new Error(`Invalid refund quantity for line ${refundLine.lineId}`)
+          }
+
+          // Calculate refund amount for this line (proportional)
+          const lineRefundAmount = (originalLine.totalAmount / originalLine.quantity) * refundLine.quantity
+          totalRefundAmount += lineRefundAmount
+
+          // Calculate new quantity
+          const newQuantity = originalLine.quantity - refundLine.quantity
+
+          lineUpdates.push({
+            lineId: refundLine.lineId,
+            newQuantity,
+            refundAmount: lineRefundAmount,
+          })
+
+          // Restore stock with audit trail
+          StockRepository.adjust(
+            originalLine.productId,
+            refundLine.quantity,
+            'return',
+            userId || ticket.userId,
+            ticket.ticketNumber,
+            `Remboursement partiel ticket ${ticket.ticketNumber}: ${reason}`
+          )
+        }
+
+        // Update or delete ticket lines based on remaining quantity
+        const updateLineStmt = this.db.prepare(`
+          UPDATE ticket_lines
+          SET quantity = ?, total_amount = ?
+          WHERE id = ?
+        `)
+
+        const deleteLineStmt = this.db.prepare(`
+          DELETE FROM ticket_lines
+          WHERE id = ?
+        `)
+
+        for (const update of lineUpdates) {
+          const originalLine = ticket.lines.find((l) => l.id === update.lineId)!
+
+          if (update.newQuantity === 0) {
+            // Delete the line if quantity becomes 0 (to avoid CHECK constraint violation)
+            deleteLineStmt.run(update.lineId)
+          } else {
+            // Update the line with new quantity and amount
+            const newTotalAmount = (originalLine.totalAmount / originalLine.quantity) * update.newQuantity
+            updateLineStmt.run(update.newQuantity, newTotalAmount, update.lineId)
+          }
+        }
+
+        // Update ticket totals
+        const newSubtotal = ticket.subtotal - totalRefundAmount
+        const newTotalAmount = ticket.totalAmount - totalRefundAmount
+
+        // Check if all lines are now at quantity 0 (full refund)
+        const allLinesRefunded = lineUpdates.every((u) => u.newQuantity === 0)
+        const newStatus = allLinesRefunded ? 'refunded' : 'partially_refunded'
+
+        const updateStmt = this.db.prepare(`
+          UPDATE tickets
+          SET subtotal = ?, total_amount = ?, status = ?, notes = ?
+          WHERE id = ?
+        `)
+        const result = updateStmt.run(newSubtotal, newTotalAmount, newStatus, reason, id)
+
+        log.info(
+          `Ticket partially refunded: ${ticket.ticketNumber} (ID: ${ticket.id}) - Refund amount: ${totalRefundAmount.toFixed(3)} DT`
+        )
+        return result.changes > 0
+      } catch (error) {
+        log.error('TicketRepository.partialRefund transaction failed:', error)
+        throw error
+      }
+    })
+
+    return transaction()
+  }
+
   update(id: number, data: { lines: TicketLine[]; subtotal: number; discountAmount: number; totalAmount: number }): Ticket {
     const transaction = this.db.transaction(() => {
       try {
@@ -600,6 +703,7 @@ export default {
   update: function(id: number, data: { lines: TicketLine[]; subtotal: number; discountAmount: number; totalAmount: number }) { return this.instance.update(id, data) },
   cancel: function(id: number, reason: string, userId?: number) { return this.instance.cancel(id, reason, userId) },
   refund: function(id: number, reason: string, userId?: number) { return this.instance.refund(id, reason, userId) },
+  partialRefund: function(id: number, lines: PartialRefundLineDTO[], reason: string, userId?: number) { return this.instance.partialRefund(id, lines, reason, userId) },
   getDailySales: function(date?: string) { return this.instance.getDailySales(date) },
   getTopProducts: function(limit?: number) { return this.instance.getTopProducts(limit) }
 }

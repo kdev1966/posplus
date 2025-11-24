@@ -120,12 +120,12 @@ export class SessionRepository {
         }
 
         // Calculate expected cash from tickets
-        // Sum cash payments from completed tickets
+        // Sum cash payments from completed and partially refunded tickets
         const completedStmt = this.db.prepare(`
           SELECT COALESCE(SUM(p.amount), 0) as total_cash
           FROM payments p
           JOIN tickets t ON p.ticket_id = t.id
-          WHERE t.session_id = ? AND p.method = 'cash' AND t.status = 'completed'
+          WHERE t.session_id = ? AND p.method = 'cash' AND t.status IN ('completed', 'partially_refunded')
         `)
         const completedResult = completedStmt.get(sessionId) as { total_cash: number }
 
@@ -180,7 +180,7 @@ export class SessionRepository {
           COALESCE(SUM(CASE WHEN p.method = 'other' THEN p.amount ELSE 0 END), 0) as total_other
         FROM tickets t
         LEFT JOIN payments p ON t.id = p.ticket_id
-        WHERE t.session_id = ? AND t.status = 'completed'
+        WHERE t.session_id = ? AND t.status IN ('completed', 'partially_refunded')
       `)
 
       return stmt.get(sessionId)

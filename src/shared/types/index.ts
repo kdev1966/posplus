@@ -70,12 +70,17 @@ export interface Ticket {
   subtotal: number
   discountAmount: number
   totalAmount: number
-  status: 'pending' | 'completed' | 'cancelled' | 'refunded'
+  status: 'pending' | 'completed' | 'cancelled' | 'refunded' | 'partially_refunded'
   sessionId: number
   createdAt: string
   updatedAt: string
   lines: TicketLine[]
   payments: Payment[]
+}
+
+export interface PartialRefundLineDTO {
+  lineId: number
+  quantity: number
 }
 
 export interface TicketLine {
@@ -265,6 +270,7 @@ export const IPC_CHANNELS = {
   TICKET_UPDATE: 'ticket:update',
   TICKET_CANCEL: 'ticket:cancel',
   TICKET_REFUND: 'ticket:refund',
+  TICKET_PARTIAL_REFUND: 'ticket:partial-refund',
 
   // Cash Session
   SESSION_OPEN: 'session:open',
@@ -371,6 +377,7 @@ export interface IPCApi {
   updateTicket: (id: number, data: any) => Promise<Ticket>
   cancelTicket: (id: number, reason: string) => Promise<boolean>
   refundTicket: (id: number, reason: string) => Promise<boolean>
+  partialRefundTicket: (id: number, lines: PartialRefundLineDTO[], reason: string) => Promise<boolean>
 
   // Cash Session
   openSession: (userId: number, openingCash: number) => Promise<CashSession>

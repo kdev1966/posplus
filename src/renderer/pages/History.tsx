@@ -20,6 +20,16 @@ export const History: React.FC = () => {
   const [endDate, setEndDate] = useState('')
   const [isEditMode, setIsEditMode] = useState(false)
   const [editedLines, setEditedLines] = useState<{ [key: number]: { quantity: number; discountRate: number } }>({})
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false)
+  const [isPartialRefundModalOpen, setIsPartialRefundModalOpen] = useState(false)
+  const [ticketToRefund, setTicketToRefund] = useState<Ticket | null>(null)
+  const [ticketToCancel, setTicketToCancel] = useState<Ticket | null>(null)
+  const [ticketToPartialRefund, setTicketToPartialRefund] = useState<Ticket | null>(null)
+  const [refundReason, setRefundReason] = useState('')
+  const [cancelReason, setCancelReason] = useState('')
+  const [partialRefundReason, setPartialRefundReason] = useState('')
+  const [selectedLines, setSelectedLines] = useState<{ [lineId: number]: number }>({}) // lineId -> quantity to refund
 
   useEffect(() => {
     loadHistory()
@@ -52,7 +62,7 @@ export const History: React.FC = () => {
 
   const filteredTickets = tickets
   const totalSales = filteredTickets.reduce((sum, ticket) => {
-    if (ticket.status === 'completed') {
+    if (ticket.status === 'completed' || ticket.status === 'partially_refunded') {
       return sum + ticket.totalAmount
     }
     return sum
@@ -76,6 +86,8 @@ export const History: React.FC = () => {
         return t('cancelled')
       case 'refunded':
         return t('refunded')
+      case 'partially_refunded':
+        return t('partiallyRefunded')
       case 'pending':
         return t('pending')
       default:
@@ -210,6 +222,147 @@ export const History: React.FC = () => {
     }
   }
 
+  const handleRefundTicket = (ticket: Ticket) => {
+    if (ticket.status !== 'completed') {
+      alert(t('cannotRefundTicket'))
+      return
+    }
+    setTicketToRefund(ticket)
+    setIsRefundModalOpen(true)
+  }
+
+  const confirmRefund = async () => {
+    if (!ticketToRefund || !refundReason.trim()) {
+      alert(t('pleaseEnterReason'))
+      return
+    }
+
+    try {
+      const success = await window.api.refundTicket(ticketToRefund.id, refundReason)
+      if (success) {
+        alert(t('ticketRefundSuccess'))
+        setIsRefundModalOpen(false)
+        setTicketToRefund(null)
+        setRefundReason('')
+        loadHistory()
+      }
+    } catch (error: any) {
+      console.error('Failed to refund ticket:', error)
+      alert(error?.message || t('errorOccurred'))
+    }
+  }
+
+  const handleCancelTicket = (ticket: Ticket) => {
+    if (ticket.status !== 'completed') {
+      alert(t('cannotCancelTicket'))
+      return
+    }
+    setTicketToCancel(ticket)
+    setIsCancelModalOpen(true)
+  }
+
+  const confirmCancel = async () => {
+    if (!ticketToCancel || !cancelReason.trim()) {
+      alert(t('pleaseEnterReason'))
+      return
+    }
+
+    try {
+      const success = await window.api.cancelTicket(ticketToCancel.id, cancelReason)
+      if (success) {
+        alert(t('ticketCancelSuccess'))
+        setIsCancelModalOpen(false)
+        setTicketToCancel(null)
+        setCancelReason('')
+        loadHistory()
+      }
+    } catch (error: any) {
+      console.error('Failed to cancel ticket:', error)
+      alert(error?.message || t('errorOccurred'))
+    }
+  }
+
+  const handlePartialRefund = (ticket: Ticket) => {
+    if (ticket.status !== 'completed' && ticket.status !== 'partially_refunded') {
+      alert(t('cannotRefundTicket'))
+      return
+    }
+    setTicketToPartialRefund(ticket)
+    setSelectedLines({})
+    setPartialRefundReason('')
+    setIsPartialRefundModalOpen(true)
+  }
+
+  const toggleLineSelection = (lineId: number, maxQuantity: number) => {
+    setSelectedLines((prev) => {
+      const newSelection = { ...prev }
+      if (newSelection[lineId]) {
+        delete newSelection[lineId]
+      } else {
+        newSelection[lineId] = maxQuantity
+      }
+      return newSelection
+    })
+  }
+
+  const updateLineQuantity = (lineId: number, quantity: number) => {
+    setSelectedLines((prev) => ({
+      ...prev,
+      [lineId]: quantity,
+    }))
+  }
+
+  const calculateRefundAmount = () => {
+    if (!ticketToPartialRefund) return 0
+    let total = 0
+    for (const [lineIdStr, quantity] of Object.entries(selectedLines)) {
+      const lineId = parseInt(lineIdStr)
+      const line = ticketToPartialRefund.lines.find((l) => l.id === lineId)
+      if (line) {
+        const unitPrice = line.totalAmount / line.quantity
+        total += unitPrice * quantity
+      }
+    }
+    return total
+  }
+
+  const confirmPartialRefund = async () => {
+    if (!ticketToPartialRefund || !partialRefundReason.trim()) {
+      alert(t('pleaseEnterReason'))
+      return
+    }
+
+    if (Object.keys(selectedLines).length === 0) {
+      alert(t('pleaseSelectProducts'))
+      return
+    }
+
+    try {
+      const lines = Object.entries(selectedLines).map(([lineIdStr, quantity]) => ({
+        lineId: parseInt(lineIdStr),
+        quantity,
+      }))
+
+      const success = await window.api.partialRefundTicket(
+        ticketToPartialRefund.id,
+        lines,
+        partialRefundReason
+      )
+
+      if (success) {
+        alert(t('ticketPartialRefundSuccess'))
+        setIsPartialRefundModalOpen(false)
+        setTicketToPartialRefund(null)
+        setPartialRefundReason('')
+        setSelectedLines({})
+        loadHistory()
+      }
+    } catch (error: any) {
+      console.error('Failed to partially refund ticket:', error)
+      alert(error?.message || t('errorOccurred'))
+    }
+  }
+
   return (
     <Layout>
       <div className="space-y-6 fade-in">
@@ -306,7 +459,11 @@ export const History: React.FC = () => {
                               ? 'success'
                               : ticket.status === 'cancelled'
                               ? 'danger'
-                              : 'warning'
+                              : ticket.status === 'refunded'
+                              ? 'warning'
+                              : ticket.status === 'partially_refunded'
+                              ? 'warning'
+                              : 'info'
                           }
                         >
                           {getStatusTranslation(ticket.status)}
@@ -334,6 +491,28 @@ export const History: React.FC = () => {
                           >
                             {t('print')}
                           </button>
+                          {(ticket.status === 'completed' || ticket.status === 'partially_refunded') && (
+                            <>
+                              <button
+                                className="text-yellow-400 hover:text-yellow-300"
+                                onClick={() => handlePartialRefund(ticket)}
+                              >
+                                {t('partialRefund')}
+                              </button>
+                              <button
+                                className="text-orange-400 hover:text-orange-300"
+                                onClick={() => handleRefundTicket(ticket)}
+                              >
+                                {t('refund')}
+                              </button>
+                              <button
+                                className="text-red-400 hover:text-red-300"
+                                onClick={() => handleCancelTicket(ticket)}
+                              >
+                                {t('cancelTicket')}
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -513,6 +692,260 @@ export const History: React.FC = () => {
                 </div>
               </div>
             )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal de remboursement */}
+      <Modal
+        isOpen={isRefundModalOpen}
+        onClose={() => {
+          setIsRefundModalOpen(false)
+          setTicketToRefund(null)
+          setRefundReason('')
+        }}
+        title={t('refundTicket')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => {
+              setIsRefundModalOpen(false)
+              setTicketToRefund(null)
+              setRefundReason('')
+            }}>
+              {t('cancel')}
+            </Button>
+            <Button variant="danger" onClick={confirmRefund}>
+              {t('confirm')}
+            </Button>
+          </>
+        }
+      >
+        {ticketToRefund && (
+          <div className="space-y-4">
+            <div className="text-center py-4">
+              <div className="text-5xl mb-4">⚠️</div>
+              <p className="text-white font-semibold mb-2">
+                {t('confirmRefund')}
+              </p>
+              <p className="text-gray-400 text-sm mb-2">
+                {t('ticketId')} #{ticketToRefund.ticketNumber}
+              </p>
+              <p className="text-primary-300 text-xl font-bold">
+                {formatCurrency(ticketToRefund.totalAmount)}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                {t('refundReason')} *
+              </label>
+              <textarea
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                rows={3}
+                placeholder="Ex: Produit défectueux"
+                required
+              />
+            </div>
+
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+              <p className="text-yellow-300 text-sm">
+                ⚠️ {t('stockWillBeRestored')}<br />
+                💰 {t('rememberToAdjustCash')}
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal d'annulation */}
+      <Modal
+        isOpen={isCancelModalOpen}
+        onClose={() => {
+          setIsCancelModalOpen(false)
+          setTicketToCancel(null)
+          setCancelReason('')
+        }}
+        title={t('cancelTicket')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => {
+              setIsCancelModalOpen(false)
+              setTicketToCancel(null)
+              setCancelReason('')
+            }}>
+              {t('cancel')}
+            </Button>
+            <Button variant="danger" onClick={confirmCancel}>
+              {t('confirm')}
+            </Button>
+          </>
+        }
+      >
+        {ticketToCancel && (
+          <div className="space-y-4">
+            <div className="text-center py-4">
+              <div className="text-5xl mb-4">🚫</div>
+              <p className="text-white font-semibold mb-2">
+                {t('confirmCancelTicket')}
+              </p>
+              <p className="text-gray-400 text-sm mb-2">
+                {t('ticketId')} #{ticketToCancel.ticketNumber}
+              </p>
+              <p className="text-primary-300 text-xl font-bold">
+                {formatCurrency(ticketToCancel.totalAmount)}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                {t('cancelReason')} *
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                rows={3}
+                placeholder="Ex: Erreur de saisie"
+                required
+              />
+            </div>
+
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+              <p className="text-yellow-300 text-sm">
+                ⚠️ {t('stockWillBeRestored')}<br />
+                💰 {t('rememberToAdjustCash')}
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal de remboursement partiel */}
+      <Modal
+        isOpen={isPartialRefundModalOpen}
+        onClose={() => {
+          setIsPartialRefundModalOpen(false)
+          setTicketToPartialRefund(null)
+          setPartialRefundReason('')
+          setSelectedLines({})
+        }}
+        title={t('partialRefund')}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsPartialRefundModalOpen(false)
+                setTicketToPartialRefund(null)
+                setPartialRefundReason('')
+                setSelectedLines({})
+              }}
+            >
+              {t('cancel')}
+            </Button>
+            <Button variant="primary" onClick={confirmPartialRefund}>
+              {t('confirm')}
+            </Button>
+          </>
+        }
+      >
+        {ticketToPartialRefund && (
+          <div className="space-y-4">
+            <div className="text-center py-3">
+              <p className="text-white font-semibold mb-2">
+                {t('ticketId')} #{ticketToPartialRefund.ticketNumber}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-3">
+                {t('selectProductsToRefund')}
+              </label>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {ticketToPartialRefund.lines.map((line) => (
+                  <div
+                    key={line.id}
+                    className="border border-gray-700 rounded-lg p-3 space-y-2"
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={!!selectedLines[line.id]}
+                        onChange={() => toggleLineSelection(line.id, line.quantity)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <p className="text-white font-medium">{line.productName}</p>
+                        <p className="text-sm text-gray-400">
+                          {line.quantity} x {formatCurrency(line.unitPrice)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-primary-300 font-semibold">
+                          {formatCurrency(line.totalAmount)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {selectedLines[line.id] !== undefined && (
+                      <div className="flex items-center gap-2 pl-7">
+                        <label className="text-sm text-gray-400 whitespace-nowrap">
+                          {t('refundQuantity')}:
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max={line.quantity}
+                          value={selectedLines[line.id]}
+                          onChange={(e) =>
+                            updateLineQuantity(line.id, parseInt(e.target.value) || 1)
+                          }
+                          className="w-20 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white text-center"
+                        />
+                        <span className="text-sm text-gray-400">
+                          / {line.quantity} ({t('maxQuantity')})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {Object.keys(selectedLines).length > 0 && (
+              <div className="bg-primary-500/10 border border-primary-500/30 rounded-lg p-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">{t('totalRefundAmount')}:</span>
+                  <span className="text-primary-300 text-xl font-bold">
+                    {formatCurrency(calculateRefundAmount())}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                {t('refundReason')} *
+              </label>
+              <textarea
+                value={partialRefundReason}
+                onChange={(e) => setPartialRefundReason(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                rows={3}
+                placeholder="Ex: Produit endommagé"
+                required
+              />
+            </div>
+
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+              <p className="text-yellow-300 text-sm">
+                ⚠️ {t('stockWillBeRestored')}
+                <br />
+                💰 {t('rememberToAdjustCash')}
+              </p>
+            </div>
           </div>
         )}
       </Modal>

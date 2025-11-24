@@ -534,6 +534,15 @@ export const createMockApi = (): IPCApi => ({
     }
     return false
   },
+  partialRefundTicket: async (id: number, _lines: any[], _reason: string) => {
+    const ticket = mockTickets.find(t => t.id === id)
+    if (ticket) {
+      ticket.status = 'partially_refunded'
+      ticket.updatedAt = new Date().toISOString()
+      return true
+    }
+    return false
+  },
   updateTicket: async (id: number, data: any) => {
     const ticket = mockTickets.find(t => t.id === id)
     if (ticket) {
