@@ -126,6 +126,7 @@ contextBridge.exposeInMainWorld('electron', {
         'customer-cart-updated',
         'customer-payment-complete',
         'customer-language-changed',
+        'p2p-data-synced',
       ]
       if (validChannels.includes(channel)) {
         const subscription = (_event: any, ...args: any[]) => func(...args)

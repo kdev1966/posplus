@@ -59,6 +59,27 @@ export const Products: React.FC = () => {
     }
   }, [isModalOpen])
 
+  // Écouter les événements de synchronisation P2P
+  useEffect(() => {
+    if (window.electron?.ipcRenderer) {
+      const unsubscribe = window.electron.ipcRenderer.on('p2p-data-synced', (data: any) => {
+        console.log('[Products] P2P data synced, refreshing products...', data)
+        // Rafraîchir les produits si des produits ou toutes les données ont été synchronisées
+        if (data.type === 'product' || data.type === 'all') {
+          loadProducts()
+        }
+        // Rafraîchir les catégories si des catégories ou toutes les données ont été synchronisées
+        if (data.type === 'category' || data.type === 'all') {
+          loadCategories()
+        }
+      })
+
+      return () => {
+        if (unsubscribe) unsubscribe()
+      }
+    }
+  }, [])
+
   const loadProducts = async () => {
     setLoading(true)
     try {

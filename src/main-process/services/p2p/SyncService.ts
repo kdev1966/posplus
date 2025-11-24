@@ -4,7 +4,7 @@ import PeerDiscovery from './PeerDiscovery'
 import { v4 as uuidv4 } from 'uuid'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
-import { app } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import DatabaseService from '../database/db'
 
 export interface SyncMessage {
@@ -67,6 +67,19 @@ class P2PSyncService {
   private readonly RECONNECT_BASE_DELAY = 5000 // 5 secondes
   private readonly RECONNECT_MAX_DELAY = 60000 // 60 secondes
   private readonly RECONNECT_MAX_ATTEMPTS = 10
+
+  // Notifier l'UI qu'une synchronisation a eu lieu
+  private notifyDataSynced(type: 'product' | 'category' | 'all'): void {
+    try {
+      const windows = BrowserWindow.getAllWindows()
+      windows.forEach(window => {
+        window.webContents.send('p2p-data-synced', { type })
+      })
+      log.debug(`P2P: Notified UI about ${type} sync`)
+    } catch (error) {
+      log.error('P2P: Failed to notify UI:', error)
+    }
+  }
 
   // Démarrer le serveur WebSocket
   async startServer(): Promise<void> {
@@ -554,6 +567,7 @@ class P2PSyncService {
                   'conflict',
                   { resolutionStrategy: conflict.strategy }
                 )
+                this.notifyDataSynced('product')
               } else {
                 log.info(`P2P: Skipped product update ${data.name} (conflict: local wins)`)
                 this.logSyncEvent(
@@ -580,6 +594,7 @@ class P2PSyncService {
                 data.id,
                 'success'
               )
+              this.notifyDataSynced('product')
             }
           } else if (action === 'create') {
             ProductRepository.createFromSync(data)
@@ -593,6 +608,7 @@ class P2PSyncService {
               data.id,
               'success'
             )
+            this.notifyDataSynced('product')
           }
           break
 
@@ -858,6 +874,11 @@ class P2PSyncService {
       log.info(`P2P: ===== Full sync completed =====`)
       log.info(`P2P: Created: ${categoriesCreated} categories, ${productsCreated} products`)
       log.info(`P2P: Skipped (already exist): ${categoriesSkipped} categories, ${productsSkipped} products`)
+
+      // Notifier l'UI si des données ont été synchronisées
+      if (categoriesCreated > 0 || productsCreated > 0) {
+        this.notifyDataSynced('all')
+      }
     } catch (error) {
       log.error('P2P: Failed to handle full sync response:', error)
     }
@@ -1065,6 +1086,11 @@ class P2PSyncService {
       log.info(`P2P: Categories - ${categoriesUpdated} updated, ${categoriesCreated} created, ${categoriesSkipped} skipped`)
       log.info(`P2P: Products - ${productsUpdated} updated, ${productsCreated} created, ${productsSkipped} skipped`)
       log.info(`P2P: ${errors} errors`)
+
+      // Notifier l'UI si des données ont été synchronisées
+      if (categoriesUpdated > 0 || categoriesCreated > 0 || productsUpdated > 0 || productsCreated > 0) {
+        this.notifyDataSynced('all')
+      }
 
       // ========== BIDIRECTIONAL SYNC ==========
       // Si c'est le destinataire initial (pas l'initiateur), envoyer nos données en retour
