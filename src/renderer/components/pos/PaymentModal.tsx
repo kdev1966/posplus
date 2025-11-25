@@ -41,8 +41,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const handleConfirm = () => {
     if (cashValue >= total) {
+      // Send the actual amount given by the customer, not just the total
+      // This allows the ticket to show the cash given and calculate change correctly
       const payments: { method: string; amount: number }[] = [
-        { method: 'cash', amount: total }
+        { method: 'cash', amount: cashValue }
       ]
 
       // Notify customer display of payment completion

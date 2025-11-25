@@ -622,10 +622,10 @@ export const createMockApi = (): IPCApi => ({
   getStockLogs: async () => [],
 
   // Printer handlers (mock)
-  printTicket: async () => false,
+  printTicket: async (_ticketId: number, _language?: 'fr' | 'ar') => false,
   printTestTicket: async () => false,
   getTestTicketPreview: async () => '<html><body>Mock Preview</body></html>',
-  getTicketPreview: async () => '<html><body>Mock Ticket Preview</body></html>',
+  getTicketPreview: async (_ticketId: number, _language?: 'fr' | 'ar') => '<html><body>Mock Ticket Preview</body></html>',
   openDrawer: async () => false,
   getPrinterStatus: async () => ({ connected: false, ready: false }),
   getPrinterConfig: async () => ({ printerName: 'POS80 Printer', port: 'CP001', type: 'EPSON' }),

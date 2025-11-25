@@ -5,10 +5,10 @@ import { getPrinterConfig, setPrinterConfig } from '../utils/printerConfig'
 import log from 'electron-log'
 import { requirePermission, requireAuth } from './handlerUtils'
 
-ipcMain.handle(IPC_CHANNELS.PRINTER_PRINT_TICKET, async (_event, ticketId) => {
+ipcMain.handle(IPC_CHANNELS.PRINTER_PRINT_TICKET, async (_event, ticketId: number, language: 'fr' | 'ar' = 'fr') => {
   try {
     requireAuth()
-    const success = await PrinterService.printTicket(ticketId)
+    const success = await PrinterService.printTicket(ticketId, language)
     return { success, error: success ? null : 'Failed to print ticket' }
   } catch (error: any) {
     log.error('PRINTER_PRINT_TICKET handler error:', error)
@@ -39,10 +39,10 @@ ipcMain.handle(IPC_CHANNELS.PRINTER_GET_TEST_PREVIEW, async () => {
   }
 })
 
-ipcMain.handle(IPC_CHANNELS.PRINTER_GET_TICKET_PREVIEW, async (_event, ticketId: number) => {
+ipcMain.handle(IPC_CHANNELS.PRINTER_GET_TICKET_PREVIEW, async (_event, ticketId: number, language: 'fr' | 'ar' = 'fr') => {
   try {
     requireAuth()
-    return PrinterService.getTicketHTML(ticketId) || ''
+    return PrinterService.getTicketHTML(ticketId, language) || ''
   } catch (error: any) {
     log.error('PRINTER_GET_TICKET_PREVIEW handler error:', error)
     return ''

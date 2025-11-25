@@ -19,7 +19,7 @@ export const POS: React.FC = () => {
   const { openPreview } = usePrintPreviewStore()
   const { categories, fetchProducts, fetchCategories, getFilteredProducts, setSelectedCategory, setSearchQuery, selectedCategory, searchQuery } = useProductStore()
   const { addItem, total, items, clearCart } = useCartStore()
-  const { t } = useLanguageStore()
+  const { t, currentLanguage } = useLanguageStore()
 
   const [showPayment, setShowPayment] = useState(false)
   const [barcode, setBarcode] = useState('')
@@ -114,16 +114,16 @@ export const POS: React.FC = () => {
         const storeSettings = await window.api.getStoreSettings()
         if (storeSettings.printPreviewEnabled) {
           // Show preview modal
-          const previewHtml = await window.api.getTicketPreview(ticket.id)
+          const previewHtml = await window.api.getTicketPreview(ticket.id, currentLanguage)
           if (previewHtml) {
             openPreview(previewHtml, ticket.id, async () => {
-              const result = await window.api.printTicket(ticket.id)
+              const result = await window.api.printTicket(ticket.id, currentLanguage)
               if (!result) throw new Error('Print failed')
             })
           }
         } else {
           // Print directly
-          const printResult = await window.api.printTicket(ticket.id)
+          const printResult = await window.api.printTicket(ticket.id, currentLanguage)
           console.log('[POS] Print result received:', printResult)
           if (!printResult) {
             console.warn('[POS] Print command returned false for ticket:', ticket.id)

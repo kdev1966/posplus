@@ -68,10 +68,10 @@ const api: IPCApi = {
   getStockLogs: (productId) => ipcRenderer.invoke(IPC_CHANNELS.STOCK_GET_LOGS, productId),
 
   // Printer
-  printTicket: (ticketId) => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_PRINT_TICKET, ticketId),
+  printTicket: (ticketId, language) => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_PRINT_TICKET, ticketId, language),
   printTestTicket: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_PRINT_TEST),
   getTestTicketPreview: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_TEST_PREVIEW),
-  getTicketPreview: (ticketId) => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_TICKET_PREVIEW, ticketId),
+  getTicketPreview: (ticketId, language) => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_TICKET_PREVIEW, ticketId, language),
   openDrawer: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_OPEN_DRAWER),
   getPrinterStatus: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_STATUS),
   getPrinterConfig: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_CONFIG),

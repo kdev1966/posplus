@@ -167,12 +167,12 @@ class PrinterService {
     })
   }
 
-  private generateTicketHTML(ticket: any): string {
+  private generateTicketHTML(ticket: any, language: 'fr' | 'ar' = 'fr'): string {
     // Get store settings
     const storeSettings = StoreSettingsRepository.getSettings()
 
-    // Detect language from user preference or default to French
-    const isArabic = false
+    // Use language parameter to determine content
+    const isArabic = language === 'ar'
     const storeName = isArabic ? storeSettings.storeNameAr : storeSettings.storeNameFr
     const ticketMessage = isArabic ? storeSettings.ticketMessageAr : storeSettings.ticketMessageFr
 
@@ -188,17 +188,7 @@ class PrinterService {
       )
       .join('')
 
-    const payments = ticket.payments
-      .map(
-        (payment: any) =>
-          `<tr>
-            <td>${payment.method.toUpperCase()}</td>
-            <td class="right">${payment.amount.toFixed(3)}</td>
-          </tr>`
-      )
-      .join('')
-
-    const formattedDate = new Date(ticket.createdAt).toLocaleString('fr-FR', {
+    const formattedDate = new Date(ticket.createdAt).toLocaleString(isArabic ? 'ar-TN' : 'fr-FR', {
       day: '2-digit',
       month: '2-digit',
       year: '2-digit',
@@ -206,24 +196,83 @@ class PrinterService {
       minute: '2-digit'
     })
 
+    // Labels based on language
+    const labels = isArabic ? {
+      article: 'المنتج',
+      qty: 'الكمية',
+      price: 'السعر',
+      subtotal: 'المجموع الفرعي',
+      discount: 'الخصم',
+      total: 'المجموع',
+      thanks: 'شكرا لزيارتكم!',
+      cash: 'نقدا',
+      card: 'بطاقة',
+      check: 'شيك',
+      change: 'الباقي'
+    } : {
+      article: 'Article',
+      qty: 'Qté',
+      price: 'Prix',
+      subtotal: 'Sous-total',
+      discount: 'Remise',
+      total: 'TOTAL',
+      thanks: 'Merci pour votre achat !',
+      cash: 'ESPECES',
+      card: 'CARTE',
+      check: 'CHEQUE',
+      change: 'Monnaie'
+    }
+
+    // Translate payment methods
+    const translatePaymentMethod = (method: string) => {
+      const m = method.toLowerCase()
+      if (m === 'cash' || m === 'especes' || m === 'espèces') return labels.cash
+      if (m === 'card' || m === 'carte') return labels.card
+      if (m === 'check' || m === 'cheque' || m === 'chèque') return labels.check
+      return method.toUpperCase()
+    }
+
+    // Process payments - for cash, show amount given and change
+    let paymentsHtml = ''
+    let totalCashGiven = 0
+
+    ticket.payments.forEach((payment: any) => {
+      const method = payment.method.toLowerCase()
+      const isCash = method === 'cash' || method === 'especes' || method === 'espèces'
+
+      if (isCash) {
+        totalCashGiven += payment.amount
+      }
+
+      paymentsHtml += `<tr><td>${translatePaymentMethod(payment.method)}</td><td class="right">${payment.amount.toFixed(3)}</td></tr>`
+    })
+
+    // Add change line if cash was given and there's change to return
+    const cashChange = totalCashGiven - ticket.totalAmount
+    if (totalCashGiven > 0 && cashChange > 0.001) {
+      paymentsHtml += `<tr><td>${labels.change}</td><td class="right">${cashChange.toFixed(3)}</td></tr>`
+    }
+
     // Compact ticket optimized for 80mm thermal printer (48 chars width)
     return `<!DOCTYPE html>
-<html>
+<html dir="${isArabic ? 'rtl' : 'ltr'}">
 <head>
 <meta charset="UTF-8">
 <style>
 @page { size: 72mm auto; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: 'Courier New', monospace;
+  font-family: ${isArabic ? "'Arial', 'Tahoma', sans-serif" : "'Courier New', monospace"};
   font-size: 12px;
   line-height: 1.2;
   width: 72mm;
   padding: 2mm;
   color: #000;
+  direction: ${isArabic ? 'rtl' : 'ltr'};
 }
 .center { text-align: center; }
-.right { text-align: right; }
+.right { text-align: ${isArabic ? 'left' : 'right'}; }
+.left { text-align: ${isArabic ? 'right' : 'left'}; }
 .bold { font-weight: bold; }
 .line { border-top: 1px dashed #000; margin: 3px 0; }
 .dbl { border-top: 1px solid #000; margin: 3px 0; }
@@ -233,7 +282,7 @@ table { width: 100%; border-collapse: collapse; }
 td { padding: 1px 0; vertical-align: top; }
 .name { max-width: 38mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qty { width: 8mm; text-align: center; }
-.price { width: 18mm; text-align: right; }
+.price { width: 18mm; text-align: ${isArabic ? 'left' : 'right'}; }
 .info td { font-size: 11px; }
 .total-box { background: #000; color: #fff; padding: 4px; margin: 4px 0; }
 .small { font-size: 10px; color: #666; }
@@ -246,28 +295,28 @@ ${storeSettings.storePhone ? `<div class="small">${storeSettings.storePhone}</di
 </div>
 <div class="dbl"></div>
 <table class="info">
-<tr><td>N°</td><td class="right">${ticket.ticketNumber}</td></tr>
+<tr><td>${isArabic ? 'رقم' : 'N°'}</td><td class="right">${ticket.ticketNumber}</td></tr>
 <tr><td>${formattedDate}</td><td class="right">#${ticket.userId}</td></tr>
 </table>
 <div class="line"></div>
 <table>
-<tr class="bold"><td>Article</td><td class="qty">Qté</td><td class="price">Prix</td></tr>
+<tr class="bold"><td>${labels.article}</td><td class="qty">${labels.qty}</td><td class="price">${labels.price}</td></tr>
 </table>
 <div class="line"></div>
 <table>${lines}</table>
 <div class="line"></div>
 <table>
-<tr><td>Sous-total</td><td class="right">${ticket.subtotal.toFixed(3)}</td></tr>
-${ticket.discountAmount > 0 ? `<tr><td>Remise</td><td class="right">-${ticket.discountAmount.toFixed(3)}</td></tr>` : ''}
+<tr><td>${labels.subtotal}</td><td class="right">${ticket.subtotal.toFixed(3)}</td></tr>
+${ticket.discountAmount > 0 ? `<tr><td>${labels.discount}</td><td class="right">-${ticket.discountAmount.toFixed(3)}</td></tr>` : ''}
 </table>
 <div class="total-box center">
-<div>TOTAL</div>
-<div class="big">${ticket.totalAmount.toFixed(3)} DT</div>
+<div>${labels.total}</div>
+<div class="big">${ticket.totalAmount.toFixed(3)} ${isArabic ? 'د.ت' : 'DT'}</div>
 </div>
-<table>${payments}</table>
+<table>${paymentsHtml}</table>
 <div class="line"></div>
 <div class="center small">
-${ticketMessage || 'Merci pour votre achat !'}
+${ticketMessage || labels.thanks}
 <br>POS+
 </div>
 </body>
@@ -361,7 +410,7 @@ td { padding: 1px 0; vertical-align: top; }
 </html>`
   }
 
-  async printTicket(ticketId: number): Promise<boolean> {
+  async printTicket(ticketId: number, language: 'fr' | 'ar' = 'fr'): Promise<boolean> {
     await this.initPromise
 
     if (!this.isConnected) {
@@ -376,12 +425,12 @@ td { padding: 1px 0; vertical-align: top; }
         return false
       }
 
-      log.info(`Printing ticket: ${ticket.ticketNumber}`)
+      log.info(`Printing ticket: ${ticket.ticketNumber} (language: ${language})`)
 
       // WINDOWS: Use Electron native printing
       if (this.isWindows && this.windowsPrinterName) {
         log.info(`🪟 Using Windows printer: ${this.windowsPrinterName}`)
-        const html = this.generateTicketHTML(ticket)
+        const html = this.generateTicketHTML(ticket, language)
         const success = await this.printWithWindowsPrinter(html)
 
         if (success) {
@@ -403,7 +452,7 @@ td { padding: 1px 0; vertical-align: top; }
 
       // Get store settings
       const storeSettings = StoreSettingsRepository.getSettings()
-      const isArabic = false // Can be enhanced to check user language preference
+      const isArabic = language === 'ar'
       const storeName = isArabic ? storeSettings.storeNameAr : storeSettings.storeNameFr
       const ticketMessage = isArabic ? storeSettings.ticketMessageAr : storeSettings.ticketMessageFr
 
@@ -513,14 +562,14 @@ td { padding: 1px 0; vertical-align: top; }
     return this.generateTestTicketHTML()
   }
 
-  getTicketHTML(ticketId: number): string | null {
+  getTicketHTML(ticketId: number, language: 'fr' | 'ar' = 'fr'): string | null {
     try {
       const ticket = TicketRepository.findById(ticketId)
       if (!ticket) {
         log.error(`Ticket not found for preview: ${ticketId}`)
         return null
       }
-      return this.generateTicketHTML(ticket)
+      return this.generateTicketHTML(ticket, language)
     } catch (error) {
       log.error('Failed to generate ticket preview:', error)
       return null

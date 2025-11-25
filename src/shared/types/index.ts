@@ -400,10 +400,10 @@ export interface IPCApi {
   getStockLogs: (productId?: number) => Promise<StockLog[]>
 
   // Printer
-  printTicket: (ticketId: number) => Promise<boolean>
+  printTicket: (ticketId: number, language?: 'fr' | 'ar') => Promise<boolean>
   printTestTicket: () => Promise<boolean>
   getTestTicketPreview: () => Promise<string>
-  getTicketPreview: (ticketId: number) => Promise<string>
+  getTicketPreview: (ticketId: number, language?: 'fr' | 'ar') => Promise<string>
   openDrawer: () => Promise<boolean>
   getPrinterStatus: () => Promise<{ connected: boolean; ready: boolean; error?: string }>
   getPrinterConfig: () => Promise<{ printerName: string; port: string; type?: string }>

@@ -11,7 +11,7 @@ import { formatCurrency } from '../utils/currency'
 import { toast } from '../store/toastStore'
 
 export const History: React.FC = () => {
-  const { t } = useLanguageStore()
+  const { t, currentLanguage } = useLanguageStore()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
@@ -113,7 +113,7 @@ export const History: React.FC = () => {
 
   const handlePrintTicket = async (ticketId: number) => {
     try {
-      const result = await window.api.printTicket(ticketId)
+      const result = await window.api.printTicket(ticketId, currentLanguage)
       // Ne pas afficher d'alert en cas de succès pour ne pas alourdir l'expérience utilisateur
       // Afficher uniquement en cas d'échec
       if (!result) {
