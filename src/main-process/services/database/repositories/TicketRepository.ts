@@ -20,11 +20,18 @@ export class TicketRepository {
       totalAmount: dbTicket.total_amount,
       status: dbTicket.status,
       sessionId: dbTicket.session_id,
-      createdAt: dbTicket.created_at,
-      updatedAt: dbTicket.updated_at,
+      createdAt: this.convertUtcToLocal(dbTicket.created_at),
+      updatedAt: this.convertUtcToLocal(dbTicket.updated_at),
       lines: [],
       payments: [],
     }
+  }
+
+  private convertUtcToLocal(utcDateStr: string): string {
+    // SQLite stores dates in UTC format: 'YYYY-MM-DD HH:MM:SS'
+    // Convert to local time by adding 'Z' to treat as UTC, then format as ISO
+    const utcDate = new Date(utcDateStr + 'Z')
+    return utcDate.toISOString()
   }
 
   private mapTicketLineFromDb(dbLine: any): TicketLine {
@@ -39,7 +46,7 @@ export class TicketRepository {
       discountRate: dbLine.discount_rate || 0,
       discountAmount: dbLine.discount_amount,
       totalAmount: dbLine.total_amount,
-      createdAt: dbLine.created_at,
+      createdAt: this.convertUtcToLocal(dbLine.created_at),
     }
   }
 
@@ -50,7 +57,7 @@ export class TicketRepository {
       method: dbPayment.method,
       amount: dbPayment.amount,
       reference: dbPayment.reference,
-      createdAt: dbPayment.created_at,
+      createdAt: this.convertUtcToLocal(dbPayment.created_at),
     }
   }
 
@@ -499,12 +506,19 @@ export class TicketRepository {
           }
         }
 
-        // Update ticket totals
-        const newSubtotal = ticket.subtotal - totalRefundAmount
-        const newTotalAmount = ticket.totalAmount - totalRefundAmount
+        // Recalculate ticket totals from REMAINING lines in database (not by subtraction)
+        const recalcTotalsStmt = this.db.prepare(`
+          SELECT
+            COALESCE(SUM(total_amount), 0) as subtotal,
+            COUNT(*) as line_count
+          FROM ticket_lines
+          WHERE ticket_id = ?
+        `)
+        const totals = recalcTotalsStmt.get(id) as { subtotal: number; line_count: number }
 
-        // Check if all lines are now at quantity 0 (full refund)
-        const allLinesRefunded = lineUpdates.every((u) => u.newQuantity === 0)
+        const newSubtotal = totals.subtotal
+        const newTotalAmount = totals.subtotal // No separate discount at ticket level in this system
+        const allLinesRefunded = totals.line_count === 0
         const newStatus = allLinesRefunded ? 'refunded' : 'partially_refunded'
 
         const updateStmt = this.db.prepare(`
