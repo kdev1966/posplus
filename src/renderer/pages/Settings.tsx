@@ -8,6 +8,7 @@ import { useSessionStore } from '../store/sessionStore'
 import { useAuthStore } from '../store/authStore'
 import { useLanguageStore } from '../store/languageStore'
 import { formatCurrency } from '../utils/currency'
+import { toast } from '../store/toastStore'
 
 export const Settings: React.FC = () => {
   const { user } = useAuthStore()
@@ -98,14 +99,14 @@ export const Settings: React.FC = () => {
         ticketMessageAr,
         printPreviewEnabled,
       })
-      alert(currentLanguage === 'fr' ?
-        '✅ Paramètres du magasin enregistrés avec succès!' :
-        '✅ تم حفظ إعدادات المتجر بنجاح!')
+      toast.success(currentLanguage === 'fr' ?
+        'Paramètres du magasin enregistrés avec succès!' :
+        'تم حفظ إعدادات المتجر بنجاح!')
     } catch (error) {
       console.error('Failed to save store settings:', error)
-      alert(currentLanguage === 'fr' ?
-        '❌ Erreur lors de l\'enregistrement des paramètres' :
-        '❌ خطأ في حفظ الإعدادات')
+      toast.error(currentLanguage === 'fr' ?
+        'Erreur lors de l\'enregistrement des paramètres' :
+        'خطأ في حفظ الإعدادات')
     } finally {
       setIsSavingStoreSettings(false)
     }
@@ -123,26 +124,26 @@ export const Settings: React.FC = () => {
     }
   }
 
-  const checkPrinterStatus = async (showAlert = false) => {
+  const checkPrinterStatus = async (showToast = false) => {
     setIsCheckingPrinter(true)
     try {
       const status = await window.api.getPrinterStatus()
       console.log('[SETTINGS] Printer status received:', status)
       setPrinterStatus(status)
-      if (showAlert) {
+      if (showToast) {
         if (status.connected) {
           if (status.error) {
-            alert(`${t('printerConnected')}\n\n⚠️ Erreur: ${status.error}`)
+            toast.warning(`${t('printerConnected')} - ${status.error}`)
           } else {
-            alert(t('printerConnected'))
+            toast.success(t('printerConnected'))
           }
         } else {
-          alert(`${t('printerNotConnected')}${status.error ? '\n\nErreur: ' + status.error : ''}`)
+          toast.error(`${t('printerNotConnected')}${status.error ? ' - ' + status.error : ''}`)
         }
       }
     } catch (error) {
       console.error('[SETTINGS] Failed to check printer status:', error)
-      if (showAlert) alert(t('printerCheckFailed'))
+      if (showToast) toast.error(t('printerCheckFailed'))
     } finally {
       setIsCheckingPrinter(false)
     }
@@ -164,16 +165,16 @@ export const Settings: React.FC = () => {
 
     const amount = parseFloat(openingCash)
     if (isNaN(amount) || amount < 0) {
-      alert(t('error'))
+      toast.error(t('error'))
       return
     }
 
     try {
       await openSession(user.id, amount)
-      alert(t('sessionOpenedSuccess'))
+      toast.success(t('sessionOpenedSuccess'))
     } catch (error: any) {
       const errorMsg = error?.message || t('openSessionFailed')
-      alert(`${t('error')}: ${errorMsg}`)
+      toast.error(`${t('error')}: ${errorMsg}`)
       console.error('Error opening session:', error)
     }
   }
@@ -189,10 +190,10 @@ export const Settings: React.FC = () => {
     try {
       await closeSession(currentSession.id, closingCash)
       setIsCloseModalOpen(false)
-      alert(t('sessionClosedSuccess'))
+      toast.success(t('sessionClosedSuccess'))
     } catch (error: any) {
       const errorMsg = error?.message || t('closeSessionFailed')
-      alert(`${t('error')}: ${errorMsg}`)
+      toast.error(`${t('error')}: ${errorMsg}`)
       console.error('Error closing session:', error)
       throw error
     }
@@ -221,17 +222,17 @@ export const Settings: React.FC = () => {
       const result = await window.api.repairTicketPayments()
 
       if (result.errors.length > 0) {
-        alert(`${t('repairError')}: ${result.errors.join(', ')}`)
+        toast.error(`${t('repairError')}: ${result.errors.join(', ')}`)
       } else if (result.fixed > 0) {
-        alert(`✅ ${t('repairSuccess')}\n\n${result.fixed} ${t('ticketsRepaired')}.\n\n${t('paymentsRecalculated')}`)
+        toast.success(`${t('repairSuccess')} - ${result.fixed} ${t('ticketsRepaired')}`)
 
         // Refresh current session to update stats
         await fetchCurrentSession()
       } else {
-        alert(`✅ ${t('noIssuesFound')}\n\n${t('allPaymentsMatch')}`)
+        toast.success(`${t('noIssuesFound')} - ${t('allPaymentsMatch')}`)
       }
     } catch (error: any) {
-      alert(`${t('error')}: ${error?.message || t('repairError')}`)
+      toast.error(`${t('error')}: ${error?.message || t('repairError')}`)
       console.error('Error repairing payments:', error)
     }
     setIsRepairing(false)
@@ -247,14 +248,14 @@ export const Settings: React.FC = () => {
       const result = await window.api.createBackup()
 
       if (result.success && result.filePath) {
-        alert(`✅ ${t('backupSuccess')}\n\n${t('backupSavedTo')}: ${result.filePath}`)
+        toast.success(`${t('backupSuccess')} - ${result.filePath}`)
       } else if (result.error === 'Backup canceled') {
-        alert(t('backupCancelled'))
+        toast.info(t('backupCancelled'))
       } else {
-        alert(`${t('backupError')}: ${result.error || 'Unknown error'}`)
+        toast.error(`${t('backupError')}: ${result.error || 'Unknown error'}`)
       }
     } catch (error: any) {
-      alert(`${t('backupError')}: ${error?.message || 'Unknown error'}`)
+      toast.error(`${t('backupError')}: ${error?.message || 'Unknown error'}`)
       console.error('Error creating backup:', error)
     }
     setIsBackingUp(false)
@@ -270,15 +271,15 @@ export const Settings: React.FC = () => {
       const result = await window.api.restoreBackup()
 
       if (result.success && result.needsRestart) {
-        alert(`✅ ${t('restoreSuccess')}\n\n${t('restartRequired')}`)
+        toast.success(`${t('restoreSuccess')} - ${t('restartRequired')}`)
         // App will restart automatically after 2 seconds
       } else if (result.error === 'Restore canceled') {
-        alert(t('restoreCancelled'))
+        toast.info(t('restoreCancelled'))
       } else {
-        alert(`${t('restoreError')}: ${result.error || 'Unknown error'}`)
+        toast.error(`${t('restoreError')}: ${result.error || 'Unknown error'}`)
       }
     } catch (error: any) {
-      alert(`${t('restoreError')}: ${error?.message || 'Unknown error'}`)
+      toast.error(`${t('restoreError')}: ${error?.message || 'Unknown error'}`)
       console.error('Error restoring backup:', error)
     }
     setIsRestoring(false)
@@ -290,14 +291,14 @@ export const Settings: React.FC = () => {
       const result = await window.api.generateExcelTemplate()
 
       if (result.success && result.filePath) {
-        alert(`✅ ${t('templateSuccess')}\n\n${t('templateSavedTo')}: ${result.filePath}`)
+        toast.success(`${t('templateSuccess')} - ${result.filePath}`)
       } else if (result.error === 'Template download canceled') {
-        alert(t('templateCancelled'))
+        toast.info(t('templateCancelled'))
       } else {
-        alert(`${t('templateError')}: ${result.error || 'Unknown error'}`)
+        toast.error(`${t('templateError')}: ${result.error || 'Unknown error'}`)
       }
     } catch (error: any) {
-      alert(`${t('templateError')}: ${error?.message || 'Unknown error'}`)
+      toast.error(`${t('templateError')}: ${error?.message || 'Unknown error'}`)
       console.error('Error generating template:', error)
     }
     setIsGeneratingTemplate(false)
@@ -309,14 +310,14 @@ export const Settings: React.FC = () => {
       const result = await window.api.exportToExcel()
 
       if (result.success && result.filePath) {
-        alert(`✅ ${t('exportSuccess')}\n\n${t('templateSavedTo')}: ${result.filePath}`)
+        toast.success(`${t('exportSuccess')} - ${result.filePath}`)
       } else if (result.error === 'Export canceled') {
-        alert(t('exportCancelled'))
+        toast.info(t('exportCancelled'))
       } else {
-        alert(`${t('exportError')}: ${result.error || 'Unknown error'}`)
+        toast.error(`${t('exportError')}: ${result.error || 'Unknown error'}`)
       }
     } catch (error: any) {
-      alert(`${t('exportError')}: ${error?.message || 'Unknown error'}`)
+      toast.error(`${t('exportError')}: ${error?.message || 'Unknown error'}`)
       console.error('Error exporting data:', error)
     }
     setIsExporting(false)
@@ -332,26 +333,22 @@ export const Settings: React.FC = () => {
       const result = await window.api.importFromExcel()
 
       if (result.success) {
-        let message = `✅ ${t('importSuccess')}\n\n`
-        message += `${t('categoriesImported')}: ${result.categoriesImported || 0}\n`
-        message += `${t('productsImported')}: ${result.productsImported || 0}\n`
+        const errorCount = result.errors?.length || 0
+        const hasErrors = errorCount > 0
+        const message = `${t('importSuccess')} - ${t('categoriesImported')}: ${result.categoriesImported || 0}, ${t('productsImported')}: ${result.productsImported || 0}${hasErrors ? ` (${errorCount} erreurs)` : ''}`
 
-        if (result.errors && result.errors.length > 0) {
-          message += `\n⚠️ ${t('importErrors')}: ${result.errors.length}\n\n`
-          message += result.errors.slice(0, 10).join('\n')
-          if (result.errors.length > 10) {
-            message += `\n... et ${result.errors.length - 10} autres erreurs`
-          }
+        if (hasErrors) {
+          toast.warning(message, 6000)
+        } else {
+          toast.success(message)
         }
-
-        alert(message)
       } else if (result.error === 'Import canceled') {
-        alert(t('importCancelled'))
+        toast.info(t('importCancelled'))
       } else {
-        alert(`${t('importError')}: ${result.error || 'Unknown error'}`)
+        toast.error(`${t('importError')}: ${result.error || 'Unknown error'}`)
       }
     } catch (error: any) {
-      alert(`${t('importError')}: ${error?.message || 'Unknown error'}`)
+      toast.error(`${t('importError')}: ${error?.message || 'Unknown error'}`)
       console.error('Error importing data:', error)
     }
     setIsImporting(false)
@@ -510,13 +507,13 @@ export const Settings: React.FC = () => {
                   const ok = await window.api.setPrinterConfig({ printerName, port: printerPort })
                   if (ok) {
                     await window.api.reconnectPrinter()
-                    alert('✅ Configuration enregistrée et tentative de reconnexion lancée')
+                    toast.success(currentLanguage === 'fr' ? 'Configuration enregistrée et reconnexion lancée' : 'تم حفظ الإعدادات وبدء إعادة الاتصال')
                     checkPrinterStatus()
                   } else {
-                    alert('❌ Échec de la sauvegarde de la configuration')
+                    toast.error(currentLanguage === 'fr' ? 'Échec de la sauvegarde de la configuration' : 'فشل حفظ الإعدادات')
                   }
                 } catch (error) {
-                  alert('❌ Erreur lors de la sauvegarde de la configuration')
+                  toast.error(currentLanguage === 'fr' ? 'Erreur lors de la sauvegarde de la configuration' : 'خطأ في حفظ الإعدادات')
                 }
               }}>
                 Enregistrer la configuration
@@ -558,9 +555,9 @@ export const Settings: React.FC = () => {
               <Button variant="primary" onClick={async () => {
                 try {
                   await window.api.openDrawer()
-                  alert(t('cashDrawerOpened'))
+                  toast.success(t('cashDrawerOpened'))
                 } catch (error) {
-                  alert(t('cashDrawerOpenFailed'))
+                  toast.error(t('cashDrawerOpenFailed'))
                 }
               }}>
                 {t('openCashDrawer')}
@@ -573,7 +570,7 @@ export const Settings: React.FC = () => {
                 setTestTicketPreview(html)
               } catch (error) {
                 console.error('[SETTINGS] Preview error:', error)
-                alert('❌ Erreur lors du chargement de l\'aperçu')
+                toast.error(currentLanguage === 'fr' ? 'Erreur lors du chargement de l\'aperçu' : 'خطأ في تحميل المعاينة')
               } finally {
                 setIsLoadingPreview(false)
               }
@@ -655,12 +652,12 @@ export const Settings: React.FC = () => {
                 try {
                   const result = await window.api.syncP2PNow()
                   if (result.success) {
-                    alert(`✅ Synchronisation manuelle réussie!\n\n${result.categoriesSynced} catégories et ${result.productsSynced} produits ont été envoyés aux pairs connectés.`)
+                    toast.success(`Synchronisation réussie! ${result.categoriesSynced} catégories, ${result.productsSynced} produits`)
                   } else {
-                    alert(`❌ Erreur de synchronisation: ${result.error || 'Erreur inconnue'}`)
+                    toast.error(`Erreur de synchronisation: ${result.error || 'Erreur inconnue'}`)
                   }
                 } catch (error: any) {
-                  alert(`❌ Erreur: ${error?.message || 'Échec de la synchronisation'}`)
+                  toast.error(`Erreur: ${error?.message || 'Échec de la synchronisation'}`)
                 }
               }}>
                 📤 Synchroniser maintenant
@@ -669,10 +666,10 @@ export const Settings: React.FC = () => {
               <Button variant="primary" onClick={async () => {
                 try {
                   await window.api.reconnectP2P()
-                  alert('Reconnexion en cours...')
+                  toast.info('Reconnexion en cours...')
                   setTimeout(fetchP2PStatus, 2000)
                 } catch (error) {
-                  alert('Échec de la reconnexion')
+                  toast.error('Échec de la reconnexion')
                 }
               }}>
                 🔄 Forcer reconnexion
@@ -920,11 +917,12 @@ export const Settings: React.FC = () => {
                       const result = await window.api.printTestTicket()
                       if (result) {
                         setTestTicketPreview(null)
+                        toast.success(currentLanguage === 'fr' ? 'Ticket imprimé' : 'تمت طباعة التذكرة')
                       } else {
-                        alert('❌ Échec de l\'impression')
+                        toast.error(currentLanguage === 'fr' ? 'Échec de l\'impression' : 'فشل الطباعة')
                       }
                     } catch (error) {
-                      alert('❌ Erreur: ' + (error as Error).message)
+                      toast.error((currentLanguage === 'fr' ? 'Erreur: ' : 'خطأ: ') + (error as Error).message)
                     }
                   }}
                 >

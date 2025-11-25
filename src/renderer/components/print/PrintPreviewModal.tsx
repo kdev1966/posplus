@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { usePrintPreviewStore } from '../../store/printPreviewStore'
 import { Button } from '../ui/Button'
 import { useLanguageStore } from '../../store/languageStore'
+import { toast } from '../../store/toastStore'
 
 export const PrintPreviewModal: React.FC = () => {
   const { isOpen, previewHtml, onPrint, closePreview } = usePrintPreviewStore()
@@ -18,7 +19,7 @@ export const PrintPreviewModal: React.FC = () => {
       closePreview()
     } catch (error) {
       console.error('Print failed:', error)
-      alert(currentLanguage === 'fr' ? '❌ Échec de l\'impression' : '❌ فشل الطباعة')
+      toast.error(currentLanguage === 'fr' ? 'Échec de l\'impression' : 'فشل الطباعة')
     } finally {
       setIsPrinting(false)
     }
