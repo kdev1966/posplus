@@ -7,6 +7,7 @@ import { Modal } from '../components/ui/Modal'
 import { Input } from '../components/ui/Input'
 import { User } from '@shared/types'
 import { useLanguageStore } from '../store/languageStore'
+import { toast } from '../store/toastStore'
 
 export const Users: React.FC = () => {
   const { t } = useLanguageStore()
@@ -103,11 +104,11 @@ export const Users: React.FC = () => {
 
     try {
       await window.api.deleteUser(userId)
-      alert(t('userDeletedSuccess'))
+      toast.success(t('userDeletedSuccess'))
       loadUsers()
     } catch (error: any) {
       console.error('Failed to delete user:', error)
-      alert(`${t('error')}: ${error?.message || t('deleteFailed')}`)
+      toast.error(`${t('error')}: ${error?.message || t('deleteFailed')}`)
     }
   }
 
@@ -132,7 +133,7 @@ export const Users: React.FC = () => {
         }
 
         await window.api.updateUser(updateData)
-        alert(t('userUpdatedSuccess'))
+        toast.success(t('userUpdatedSuccess'))
       } else {
         // Create new user
         const newUser = {
@@ -145,7 +146,7 @@ export const Users: React.FC = () => {
         }
 
         await window.api.createUser(newUser)
-        alert(t('userCreatedSuccess'))
+        toast.success(t('userCreatedSuccess'))
       }
 
       setIsModalOpen(false)
@@ -160,7 +161,7 @@ export const Users: React.FC = () => {
       loadUsers()
     } catch (error: any) {
       console.error('Failed to save user:', error)
-      alert(`${t('error')}: ${error?.message || t('saveFailed')}`)
+      toast.error(`${t('error')}: ${error?.message || t('saveFailed')}`)
     }
   }
 

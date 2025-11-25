@@ -9,6 +9,7 @@ import { useCartStore } from '../store/cartStore'
 import { useSessionStore } from '../store/sessionStore'
 import { useAuthStore } from '../store/authStore'
 import { useLanguageStore } from '../store/languageStore'
+import { toast } from '../store/toastStore'
 import { Product } from '@shared/types'
 
 export const POS: React.FC = () => {
@@ -57,22 +58,22 @@ export const POS: React.FC = () => {
         setBarcode('')
         setSearchQuery('')
       } else {
-        alert(t('productNotFound'))
+        toast.warning(t('productNotFound'))
       }
     } catch (error) {
       console.error('Failed to find product:', error)
-      alert(t('productNotFound'))
+      toast.error(t('productNotFound'))
     }
   }
 
   const handleCheckout = () => {
     if (!isSessionOpen) {
-      alert(t('pleaseOpenSession'))
+      toast.warning(t('pleaseOpenSession'))
       return
     }
 
     if (items.length === 0) {
-      alert(t('cartEmpty'))
+      toast.info(t('cartEmpty'))
       return
     }
 
@@ -130,13 +131,14 @@ export const POS: React.FC = () => {
       setBarcode('')
       setSearchQuery('')
 
-      // Log result without showing alert to avoid interrupting cashier workflow
+      // Log result without showing toast to avoid interrupting cashier workflow
       if (printSucceeded) {
         console.log(`[POS] Sale completed successfully - Ticket #${ticket.ticketNumber}`)
+        toast.success(`${t('ticket')} #${ticket.ticketNumber} - ${t('saleCompleted')}`, 2000)
       } else {
         console.warn(`[POS] Sale completed but print failed - Ticket #${ticket.ticketNumber}`)
-        // Only show alert if printing failed (cashier needs to know to reprint manually)
-        alert(`⚠️ ${t('saleCompleted')} - ${t('ticket')} #${ticket.ticketNumber}\n\n${t('printFailed')}\n${t('canReprintFromHistory')}`)
+        // Show warning if printing failed (cashier needs to know to reprint manually)
+        toast.warning(`${t('ticket')} #${ticket.ticketNumber} - ${t('printFailed')}. ${t('canReprintFromHistory')}`, 6000)
       }
 
       // Refocus on barcode input after modal closes
@@ -145,7 +147,7 @@ export const POS: React.FC = () => {
       }, 100)
     } catch (error) {
       console.error('Failed to complete sale:', error)
-      alert(t('failedToCompleteSale'))
+      toast.error(t('failedToCompleteSale'))
     }
   }
 

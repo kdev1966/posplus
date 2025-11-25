@@ -6,6 +6,7 @@ import { Modal } from '../components/ui/Modal'
 import { Input } from '../components/ui/Input'
 import { Category } from '@shared/types'
 import { useLanguageStore } from '../store/languageStore'
+import { toast } from '../store/toastStore'
 
 export const Categories: React.FC = () => {
   const { t } = useLanguageStore()
@@ -80,9 +81,10 @@ export const Categories: React.FC = () => {
         displayOrder: '',
       })
       loadCategories()
+      toast.success(t('categoryAddedSuccess'))
     } catch (error) {
       console.error('Failed to create category:', error)
-      alert(t('errorOccurred'))
+      toast.error(t('errorOccurred'))
     }
   }
 
@@ -112,9 +114,10 @@ export const Categories: React.FC = () => {
       setIsEditModalOpen(false)
       setEditingCategory(null)
       loadCategories()
+      toast.success(t('categoryUpdated'))
     } catch (error) {
       console.error('Failed to update category:', error)
-      alert(t('errorOccurred'))
+      toast.error(t('errorOccurred'))
     }
   }
 
@@ -131,12 +134,13 @@ export const Categories: React.FC = () => {
       setIsDeleteModalOpen(false)
       setDeletingCategory(null)
       loadCategories()
+      toast.success(t('categoryDeleted'))
     } catch (error: any) {
       console.error('Failed to delete category:', error)
       if (error.message?.includes('products')) {
-        alert(t('cannotDeleteCategoryWithProducts'))
+        toast.error(t('cannotDeleteCategoryWithProducts'))
       } else {
-        alert(t('errorOccurred'))
+        toast.error(t('errorOccurred'))
       }
     }
   }

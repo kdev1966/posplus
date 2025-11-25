@@ -38,7 +38,10 @@ export const Dashboard: React.FC = () => {
       const todayTickets = tickets.filter((ticket) => {
         const ticketDate = new Date(ticket.createdAt)
         ticketDate.setHours(0, 0, 0, 0)
-        return ticketDate.getTime() === today.getTime() && ticket.status === 'completed'
+        return (
+          ticketDate.getTime() === today.getTime() &&
+          (ticket.status === 'completed' || ticket.status === 'partially_refunded')
+        )
       })
 
       const todayRevenue = todayTickets.reduce((sum, ticket) => sum + ticket.totalAmount, 0)

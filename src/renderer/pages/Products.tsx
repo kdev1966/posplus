@@ -8,6 +8,7 @@ import { Input } from '../components/ui/Input'
 import { Product, Category } from '@shared/types'
 import { useLanguageStore } from '../store/languageStore'
 import { formatCurrency } from '../utils/currency'
+import { toast } from '../store/toastStore'
 
 export const Products: React.FC = () => {
   const { t } = useLanguageStore()
@@ -142,9 +143,10 @@ export const Products: React.FC = () => {
         discountRate: '',
       })
       loadProducts()
+      toast.success(t('productAddedSuccess'))
     } catch (error) {
       console.error('Failed to create product:', error)
-      alert(t('errorOccurred'))
+      toast.error(t('errorOccurred'))
     }
   }
 
@@ -189,9 +191,10 @@ export const Products: React.FC = () => {
       setIsEditModalOpen(false)
       setEditingProduct(null)
       loadProducts()
+      toast.success(t('productUpdatedSuccess'))
     } catch (error) {
       console.error('Failed to update product:', error)
-      alert(t('errorOccurred'))
+      toast.error(t('errorOccurred'))
     }
   }
 
@@ -208,14 +211,15 @@ export const Products: React.FC = () => {
       setIsDeleteModalOpen(false)
       setDeletingProduct(null)
       loadProducts()
+      toast.success(t('productDeletedSuccess'))
     } catch (error: any) {
       console.error('Failed to delete product:', error)
 
       // Check if error is due to product having stock
       if (error?.message?.includes('PRODUCT_HAS_STOCK')) {
-        alert(t('cannotDeleteProductWithStock'))
+        toast.error(t('cannotDeleteProductWithStock'))
       } else {
-        alert(t('errorOccurred'))
+        toast.error(t('errorOccurred'))
       }
     }
   }

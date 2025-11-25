@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button'
 import { Ticket } from '@shared/types'
 import { useLanguageStore } from '../store/languageStore'
 import { formatCurrency } from '../utils/currency'
+import { toast } from '../store/toastStore'
 
 export const History: React.FC = () => {
   const { t } = useLanguageStore()
@@ -60,10 +61,15 @@ export const History: React.FC = () => {
   const filteredTickets = tickets
   const totalSales = filteredTickets.reduce((sum, ticket) => {
     if (ticket.status === 'completed' || ticket.status === 'partially_refunded') {
+      console.log(`[TOTAL SALES] Ticket #${ticket.ticketNumber} - Status: ${ticket.status} - Amount: ${ticket.totalAmount} DT`)
       return sum + ticket.totalAmount
+    }
+    if (ticket.status === 'refunded' || ticket.status === 'cancelled') {
+      console.log(`[TOTAL SALES] Ticket #${ticket.ticketNumber} - Status: ${ticket.status} - EXCLUDED (amount was ${ticket.totalAmount} DT)`)
     }
     return sum
   }, 0)
+  console.log(`[TOTAL SALES] FINAL TOTAL: ${totalSales} DT`)
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleString('fr-FR', {
@@ -111,12 +117,12 @@ export const History: React.FC = () => {
       // Ne pas afficher d'alert en cas de succès pour ne pas alourdir l'expérience utilisateur
       // Afficher uniquement en cas d'échec
       if (!result) {
-        alert(t('ticketPrintError') + '\n\n' + t('checkPrinterConnection'))
+        toast.error(t('ticketPrintError') + ' - ' + t('checkPrinterConnection'), 6000)
       }
     } catch (error: any) {
       console.error('Failed to print ticket:', error)
       const errorMsg = error?.message || error?.toString() || t('ticketPrintError')
-      alert(t('ticketPrintError') + '\n\n' + errorMsg + '\n\n' + t('checkPrinterSettings'))
+      toast.error(t('ticketPrintError') + ' - ' + errorMsg + ' - ' + t('checkPrinterSettings'), 6000)
     }
   }
 
@@ -129,11 +135,11 @@ export const History: React.FC = () => {
         setSelectedTicket(ticket)
         setIsModalOpen(true)
       } else {
-        alert(t('ticketNotFound'))
+        toast.error(t('ticketNotFound'))
       }
     } catch (error) {
       console.error('Failed to load ticket details:', error)
-      alert(t('ticketLoadError'))
+      toast.error(t('ticketLoadError'))
     }
     setLoadingTicket(false)
   }
@@ -147,11 +153,11 @@ export const History: React.FC = () => {
         setSelectedTicket(ticket)
         setIsModalOpen(true)
       } else {
-        alert(t('ticketNotFound'))
+        toast.error(t('ticketNotFound'))
       }
     } catch (error) {
       console.error('Failed to load ticket details:', error)
-      alert(t('ticketLoadError'))
+      toast.error(t('ticketLoadError'))
     }
     setLoadingTicket(false)
   }
@@ -210,19 +216,19 @@ export const History: React.FC = () => {
         totalAmount
       })
 
-      alert(t('ticketUpdateSuccess'))
+      toast.success(t('ticketUpdateSuccess'))
       closeModal()
       loadHistory()
     } catch (error) {
       console.error('Failed to update ticket:', error)
-      alert(t('ticketUpdateError'))
+      toast.error(t('ticketUpdateError'))
     }
   }
 
   // Unified refund handler - opens partial refund modal with all items pre-selected
   const handleRefundTicket = (ticket: Ticket) => {
     if (ticket.status !== 'completed' && ticket.status !== 'partially_refunded') {
-      alert(t('cannotRefundTicket'))
+      toast.warning(t('cannotRefundTicket'))
       return
     }
 
@@ -240,7 +246,7 @@ export const History: React.FC = () => {
 
   const handleCancelTicket = (ticket: Ticket) => {
     if (ticket.status !== 'completed') {
-      alert(t('cannotCancelTicket'))
+      toast.warning(t('cannotCancelTicket'))
       return
     }
     setTicketToCancel(ticket)
@@ -249,14 +255,14 @@ export const History: React.FC = () => {
 
   const confirmCancel = async () => {
     if (!ticketToCancel || !cancelReason.trim()) {
-      alert(t('pleaseEnterReason'))
+      toast.warning(t('pleaseEnterReason'))
       return
     }
 
     try {
       const success = await window.api.cancelTicket(ticketToCancel.id, cancelReason)
       if (success) {
-        alert(t('ticketCancelSuccess'))
+        toast.success(t('ticketCancelSuccess'))
         setIsCancelModalOpen(false)
         setTicketToCancel(null)
         setCancelReason('')
@@ -264,7 +270,7 @@ export const History: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Failed to cancel ticket:', error)
-      alert(error?.message || t('errorOccurred'))
+      toast.error(error?.message || t('errorOccurred'))
     }
   }
 
@@ -304,12 +310,12 @@ export const History: React.FC = () => {
 
   const confirmRefund = async () => {
     if (!ticketToRefund || !refundReason.trim()) {
-      alert(t('pleaseEnterReason'))
+      toast.warning(t('pleaseEnterReason'))
       return
     }
 
     if (Object.keys(selectedLines).length === 0) {
-      alert(t('pleaseSelectProducts'))
+      toast.warning(t('pleaseSelectProducts'))
       return
     }
 
@@ -326,7 +332,7 @@ export const History: React.FC = () => {
       )
 
       if (success) {
-        alert(t('ticketRefundSuccess'))
+        toast.success(t('ticketRefundSuccess'))
         setIsRefundModalOpen(false)
         setTicketToRefund(null)
         setRefundReason('')
@@ -335,7 +341,7 @@ export const History: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Failed to refund ticket:', error)
-      alert(error?.message || t('errorOccurred'))
+      toast.error(error?.message || t('errorOccurred'))
     }
   }
 

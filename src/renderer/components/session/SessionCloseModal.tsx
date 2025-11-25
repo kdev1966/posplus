@@ -5,6 +5,7 @@ import { Input } from '../ui/Input'
 import { CashSession } from '@shared/types'
 import { useLanguageStore } from '../../store/languageStore'
 import { formatCurrency } from '../../utils/currency'
+import { toast } from '../../store/toastStore'
 
 interface SessionCloseModalProps {
   isOpen: boolean
@@ -55,7 +56,7 @@ export const SessionCloseModal: React.FC<SessionCloseModalProps> = ({
   const handleConfirm = async () => {
     const amount = parseFloat(closingCash)
     if (isNaN(amount) || amount < 0) {
-      alert(t('error'))
+      toast.error(t('error'))
       return
     }
 
@@ -68,7 +69,7 @@ export const SessionCloseModal: React.FC<SessionCloseModalProps> = ({
       // Validate closing cash amount
       const amount = parseFloat(closingCash)
       if (isNaN(amount) || amount < 0) {
-        alert(t('error'))
+        toast.error(t('error'))
         setPrinting(false)
         return
       }
@@ -79,7 +80,7 @@ export const SessionCloseModal: React.FC<SessionCloseModalProps> = ({
         await window.api.generateZReport(session.id)
       } catch (printError) {
         console.error('Failed to print Z report:', printError)
-        alert(t('printError') + ' - ' + t('sessionNotClosed'))
+        toast.error(t('printError') + ' - ' + t('sessionNotClosed'), 6000)
         setPrinting(false)
         return
       }
@@ -87,10 +88,10 @@ export const SessionCloseModal: React.FC<SessionCloseModalProps> = ({
       // Only close session after successful print
       await onConfirm(amount)
 
-      alert(t('sessionClosedAndPrinted'))
+      toast.success(t('sessionClosedAndPrinted'))
     } catch (error) {
       console.error('Failed to close session:', error)
-      alert(t('error'))
+      toast.error(t('error'))
     }
     setPrinting(false)
   }
