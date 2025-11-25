@@ -233,24 +233,31 @@ class PrinterService {
     }
 
     // Process payments - for cash, show amount given and change
+    // Only show ONE ESPECES line with the total cash given, then calculate change
     let paymentsHtml = ''
     let totalCashGiven = 0
 
+    // First pass: calculate total cash and add non-cash payments
     ticket.payments.forEach((payment: any) => {
       const method = payment.method.toLowerCase()
       const isCash = method === 'cash' || method === 'especes' || method === 'espèces'
 
       if (isCash) {
         totalCashGiven += payment.amount
+      } else {
+        paymentsHtml += `<tr><td>${translatePaymentMethod(payment.method)}</td><td class="right">${payment.amount.toFixed(3)}</td></tr>`
       }
-
-      paymentsHtml += `<tr><td>${translatePaymentMethod(payment.method)}</td><td class="right">${payment.amount.toFixed(3)}</td></tr>`
     })
 
-    // Add change line if cash was given and there's change to return
-    const cashChange = totalCashGiven - ticket.totalAmount
-    if (totalCashGiven > 0 && cashChange > 0.001) {
-      paymentsHtml += `<tr><td>${labels.change}</td><td class="right">${cashChange.toFixed(3)}</td></tr>`
+    // Add single cash line if cash was used
+    if (totalCashGiven > 0) {
+      paymentsHtml += `<tr><td>${labels.cash}</td><td class="right">${totalCashGiven.toFixed(3)}</td></tr>`
+
+      // Add change line if there's change to return
+      const cashChange = totalCashGiven - ticket.totalAmount
+      if (cashChange > 0.001) {
+        paymentsHtml += `<tr><td>${labels.change}</td><td class="right">${cashChange.toFixed(3)}</td></tr>`
+      }
     }
 
     // Compact ticket optimized for 80mm thermal printer (48 chars width)
