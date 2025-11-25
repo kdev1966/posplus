@@ -10,11 +10,13 @@ import { useSessionStore } from '../store/sessionStore'
 import { useAuthStore } from '../store/authStore'
 import { useLanguageStore } from '../store/languageStore'
 import { toast } from '../store/toastStore'
+import { usePrintPreviewStore } from '../store/printPreviewStore'
 import { Product } from '@shared/types'
 
 export const POS: React.FC = () => {
   const { user } = useAuthStore()
   const { currentSession, isSessionOpen } = useSessionStore()
+  const { openPreview } = usePrintPreviewStore()
   const { categories, fetchProducts, fetchCategories, getFilteredProducts, setSelectedCategory, setSearchQuery, selectedCategory, searchQuery } = useProductStore()
   const { addItem, total, items, clearCart } = useCartStore()
   const { t } = useLanguageStore()
@@ -103,17 +105,32 @@ export const POS: React.FC = () => {
       const ticket = await window.api.createTicket(ticketData)
       console.log('[POS] Ticket created successfully:', ticket.id, ticket.ticketNumber)
 
-      // Print ticket - don't fail the sale if printing fails
+      // Print ticket - check if preview is enabled
       let printSucceeded = true
       try {
         console.log('[POS] Attempting to print ticket:', ticket.id)
-        const printResult = await window.api.printTicket(ticket.id)
-        console.log('[POS] Print result received:', printResult)
-        if (!printResult) {
-          console.warn('[POS] Print command returned false for ticket:', ticket.id)
-          printSucceeded = false
+
+        // Check if print preview is enabled
+        const storeSettings = await window.api.getStoreSettings()
+        if (storeSettings.printPreviewEnabled) {
+          // Show preview modal
+          const previewHtml = await window.api.getTicketPreview(ticket.id)
+          if (previewHtml) {
+            openPreview(previewHtml, ticket.id, async () => {
+              const result = await window.api.printTicket(ticket.id)
+              if (!result) throw new Error('Print failed')
+            })
+          }
         } else {
-          console.log('[POS] Print command succeeded for ticket:', ticket.id)
+          // Print directly
+          const printResult = await window.api.printTicket(ticket.id)
+          console.log('[POS] Print result received:', printResult)
+          if (!printResult) {
+            console.warn('[POS] Print command returned false for ticket:', ticket.id)
+            printSucceeded = false
+          } else {
+            console.log('[POS] Print command succeeded for ticket:', ticket.id)
+          }
         }
       } catch (printError) {
         console.error('[POS] Failed to print ticket:', printError)

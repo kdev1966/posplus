@@ -624,6 +624,8 @@ export const createMockApi = (): IPCApi => ({
   // Printer handlers (mock)
   printTicket: async () => false,
   printTestTicket: async () => false,
+  getTestTicketPreview: async () => '<html><body>Mock Preview</body></html>',
+  getTicketPreview: async () => '<html><body>Mock Ticket Preview</body></html>',
   openDrawer: async () => false,
   getPrinterStatus: async () => ({ connected: false, ready: false }),
   getPrinterConfig: async () => ({ printerName: 'POS80 Printer', port: 'CP001', type: 'EPSON' }),
@@ -725,6 +727,7 @@ export const createMockApi = (): IPCApi => ({
       storePhone: '0123456789',
       ticketMessageFr: 'Merci de votre visite!',
       ticketMessageAr: 'شكرا لزيارتكم!',
+      printPreviewEnabled: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
@@ -734,7 +737,12 @@ export const createMockApi = (): IPCApi => ({
     console.log('[Mock API] Update store settings (mock):', data)
     return {
       id: 1,
-      ...data,
+      storeNameFr: data.storeNameFr || 'Mon Magasin',
+      storeNameAr: data.storeNameAr || 'متجري',
+      storePhone: data.storePhone || '0123456789',
+      ticketMessageFr: data.ticketMessageFr || 'Merci de votre visite!',
+      ticketMessageAr: data.ticketMessageAr || 'شكرا لزيارتكم!',
+      printPreviewEnabled: data.printPreviewEnabled ?? false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }

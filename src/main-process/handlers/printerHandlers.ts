@@ -29,6 +29,26 @@ ipcMain.handle(IPC_CHANNELS.PRINTER_PRINT_TEST, async () => {
   }
 })
 
+ipcMain.handle(IPC_CHANNELS.PRINTER_GET_TEST_PREVIEW, async () => {
+  try {
+    requireAuth()
+    return PrinterService.getTestTicketHTML()
+  } catch (error: any) {
+    log.error('PRINTER_GET_TEST_PREVIEW handler error:', error)
+    return ''
+  }
+})
+
+ipcMain.handle(IPC_CHANNELS.PRINTER_GET_TICKET_PREVIEW, async (_event, ticketId: number) => {
+  try {
+    requireAuth()
+    return PrinterService.getTicketHTML(ticketId) || ''
+  } catch (error: any) {
+    log.error('PRINTER_GET_TICKET_PREVIEW handler error:', error)
+    return ''
+  }
+})
+
 ipcMain.handle(IPC_CHANNELS.PRINTER_OPEN_DRAWER, async () => {
   try {
     requirePermission('session.update')

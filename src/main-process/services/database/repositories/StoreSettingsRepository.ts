@@ -8,6 +8,7 @@ export interface StoreSettings {
   storePhone: string
   ticketMessageFr: string
   ticketMessageAr: string
+  printPreviewEnabled: boolean
   createdAt: string
   updatedAt: string
 }
@@ -18,6 +19,7 @@ export interface UpdateStoreSettingsDTO {
   storePhone?: string
   ticketMessageFr?: string
   ticketMessageAr?: string
+  printPreviewEnabled?: boolean
 }
 
 export class StoreSettingsRepository {
@@ -47,6 +49,7 @@ export class StoreSettingsRepository {
         storePhone: result.store_phone,
         ticketMessageFr: result.ticket_message_fr,
         ticketMessageAr: result.ticket_message_ar,
+        printPreviewEnabled: result.print_preview_enabled === 1,
         createdAt: result.created_at,
         updatedAt: result.updated_at,
       }
@@ -80,6 +83,10 @@ export class StoreSettingsRepository {
       if (data.ticketMessageAr !== undefined) {
         fields.push('ticket_message_ar = ?')
         values.push(data.ticketMessageAr)
+      }
+      if (data.printPreviewEnabled !== undefined) {
+        fields.push('print_preview_enabled = ?')
+        values.push(data.printPreviewEnabled ? 1 : 0)
       }
 
       if (fields.length === 0) {

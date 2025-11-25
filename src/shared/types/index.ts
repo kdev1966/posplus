@@ -219,6 +219,7 @@ export interface StoreSettings {
   storePhone: string
   ticketMessageFr: string
   ticketMessageAr: string
+  printPreviewEnabled: boolean
   createdAt: string
   updatedAt: string
 }
@@ -229,6 +230,7 @@ export interface UpdateStoreSettingsDTO {
   storePhone?: string
   ticketMessageFr?: string
   ticketMessageAr?: string
+  printPreviewEnabled?: boolean
 }
 
 // ---------- IPC Channel Names ----------
@@ -291,6 +293,8 @@ export const IPC_CHANNELS = {
   // Printer
   PRINTER_PRINT_TICKET: 'printer:print-ticket',
   PRINTER_PRINT_TEST: 'printer:print-test',
+  PRINTER_GET_TEST_PREVIEW: 'printer:get-test-preview',
+  PRINTER_GET_TICKET_PREVIEW: 'printer:get-ticket-preview',
   PRINTER_OPEN_DRAWER: 'printer:open-drawer',
   PRINTER_GET_CONFIG: 'printer:get-config',
   PRINTER_SET_CONFIG: 'printer:set-config',
@@ -398,6 +402,8 @@ export interface IPCApi {
   // Printer
   printTicket: (ticketId: number) => Promise<boolean>
   printTestTicket: () => Promise<boolean>
+  getTestTicketPreview: () => Promise<string>
+  getTicketPreview: (ticketId: number) => Promise<string>
   openDrawer: () => Promise<boolean>
   getPrinterStatus: () => Promise<{ connected: boolean; ready: boolean; error?: string }>
   getPrinterConfig: () => Promise<{ printerName: string; port: string; type?: string }>

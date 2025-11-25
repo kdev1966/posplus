@@ -4,6 +4,7 @@ import { useAuthStore } from './store/authStore'
 import { useSessionStore } from './store/sessionStore'
 import { useThemeStore } from './store/themeStore'
 import { ToastContainer } from './components/ui/ToastContainer'
+import { PrintPreviewModal } from './components/print/PrintPreviewModal'
 
 // Pages
 import { Login } from './pages/Login'
@@ -135,6 +136,7 @@ export const App: React.FC = () => {
         </Routes>
       </HashRouter>
       <ToastContainer />
+      <PrintPreviewModal />
     </>
   )
 }

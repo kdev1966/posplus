@@ -27,6 +27,8 @@ export const Settings: React.FC = () => {
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
+  const [testTicketPreview, setTestTicketPreview] = useState<string | null>(null)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [p2pStatus, setP2pStatus] = useState<{
     serverRunning: boolean
     connectedPeers: number
@@ -57,6 +59,7 @@ export const Settings: React.FC = () => {
   const [storePhone, setStorePhone] = useState('')
   const [ticketMessageFr, setTicketMessageFr] = useState('')
   const [ticketMessageAr, setTicketMessageAr] = useState('')
+  const [printPreviewEnabled, setPrintPreviewEnabled] = useState(false)
   const [isSavingStoreSettings, setIsSavingStoreSettings] = useState(false)
 
   // Fetch current session on component mount
@@ -78,6 +81,7 @@ export const Settings: React.FC = () => {
       setStorePhone(settings.storePhone)
       setTicketMessageFr(settings.ticketMessageFr)
       setTicketMessageAr(settings.ticketMessageAr)
+      setPrintPreviewEnabled(settings.printPreviewEnabled || false)
     } catch (error) {
       console.error('Failed to fetch store settings:', error)
     }
@@ -92,6 +96,7 @@ export const Settings: React.FC = () => {
         storePhone,
         ticketMessageFr,
         ticketMessageAr,
+        printPreviewEnabled,
       })
       alert(currentLanguage === 'fr' ?
         '✅ Paramètres du magasin enregistrés avec succès!' :
@@ -528,41 +533,54 @@ export const Settings: React.FC = () => {
               </div>
             </div>
 
-            <Button variant="primary" onClick={async () => {
-              try {
-                await window.api.openDrawer()
-                alert(t('cashDrawerOpened'))
-              } catch (error) {
-                alert(t('cashDrawerOpenFailed'))
-              }
-            }}>
-              {t('openCashDrawer')}
-            </Button>
+            {/* Print Preview Checkbox */}
+            <label className="flex items-center gap-3 cursor-pointer py-2">
+              <input
+                type="checkbox"
+                checked={printPreviewEnabled}
+                onChange={async (e) => {
+                  const newValue = e.target.checked
+                  setPrintPreviewEnabled(newValue)
+                  try {
+                    await window.api.updateStoreSettings({ printPreviewEnabled: newValue })
+                  } catch (error) {
+                    console.error('Failed to save print preview setting:', error)
+                  }
+                }}
+                className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-primary-500 focus:ring-primary-500 focus:ring-offset-gray-800"
+              />
+              <span className="text-gray-300">
+                {currentLanguage === 'fr' ? 'Aperçu avant impression' : 'معاينة قبل الطباعة'}
+              </span>
+            </label>
 
-            <Button variant="secondary" onClick={async () => {
-              try {
-                console.log('[SETTINGS] Attempting to print test ticket...')
-                const result = await window.api.printTestTicket()
-                console.log('[SETTINGS] Print test result:', result)
-
-                // Also get printer status to see any error
-                const status = await window.api.getPrinterStatus()
-                console.log('[SETTINGS] Printer status after test:', status)
-
-                // Ne pas afficher d'alert pour ne pas alourdir l'expérience utilisateur
-                // Les résultats sont visibles dans les logs console
-                if (!result) {
-                  // Afficher uniquement en cas d'échec
-                  console.error('[SETTINGS] Test print failed')
+            <div className="flex gap-3 flex-wrap">
+              <Button variant="primary" onClick={async () => {
+                try {
+                  await window.api.openDrawer()
+                  alert(t('cashDrawerOpened'))
+                } catch (error) {
+                  alert(t('cashDrawerOpenFailed'))
                 }
+              }}>
+                {t('openCashDrawer')}
+              </Button>
+
+              <Button variant="secondary" onClick={async () => {
+              setIsLoadingPreview(true)
+              try {
+                const html = await window.api.getTestTicketPreview()
+                setTestTicketPreview(html)
               } catch (error) {
-                console.error('[SETTINGS] Test print error:', error)
-                // Afficher uniquement en cas d'erreur critique
-                alert('❌ Erreur lors de l\'impression du ticket de test: ' + (error as Error).message)
+                console.error('[SETTINGS] Preview error:', error)
+                alert('❌ Erreur lors du chargement de l\'aperçu')
+              } finally {
+                setIsLoadingPreview(false)
               }
-            }}>
-              🖨️ Imprimer ticket de test
+            }} disabled={isLoadingPreview}>
+              {isLoadingPreview ? '⏳' : '🖨️'} Ticket de test
             </Button>
+            </div>
           </div>
         </Card>
 
@@ -862,6 +880,59 @@ export const Settings: React.FC = () => {
               </div>
             </div>
           </Card>
+        )}
+
+        {/* Test Ticket Preview Modal */}
+        {testTicketPreview && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+            <div className="bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b border-gray-700">
+                <h3 className="text-lg font-bold text-white">Aperçu du ticket de test</h3>
+                <button
+                  onClick={() => setTestTicketPreview(null)}
+                  className="text-gray-400 hover:text-white text-2xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-4 flex justify-center">
+                <div className="bg-white rounded shadow-lg" style={{ width: '72mm' }}>
+                  <iframe
+                    srcDoc={testTicketPreview}
+                    style={{ width: '72mm', height: '400px', border: 'none' }}
+                    title="Aperçu ticket"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 p-4 border-t border-gray-700">
+                <Button
+                  variant="ghost"
+                  className="flex-1"
+                  onClick={() => setTestTicketPreview(null)}
+                >
+                  Fermer
+                </Button>
+                <Button
+                  variant="success"
+                  className="flex-1"
+                  onClick={async () => {
+                    try {
+                      const result = await window.api.printTestTicket()
+                      if (result) {
+                        setTestTicketPreview(null)
+                      } else {
+                        alert('❌ Échec de l\'impression')
+                      }
+                    } catch (error) {
+                      alert('❌ Erreur: ' + (error as Error).message)
+                    }
+                  }}
+                >
+                  🖨️ Imprimer
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </Layout>
