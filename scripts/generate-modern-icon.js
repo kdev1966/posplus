@@ -1,4 +1,15 @@
-<?xml version="1.0" encoding="UTF-8"?>
+#!/usr/bin/env node
+
+/**
+ * Génère une icône moderne et créative pour POS+
+ * Design: Terminal POS stylisé avec gradient cyan->bleu->violet
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+// Icône SVG moderne avec un terminal POS stylisé
+const svgIcon = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <!-- Gradient radial pour le fond -->
@@ -77,4 +88,55 @@
     <rect x="-60" y="-20" width="120" height="40" rx="20" fill="#1F2937" fill-opacity="0.6"/>
     <text x="0" y="8" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#FFFFFF">POS+</text>
   </g>
-</svg>
+</svg>`;
+
+const buildDir = path.join(__dirname, '..', 'build');
+const iconsDir = path.join(buildDir, 'icons');
+
+// Créer les répertoires si nécessaires
+if (!fs.existsSync(buildDir)) {
+  fs.mkdirSync(buildDir, { recursive: true });
+}
+if (!fs.existsSync(iconsDir)) {
+  fs.mkdirSync(iconsDir, { recursive: true });
+}
+
+// Sauvegarder le SVG
+const svgPath = path.join(buildDir, 'icon.svg');
+fs.writeFileSync(svgPath, svgIcon);
+console.log(`✓ Icône SVG créée: ${svgPath}`);
+
+console.log(`
+╔═══════════════════════════════════════════════════════════╗
+║         Icône Moderne POS+ Générée avec Succès!          ║
+╚═══════════════════════════════════════════════════════════╝
+
+📝 Fichier créé: build/icon.svg
+
+🎨 Design:
+   • Terminal POS moderne et stylisé
+   • Gradient radial cyan → bleu → violet
+   • Symbole "+" élégant au centre
+   • Effets de brillance et ombres portées
+
+📦 Pour générer les formats .ico et .icns:
+
+Option 1 - Utiliser electron-icon-builder (Recommandé):
+   npm install -g electron-icon-builder
+   electron-icon-builder --input=build/icon.svg --output=build --flatten
+
+Option 2 - Conversion en ligne:
+   1. Aller sur https://cloudconvert.com/svg-to-ico
+   2. Uploader build/icon.svg
+   3. Télécharger et placer dans build/
+
+Option 3 - ImageMagick (si installé):
+   brew install imagemagick  # sur macOS
+   convert build/icon.svg -define icon:auto-resize=256,128,64,48,32,16 build/icon.ico
+   convert build/icon.svg -resize 1024x1024 build/icon.icns
+
+🚀 L'icône sera automatiquement utilisée lors du build:
+   npm run build:mac
+   npm run build:win
+
+`);
