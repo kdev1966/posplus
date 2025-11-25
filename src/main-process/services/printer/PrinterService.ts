@@ -179,14 +179,16 @@ class PrinterService {
 
     const lines = ticket.lines
       .map(
-        (line: any) =>
-          `<tr>
-            <td colspan="3">${line.productName}</td>
+        (line: any, index: number) =>
+          `<tr class="item-row ${index % 2 === 0 ? 'even' : 'odd'}">
+            <td class="item-name">${line.productName}</td>
           </tr>
-          <tr>
-            <td style="padding-left: 10px;">${line.quantity} x ${line.unitPrice.toFixed(3)} DT</td>
-            <td></td>
-            <td style="text-align: right;">${line.totalAmount.toFixed(3)} DT</td>
+          <tr class="item-row ${index % 2 === 0 ? 'even' : 'odd'}">
+            <td class="item-details">
+              <span class="qty">${line.quantity} ×</span>
+              <span class="price">${line.unitPrice.toFixed(3)} DT</span>
+            </td>
+            <td class="item-total">${line.totalAmount.toFixed(3)} DT</td>
           </tr>`
       )
       .join('')
@@ -195,12 +197,19 @@ class PrinterService {
       .map(
         (payment: any) =>
           `<tr>
-            <td style="padding-left: 10px;">${payment.method.toUpperCase()}</td>
-            <td></td>
-            <td style="text-align: right;">${payment.amount.toFixed(3)} DT</td>
+            <td class="payment-method">${payment.method.toUpperCase()}</td>
+            <td class="payment-amount">${payment.amount.toFixed(3)} DT</td>
           </tr>`
       )
       .join('')
+
+    const formattedDate = new Date(ticket.createdAt).toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
 
     return `
       <!DOCTYPE html>
@@ -212,73 +221,339 @@ class PrinterService {
             size: 80mm auto;
             margin: 0;
           }
+
           body {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.4;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Arial', sans-serif;
+            font-size: 11px;
+            line-height: 1.5;
             margin: 0;
-            padding: 5mm;
-            width: 70mm;
+            padding: 4mm 3mm;
+            width: 74mm;
+            color: #1a1a1a;
+            background: white;
           }
-          .center { text-align: center; }
-          .bold { font-weight: bold; }
-          .large { font-size: 16px; }
-          .medium { font-size: 14px; }
-          .line { border-top: 1px dashed #000; margin: 5px 0; }
-          table { width: 100%; border-collapse: collapse; }
-          td { padding: 2px 0; }
+
+          /* Header Styles */
+          .header {
+            text-align: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #000;
+          }
+
+          .store-name {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+          }
+
+          .store-info {
+            font-size: 10px;
+            color: #444;
+            margin-bottom: 2px;
+          }
+
+          .brand-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #22D3EE 0%, #3B82F6 50%, #8B5CF6 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 9px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin-top: 4px;
+            letter-spacing: 1px;
+          }
+
+          /* Ticket Info */
+          .ticket-info {
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px dashed #999;
+          }
+
+          .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            margin-bottom: 3px;
+          }
+
+          .info-label {
+            color: #666;
+            font-weight: 500;
+          }
+
+          .info-value {
+            font-weight: 600;
+            color: #000;
+          }
+
+          /* Items Section */
+          .items-section {
+            margin: 10px 0;
+          }
+
+          .items-header {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #666;
+            border-bottom: 1px solid #000;
+            padding-bottom: 4px;
+            margin-bottom: 6px;
+          }
+
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          .item-row {
+            border-bottom: 1px dotted #ddd;
+          }
+
+          .item-row.even {
+            background: #f9f9f9;
+          }
+
+          .item-name {
+            font-weight: 600;
+            font-size: 11px;
+            padding: 4px 4px 2px 4px;
+            color: #000;
+          }
+
+          .item-details {
+            padding: 2px 4px 4px 8px;
+            font-size: 10px;
+            color: #555;
+          }
+
+          .qty {
+            font-weight: 600;
+            margin-right: 4px;
+          }
+
+          .price {
+            color: #666;
+          }
+
+          .item-total {
+            text-align: right;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 2px 4px 4px 4px;
+            vertical-align: bottom;
+          }
+
+          /* Totals Section */
+          .totals-section {
+            margin: 10px 0;
+            padding: 8px 0;
+            border-top: 1px dashed #999;
+          }
+
+          .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          .totals-table td {
+            padding: 3px 4px;
+            font-size: 11px;
+          }
+
+          .totals-label {
+            color: #666;
+            font-weight: 500;
+          }
+
+          .totals-value {
+            text-align: right;
+            font-weight: 600;
+          }
+
+          .discount-row {
+            color: #e63946;
+          }
+
+          /* Total Amount */
+          .total-amount {
+            margin: 10px 0;
+            padding: 10px;
+            background: #000;
+            color: white;
+            text-align: center;
+            border-radius: 4px;
+          }
+
+          .total-label {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+          }
+
+          .total-value {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+          }
+
+          /* Payments Section */
+          .payments-section {
+            margin: 10px 0;
+            padding: 8px 0;
+            border-top: 1px dashed #999;
+          }
+
+          .payments-header {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 6px;
+          }
+
+          .payments-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          .payments-table td {
+            padding: 3px 4px;
+            font-size: 11px;
+          }
+
+          .payment-method {
+            font-weight: 600;
+            color: #000;
+          }
+
+          .payment-amount {
+            text-align: right;
+            font-weight: 600;
+            color: #22C55E;
+          }
+
+          /* Footer */
+          .footer {
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 2px solid #000;
+            text-align: center;
+          }
+
+          .footer-message {
+            font-size: 11px;
+            font-weight: 600;
+            color: #000;
+            margin-bottom: 6px;
+            line-height: 1.4;
+          }
+
+          .footer-info {
+            font-size: 9px;
+            color: #666;
+            margin-top: 8px;
+          }
+
+          .powered-by {
+            font-size: 8px;
+            color: #999;
+            margin-top: 6px;
+          }
         </style>
       </head>
       <body>
-        ${storeName ? `<div class="center bold large">${storeName}</div>` : '<div class="center bold large">POS+</div>'}
-        ${storeSettings.storePhone ? `<div class="center">${storeSettings.storePhone}</div>` : '<div class="center">Point of Sale System</div>'}
-        <div class="line"></div>
+        <!-- Header -->
+        <div class="header">
+          <div class="store-name">${storeName || 'POS+'}</div>
+          ${storeSettings.storePhone ? `<div class="store-info">${storeSettings.storePhone}</div>` : ''}
+          <div class="brand-badge">POS+</div>
+        </div>
 
-        <div>Ticket: ${ticket.ticketNumber}</div>
-        <div>Date: ${new Date(ticket.createdAt).toLocaleString()}</div>
-        <div>Cashier: User #${ticket.userId}</div>
-        <div class="line"></div>
+        <!-- Ticket Info -->
+        <div class="ticket-info">
+          <div class="info-row">
+            <span class="info-label">N° Ticket</span>
+            <span class="info-value">${ticket.ticketNumber}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Date & Heure</span>
+            <span class="info-value">${formattedDate}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Caissier(ère)</span>
+            <span class="info-value">Utilisateur #${ticket.userId}</span>
+          </div>
+        </div>
 
-        <table>
-          ${lines}
-        </table>
+        <!-- Items -->
+        <div class="items-section">
+          <div class="items-header">Articles</div>
+          <table class="items-table">
+            ${lines}
+          </table>
+        </div>
 
-        <div class="line"></div>
-        <table>
-          <tr>
-            <td>Subtotal:</td>
-            <td></td>
-            <td style="text-align: right;">${ticket.subtotal.toFixed(3)} DT</td>
-          </tr>
-          ${
-            ticket.discountAmount > 0
-              ? `<tr>
-                  <td>Discount:</td>
-                  <td></td>
-                  <td style="text-align: right;">-${ticket.discountAmount.toFixed(3)} DT</td>
-                </tr>`
-              : ''
-          }
-        </table>
+        <!-- Totals -->
+        <div class="totals-section">
+          <table class="totals-table">
+            <tr>
+              <td class="totals-label">Sous-total</td>
+              <td class="totals-value">${ticket.subtotal.toFixed(3)} DT</td>
+            </tr>
+            ${
+              ticket.discountAmount > 0
+                ? `<tr class="discount-row">
+                    <td class="totals-label">Remise</td>
+                    <td class="totals-value">-${ticket.discountAmount.toFixed(3)} DT</td>
+                  </tr>`
+                : ''
+            }
+          </table>
+        </div>
 
-        <div class="line"></div>
-        <div class="center bold large">TOTAL: ${ticket.totalAmount.toFixed(3)} DT</div>
-        <div class="line"></div>
+        <!-- Total Amount -->
+        <div class="total-amount">
+          <div class="total-label">TOTAL À PAYER</div>
+          <div class="total-value">${ticket.totalAmount.toFixed(3)} DT</div>
+        </div>
 
-        <div>Payments:</div>
-        <table>
-          ${payments}
-        </table>
+        <!-- Payments -->
+        <div class="payments-section">
+          <div class="payments-header">Paiements</div>
+          <table class="payments-table">
+            ${payments}
+          </table>
+        </div>
 
-        <div class="line"></div>
-        ${ticketMessage ? `<div class="center medium">${ticketMessage}</div>` : '<div class="center">Thank you for your purchase!</div>'}
-        <br><br><br>
+        <!-- Footer -->
+        <div class="footer">
+          ${ticketMessage ? `<div class="footer-message">${ticketMessage}</div>` : '<div class="footer-message">Merci pour votre achat !<br>À bientôt</div>'}
+          <div class="footer-info">Conservez ce ticket comme preuve d'achat</div>
+          <div class="powered-by">Powered by POS+ • www.posplus.tn</div>
+        </div>
+
+        <br><br>
       </body>
       </html>
     `
   }
 
   private generateTestTicketHTML(): string {
+    const formattedDate = new Date().toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+
     return `
       <!DOCTYPE html>
       <html>
@@ -289,87 +564,350 @@ class PrinterService {
             size: 80mm auto;
             margin: 0;
           }
+
           body {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.4;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Arial', sans-serif;
+            font-size: 11px;
+            line-height: 1.5;
             margin: 0;
-            padding: 5mm;
-            width: 70mm;
+            padding: 4mm 3mm;
+            width: 74mm;
+            color: #1a1a1a;
+            background: white;
           }
-          .center { text-align: center; }
-          .bold { font-weight: bold; }
-          .large { font-size: 16px; }
-          .line { border-top: 1px dashed #000; margin: 5px 0; }
-          table { width: 100%; border-collapse: collapse; }
-          td { padding: 2px 0; }
+
+          .header {
+            text-align: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #000;
+          }
+
+          .store-name {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+          }
+
+          .store-info {
+            font-size: 10px;
+            color: #444;
+            margin-bottom: 2px;
+          }
+
+          .test-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #22D3EE 0%, #3B82F6 50%, #8B5CF6 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 9px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin-top: 4px;
+            letter-spacing: 1px;
+          }
+
+          .ticket-info {
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px dashed #999;
+          }
+
+          .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            margin-bottom: 3px;
+          }
+
+          .info-label {
+            color: #666;
+            font-weight: 500;
+          }
+
+          .info-value {
+            font-weight: 600;
+            color: #000;
+          }
+
+          .items-section {
+            margin: 10px 0;
+          }
+
+          .items-header {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #666;
+            border-bottom: 1px solid #000;
+            padding-bottom: 4px;
+            margin-bottom: 6px;
+          }
+
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          .item-row {
+            border-bottom: 1px dotted #ddd;
+          }
+
+          .item-row.even {
+            background: #f9f9f9;
+          }
+
+          .item-name {
+            font-weight: 600;
+            font-size: 11px;
+            padding: 4px 4px 2px 4px;
+            color: #000;
+          }
+
+          .item-details {
+            padding: 2px 4px 4px 8px;
+            font-size: 10px;
+            color: #555;
+          }
+
+          .qty {
+            font-weight: 600;
+            margin-right: 4px;
+          }
+
+          .price {
+            color: #666;
+          }
+
+          .item-total {
+            text-align: right;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 2px 4px 4px 4px;
+            vertical-align: bottom;
+          }
+
+          .totals-section {
+            margin: 10px 0;
+            padding: 8px 0;
+            border-top: 1px dashed #999;
+          }
+
+          .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          .totals-table td {
+            padding: 3px 4px;
+            font-size: 11px;
+          }
+
+          .totals-label {
+            color: #666;
+            font-weight: 500;
+          }
+
+          .totals-value {
+            text-align: right;
+            font-weight: 600;
+          }
+
+          .discount-row {
+            color: #e63946;
+          }
+
+          .total-amount {
+            margin: 10px 0;
+            padding: 10px;
+            background: #000;
+            color: white;
+            text-align: center;
+            border-radius: 4px;
+          }
+
+          .total-label {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+          }
+
+          .total-value {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+          }
+
+          .payments-section {
+            margin: 10px 0;
+            padding: 8px 0;
+            border-top: 1px dashed #999;
+          }
+
+          .payments-header {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 6px;
+          }
+
+          .payments-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          .payments-table td {
+            padding: 3px 4px;
+            font-size: 11px;
+          }
+
+          .payment-method {
+            font-weight: 600;
+            color: #000;
+          }
+
+          .payment-amount {
+            text-align: right;
+            font-weight: 600;
+            color: #22C55E;
+          }
+
+          .footer {
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 2px solid #000;
+            text-align: center;
+          }
+
+          .footer-message {
+            font-size: 11px;
+            font-weight: 600;
+            color: #000;
+            margin-bottom: 6px;
+            line-height: 1.4;
+          }
+
+          .footer-info {
+            font-size: 9px;
+            color: #666;
+            margin-top: 8px;
+          }
+
+          .powered-by {
+            font-size: 8px;
+            color: #999;
+            margin-top: 6px;
+          }
         </style>
       </head>
       <body>
-        <div class="center bold large">POS+ - TEST TICKET</div>
-        <div class="center">Point of Sale System</div>
-        <div class="line"></div>
+        <!-- Header -->
+        <div class="header">
+          <div class="store-name">POS+ TEST</div>
+          <div class="store-info">Test d'impression thermique</div>
+          <div class="test-badge">TEST TICKET</div>
+        </div>
 
-        <div>Test Date: ${new Date().toLocaleString()}</div>
-        <div>Printer Type: Thermal 80mm</div>
-        <div>Platform: Windows</div>
-        <div class="line"></div>
+        <!-- Ticket Info -->
+        <div class="ticket-info">
+          <div class="info-row">
+            <span class="info-label">Date & Heure</span>
+            <span class="info-value">${formattedDate}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Type d'imprimante</span>
+            <span class="info-value">Thermique 80mm</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Plateforme</span>
+            <span class="info-value">${process.platform === 'win32' ? 'Windows' : process.platform === 'darwin' ? 'macOS' : 'Linux'}</span>
+          </div>
+        </div>
 
-        <table>
-          <tr>
-            <td colspan="3">Sample Product 1</td>
-          </tr>
-          <tr>
-            <td style="padding-left: 10px;">2 x 5.500 DT</td>
-            <td></td>
-            <td style="text-align: right;">11.000 DT</td>
-          </tr>
-          <tr>
-            <td colspan="3">Sample Product 2</td>
-          </tr>
-          <tr>
-            <td style="padding-left: 10px;">1 x 3.250 DT</td>
-            <td></td>
-            <td style="text-align: right;">3.250 DT</td>
-          </tr>
-          <tr>
-            <td colspan="3">Sample Product 3</td>
-          </tr>
-          <tr>
-            <td style="padding-left: 10px;">3 x 2.000 DT</td>
-            <td></td>
-            <td style="text-align: right;">6.000 DT</td>
-          </tr>
-        </table>
+        <!-- Items -->
+        <div class="items-section">
+          <div class="items-header">Articles de test</div>
+          <table class="items-table">
+            <tr class="item-row even">
+              <td class="item-name">Produit Test 1</td>
+            </tr>
+            <tr class="item-row even">
+              <td class="item-details">
+                <span class="qty">2 ×</span>
+                <span class="price">5.500 DT</span>
+              </td>
+              <td class="item-total">11.000 DT</td>
+            </tr>
+            <tr class="item-row odd">
+              <td class="item-name">Produit Test 2</td>
+            </tr>
+            <tr class="item-row odd">
+              <td class="item-details">
+                <span class="qty">1 ×</span>
+                <span class="price">3.250 DT</span>
+              </td>
+              <td class="item-total">3.250 DT</td>
+            </tr>
+            <tr class="item-row even">
+              <td class="item-name">Produit Test 3</td>
+            </tr>
+            <tr class="item-row even">
+              <td class="item-details">
+                <span class="qty">3 ×</span>
+                <span class="price">2.000 DT</span>
+              </td>
+              <td class="item-total">6.000 DT</td>
+            </tr>
+          </table>
+        </div>
 
-        <div class="line"></div>
-        <table>
-          <tr>
-            <td>Subtotal:</td>
-            <td></td>
-            <td style="text-align: right;">20.250 DT</td>
-          </tr>
-          <tr>
-            <td>Discount:</td>
-            <td></td>
-            <td style="text-align: right;">-2.000 DT</td>
-          </tr>
-        </table>
+        <!-- Totals -->
+        <div class="totals-section">
+          <table class="totals-table">
+            <tr>
+              <td class="totals-label">Sous-total</td>
+              <td class="totals-value">20.250 DT</td>
+            </tr>
+            <tr class="discount-row">
+              <td class="totals-label">Remise</td>
+              <td class="totals-value">-2.000 DT</td>
+            </tr>
+          </table>
+        </div>
 
-        <div class="line"></div>
-        <div class="center bold large">TOTAL: 18.250 DT</div>
-        <div class="line"></div>
+        <!-- Total Amount -->
+        <div class="total-amount">
+          <div class="total-label">TOTAL À PAYER</div>
+          <div class="total-value">18.250 DT</div>
+        </div>
 
-        <div>Payment Method: CASH</div>
-        <div>Amount Paid: 20.000 DT</div>
-        <div>Change: 1.750 DT</div>
+        <!-- Payments -->
+        <div class="payments-section">
+          <div class="payments-header">Paiements</div>
+          <table class="payments-table">
+            <tr>
+              <td class="payment-method">ESPÈCES</td>
+              <td class="payment-amount">20.000 DT</td>
+            </tr>
+          </table>
+          <div class="info-row" style="margin-top: 6px;">
+            <span class="info-label">Monnaie rendue</span>
+            <span class="info-value">1.750 DT</span>
+          </div>
+        </div>
 
-        <div class="line"></div>
-        <div class="center">This is a test ticket</div>
-        <div class="center">Printer test successful!</div>
-        <br>
-        <div class="center">POS+ v1.0.0</div>
-        <br><br><br>
+        <!-- Footer -->
+        <div class="footer">
+          <div class="footer-message">✅ Test d'impression réussi !<br>Imprimante opérationnelle</div>
+          <div class="footer-info">Ce ticket est un test système</div>
+          <div class="powered-by">Powered by POS+ • www.posplus.tn</div>
+        </div>
+
+        <br><br>
       </body>
       </html>
     `
