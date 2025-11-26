@@ -268,38 +268,44 @@ class PrinterService {
 <style>
 @page { size: 72mm auto; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: ${isArabic ? "'Arial', 'Tahoma', sans-serif" : "'Arial', 'Helvetica', sans-serif"};
-  font-size: 13px;
-  line-height: 1.3;
+html, body {
   width: 72mm;
-  padding: 3mm;
+  max-width: 72mm;
+  margin: 0 auto;
+}
+body {
+  font-family: ${isArabic ? "'Arial', 'Tahoma', sans-serif" : "'Courier New', monospace"};
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 2mm;
   color: #000;
   direction: ${isArabic ? 'rtl' : 'ltr'};
-  -webkit-font-smoothing: antialiased;
+  text-align: ${isArabic ? 'right' : 'left'};
 }
-.center { text-align: center; }
+.center { text-align: center !important; }
 .right { text-align: ${isArabic ? 'left' : 'right'}; }
 .left { text-align: ${isArabic ? 'right' : 'left'}; }
 .bold { font-weight: bold; }
-.line { border-top: 1px dashed #000; margin: 4px 0; }
-.dbl { border-top: 2px solid #000; margin: 4px 0; }
-.store { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
-.big { font-size: 20px; font-weight: bold; }
-table { width: 100%; border-collapse: collapse; }
-td { padding: 2px 0; vertical-align: top; font-size: 13px; }
-.name { max-width: 36mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.qty { width: 10mm; text-align: center; }
-.price { width: 20mm; text-align: ${isArabic ? 'left' : 'right'}; }
-.info td { font-size: 12px; }
-.total-box { background: #000; color: #fff; padding: 6px; margin: 6px 0; }
-.small { font-size: 11px; color: #444; }
+.line { border-top: 1px dashed #000; margin: 3px 0; }
+.dbl { border-top: 1px solid #000; margin: 3px 0; }
+.store { font-size: 14px; font-weight: bold; text-align: center; }
+.phone { font-size: 11px; font-weight: bold; text-align: center; }
+.big { font-size: 16px; font-weight: bold; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+td { padding: 1px 0; vertical-align: top; }
+.name { max-width: 38mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qty { width: 8mm; text-align: center; }
+.price { width: 18mm; text-align: ${isArabic ? 'left' : 'right'}; }
+.info td { font-size: 11px; }
+.total-box { background: #000; color: #fff; padding: 4px; margin: 4px 0; font-weight: bold; text-align: center; }
+.small { font-size: 10px; color: #666; }
+.footer { font-size: 10px; font-weight: bold; text-align: center; }
 </style>
 </head>
 <body>
 <div class="center">
 <div class="store">${storeName || 'POS+'}</div>
-${storeSettings.storePhone ? `<div class="small">${storeSettings.storePhone}</div>` : ''}
+${storeSettings.storePhone ? `<div class="phone">${storeSettings.storePhone}</div>` : ''}
 </div>
 <div class="dbl"></div>
 <table class="info">
@@ -323,7 +329,7 @@ ${ticket.discountAmount > 0 ? `<tr><td>${labels.discount}</td><td class="right">
 </div>
 <table>${paymentsHtml}</table>
 <div class="line"></div>
-<div class="center small">
+<div class="center footer">
 ${ticketMessage || labels.thanks}
 <br>POS+
 </div>
