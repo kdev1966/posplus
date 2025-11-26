@@ -85,6 +85,10 @@ export const POS: React.FC = () => {
   const handlePaymentConfirm = async (payments: { method: string; amount: number }[]) => {
     if (!currentSession || !user) return
 
+    console.log('[POS] ====== RECEIVED FROM PAYMENT MODAL ======')
+    console.log('[POS] payments received:', JSON.stringify(payments))
+    console.log('[POS] ===========================================')
+
     try {
       // Create ticket
       const ticketData = {
@@ -102,8 +106,11 @@ export const POS: React.FC = () => {
         })),
       }
 
+      console.log('[POS] ticketData.payments:', JSON.stringify(ticketData.payments))
+
       const ticket = await window.api.createTicket(ticketData)
       console.log('[POS] Ticket created successfully:', ticket.id, ticket.ticketNumber)
+      console.log('[POS] Ticket payments from DB:', JSON.stringify(ticket.payments))
 
       // Print ticket - check if preview is enabled
       let printSucceeded = true

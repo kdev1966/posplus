@@ -269,30 +269,31 @@ class PrinterService {
 @page { size: 72mm auto; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: ${isArabic ? "'Arial', 'Tahoma', sans-serif" : "'Courier New', monospace"};
-  font-size: 12px;
-  line-height: 1.2;
+  font-family: ${isArabic ? "'Arial', 'Tahoma', sans-serif" : "'Arial', 'Helvetica', sans-serif"};
+  font-size: 13px;
+  line-height: 1.3;
   width: 72mm;
-  padding: 2mm;
+  padding: 3mm;
   color: #000;
   direction: ${isArabic ? 'rtl' : 'ltr'};
+  -webkit-font-smoothing: antialiased;
 }
 .center { text-align: center; }
 .right { text-align: ${isArabic ? 'left' : 'right'}; }
 .left { text-align: ${isArabic ? 'right' : 'left'}; }
 .bold { font-weight: bold; }
-.line { border-top: 1px dashed #000; margin: 3px 0; }
-.dbl { border-top: 1px solid #000; margin: 3px 0; }
-.store { font-size: 14px; font-weight: bold; }
-.big { font-size: 16px; font-weight: bold; }
+.line { border-top: 1px dashed #000; margin: 4px 0; }
+.dbl { border-top: 2px solid #000; margin: 4px 0; }
+.store { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
+.big { font-size: 20px; font-weight: bold; }
 table { width: 100%; border-collapse: collapse; }
-td { padding: 1px 0; vertical-align: top; }
-.name { max-width: 38mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.qty { width: 8mm; text-align: center; }
-.price { width: 18mm; text-align: ${isArabic ? 'left' : 'right'}; }
-.info td { font-size: 11px; }
-.total-box { background: #000; color: #fff; padding: 4px; margin: 4px 0; }
-.small { font-size: 10px; color: #666; }
+td { padding: 2px 0; vertical-align: top; font-size: 13px; }
+.name { max-width: 36mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qty { width: 10mm; text-align: center; }
+.price { width: 20mm; text-align: ${isArabic ? 'left' : 'right'}; }
+.info td { font-size: 12px; }
+.total-box { background: #000; color: #fff; padding: 6px; margin: 6px 0; }
+.small { font-size: 11px; color: #444; }
 </style>
 </head>
 <body>

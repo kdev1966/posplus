@@ -47,6 +47,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         { method: 'cash', amount: cashValue }
       ]
 
+      console.log('[PAYMENT MODAL] ====== PAYMENT DEBUG ======')
+      console.log('[PAYMENT MODAL] Total:', total)
+      console.log('[PAYMENT MODAL] cashAmount (string):', cashAmount)
+      console.log('[PAYMENT MODAL] cashValue (parsed):', cashValue)
+      console.log('[PAYMENT MODAL] payments array:', JSON.stringify(payments))
+      console.log('[PAYMENT MODAL] ============================')
+
       // Notify customer display of payment completion
       if (window.electron?.ipcRenderer) {
         console.log('[PAYMENT MODAL] Sending payment completion to customer display:', {
