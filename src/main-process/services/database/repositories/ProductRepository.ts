@@ -22,7 +22,8 @@ export class ProductRepository {
   private _stmtUpdateFromSync: Database.Statement | null = null
   private _stmtDelete: Database.Statement | null = null
   private _stmtUpdateStock: Database.Statement | null = null
-  private _stmtUpdateStockFromSync: Database.Statement | null = null
+  // Reserved for future sync functionality
+  // private _stmtUpdateStockFromSync: Database.Statement | null = null
   private _stmtAdjustStock: Database.Statement | null = null
   private _stmtToggleActive: Database.Statement | null = null
   private _stmtFindLastSku: Database.Statement | null = null
@@ -593,7 +594,7 @@ export class ProductRepository {
     this._stmtUpdateFromSync = null
     this._stmtDelete = null
     this._stmtUpdateStock = null
-    this._stmtUpdateStockFromSync = null
+    // this._stmtUpdateStockFromSync = null
     this._stmtAdjustStock = null
     this._stmtToggleActive = null
     this._stmtFindLastSku = null

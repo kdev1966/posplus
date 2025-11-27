@@ -25,7 +25,7 @@ interface LicenseState {
   clearError: () => void;
 }
 
-export const useLicenseStore = create<LicenseState>((set, get) => ({
+export const useLicenseStore = create<LicenseState>((set, _get) => ({
   // État initial
   licenseInfo: null,
   hardwareInfo: null,

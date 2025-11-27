@@ -14,7 +14,7 @@
  */
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, unlinkSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { app } from 'electron';
 import log from 'electron-log';
@@ -28,7 +28,7 @@ import { getDatabaseEncryptionKey, validateLicense } from './licenseValidator';
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
-const KEY_LENGTH = 32; // 256 bits
+// Key length is 32 bytes (256 bits) for AES-256
 
 // ============================================================================
 // DÉRIVATION DE CLÉ

@@ -737,4 +737,44 @@ export const createMockApi = (): IPCApi => ({
       updatedAt: new Date().toISOString(),
     }
   },
+
+  // License
+  getHardwareId: async () => 'MOCK-HARDWARE-ID-12345',
+  getHardwareInfo: async () => ({
+    hardwareId: 'MOCK-HARDWARE-ID-12345',
+    machineUUID: 'MOCK-MACHINE-UUID',
+    hostname: 'mock-hostname',
+    platform: 'darwin',
+  }),
+  validateLicense: async () => ({
+    valid: true,
+    status: 'valid' as const,
+    message: 'License valid (mock)',
+    licenseType: 'PRO' as const,
+    client: 'Mock Client',
+    expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    daysRemaining: 365,
+    features: ['pos', 'inventory', 'reports'],
+  }),
+  getLicenseInfo: async () => ({
+    isLicensed: true,
+    status: 'valid' as const,
+    hardwareId: 'MOCK-HARDWARE-ID-12345',
+    client: 'Mock Client',
+    licenseType: 'PRO' as const,
+    expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    daysRemaining: 365,
+    features: ['pos', 'inventory', 'reports'],
+  }),
+  getLicenseStatus: async () => ({
+    valid: true,
+    status: 'valid' as const,
+    message: 'License valid (mock)',
+  }),
+  importLicense: async (_filePath?: string) => ({
+    valid: true,
+    status: 'valid' as const,
+    message: 'License imported successfully (mock)',
+  }),
+  removeLicense: async () => true,
 })

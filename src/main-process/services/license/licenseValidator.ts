@@ -6,7 +6,7 @@
 
 import { createVerify, createHash } from 'crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import { app } from 'electron';
 import log from 'electron-log';
 import { getHardwareId } from './hardwareId';
@@ -14,7 +14,6 @@ import type {
   LicenseData,
   LicenseValidationResult,
   LicenseInfo,
-  LicenseStatus,
   LicenseType,
 } from '@shared/types/license';
 

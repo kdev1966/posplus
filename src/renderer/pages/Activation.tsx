@@ -6,12 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLicenseStore } from '../store/licenseStore';
-import { useLanguageStore } from '../store/languageStore';
 import { Button } from '../components/ui/Button';
 
 export const Activation: React.FC = () => {
   const navigate = useNavigate();
-  const t = useLanguageStore((state) => state.t);
   const {
     licenseInfo,
     hardwareInfo,
