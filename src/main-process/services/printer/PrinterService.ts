@@ -179,16 +179,11 @@ class PrinterService {
     const ticketMessage = isArabic ? storeSettings.ticketMessageAr : storeSettings.ticketMessageFr
 
     // Compact item lines - single row per item
-    // For RTL (Arabic), reverse column order: Price | Qty | Name
+    // HTML order is logical (Name, Qty, Price) - CSS handles RTL display
     const lines = ticket.lines
       .map(
-        (line: any) => isArabic
-          ? `<tr>
-            <td class="price">${line.totalAmount.toFixed(3)}</td>
-            <td class="qty">${line.quantity}</td>
-            <td class="name"><span dir="auto">${line.productName}</span></td>
-          </tr>`
-          : `<tr>
+        (line: any) =>
+          `<tr>
             <td class="name">${line.productName}</td>
             <td class="qty">${line.quantity}</td>
             <td class="price">${line.totalAmount.toFixed(3)}</td>
@@ -271,7 +266,7 @@ class PrinterService {
     // Compact ticket optimized for 80mm thermal printer (48 chars width)
     // Print area ~72mm (80mm - margins), using percentage-based columns
     return `<!DOCTYPE html>
-<html dir="${isArabic ? 'rtl' : 'ltr'}">
+<html>
 <head>
 <meta charset="UTF-8">
 <style>
@@ -282,19 +277,18 @@ html, body {
   max-width: 72mm;
   margin: 0;
   overflow-x: hidden;
+  direction: ltr;
 }
 body {
-  font-family: ${isArabic ? "'Arial', 'Tahoma', 'Simplified Arabic', sans-serif" : "'Courier New', monospace"};
-  font-size: ${isArabic ? '11px' : '12px'};
-  line-height: 1.3;
+  font-family: ${isArabic ? "'Arial', 'Tahoma', sans-serif" : "'Courier New', monospace"};
+  font-size: 12px;
+  line-height: 1.2;
   padding: 2mm;
   color: #000;
-  direction: ${isArabic ? 'rtl' : 'ltr'};
-  text-align: ${isArabic ? 'right' : 'left'};
 }
-.center { text-align: center !important; }
-.right { text-align: ${isArabic ? 'left' : 'right'}; }
-.left { text-align: ${isArabic ? 'right' : 'left'}; }
+.center { text-align: center; }
+.right { text-align: right; }
+.left { text-align: left; }
 .bold { font-weight: bold; }
 .line { border-top: 1px dashed #000; margin: 3px 0; }
 .dbl { border-top: 1px solid #000; margin: 3px 0; }
@@ -303,13 +297,14 @@ body {
 .big { font-size: 16px; font-weight: bold; }
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 td { padding: 1px 0; vertical-align: top; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.name { width: 50%; text-align: ${isArabic ? 'right' : 'left'}; direction: ltr; }
+.name { width: 50%; text-align: left; }
 .qty { width: 20%; text-align: center; }
-.price { width: 30%; text-align: ${isArabic ? 'left' : 'right'}; }
+.price { width: 30%; text-align: right; }
 .info td { font-size: 11px; width: 50%; }
 .total-box { background: #000; color: #fff; padding: 4px; margin: 4px 0; font-weight: bold; text-align: center; }
 .small { font-size: 10px; color: #666; }
 .footer { font-size: 10px; font-weight: bold; text-align: center; }
+${isArabic ? `.ar { direction: rtl; text-align: right; }` : ''}
 </style>
 </head>
 <body>
@@ -319,30 +314,28 @@ ${storeSettings.storePhone ? `<div class="phone">${storeSettings.storePhone}</di
 </div>
 <div class="dbl"></div>
 <table class="info">
-<tr><td>${isArabic ? 'رقم' : 'N°'}</td><td class="right">${ticket.ticketNumber}</td></tr>
+<tr><td>${isArabic ? '<span class="ar">رقم</span>' : 'N°'}</td><td class="right">${ticket.ticketNumber}</td></tr>
 <tr><td>${formattedDate}</td><td class="right">#${ticket.userId}</td></tr>
 </table>
 <div class="line"></div>
 <table>
-${isArabic
-  ? `<tr class="bold"><td class="price">${labels.price}</td><td class="qty">${labels.qty}</td><td class="name">${labels.article}</td></tr>`
-  : `<tr class="bold"><td class="name">${labels.article}</td><td class="qty">${labels.qty}</td><td class="price">${labels.price}</td></tr>`}
+<tr class="bold"><td class="name">${isArabic ? `<span class="ar">${labels.article}</span>` : labels.article}</td><td class="qty">${isArabic ? `<span class="ar">${labels.qty}</span>` : labels.qty}</td><td class="price">${isArabic ? `<span class="ar">${labels.price}</span>` : labels.price}</td></tr>
 </table>
 <div class="line"></div>
 <table>${lines}</table>
 <div class="line"></div>
 <table>
-<tr><td>${labels.subtotal}</td><td class="right">${ticket.subtotal.toFixed(3)}</td></tr>
-${ticket.discountAmount > 0 ? `<tr><td>${labels.discount}</td><td class="right">-${ticket.discountAmount.toFixed(3)}</td></tr>` : ''}
+<tr><td>${isArabic ? `<span class="ar">${labels.subtotal}</span>` : labels.subtotal}</td><td class="right">${ticket.subtotal.toFixed(3)}</td></tr>
+${ticket.discountAmount > 0 ? `<tr><td>${isArabic ? `<span class="ar">${labels.discount}</span>` : labels.discount}</td><td class="right">-${ticket.discountAmount.toFixed(3)}</td></tr>` : ''}
 </table>
 <div class="total-box center">
-<div>${labels.total}</div>
+<div>${isArabic ? `<span class="ar">${labels.total}</span>` : labels.total}</div>
 <div class="big">${ticket.totalAmount.toFixed(3)} ${isArabic ? 'د.ت' : 'DT'}</div>
 </div>
 <table>${paymentsHtml}</table>
 <div class="line"></div>
 <div class="center footer">
-${ticketMessage || labels.thanks}
+${isArabic ? `<span class="ar">${ticketMessage || labels.thanks}</span>` : (ticketMessage || labels.thanks)}
 <br>POS+
 </div>
 </body>
@@ -880,7 +873,7 @@ td { padding: 1px 0; vertical-align: top; overflow: hidden; text-overflow: ellip
     const difference = (session.closingCash || 0) - expectedCash
 
     return `<!DOCTYPE html>
-<html dir="${isArabic ? 'rtl' : 'ltr'}">
+<html>
 <head>
 <meta charset="UTF-8">
 <style>
