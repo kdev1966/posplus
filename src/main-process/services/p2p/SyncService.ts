@@ -23,6 +23,8 @@ export interface SyncMessage {
     | 'full-sync-request'
     | 'full-sync-response'
     | 'manual-sync' // Synchronisation manuelle forcée
+    | 'incremental-sync-request' // Request for incremental sync
+    | 'incremental-sync-response' // Response with only changed items
   action: 'create' | 'update' | 'delete' | 'sync' | 'identify' | 'heartbeat' | 'force-update'
   data: any
   timestamp: string
@@ -60,6 +62,7 @@ class P2PSyncService {
   private processedMessages: Set<string> = new Set() // Éviter doublons
   private syncRequested: Set<string> = new Set() // Éviter demandes multiples
   private manualSyncInProgress: Set<string> = new Set() // Éviter boucles infinies de sync manuel
+  private lastSyncTimestamps: Map<string, string> = new Map() // Track last sync time per peer
   private port = 3030
   private heartbeatInterval: NodeJS.Timeout | null = null
   private readonly HEARTBEAT_INTERVAL = 30000 // 30 secondes
@@ -67,6 +70,7 @@ class P2PSyncService {
   private readonly RECONNECT_BASE_DELAY = 5000 // 5 secondes
   private readonly RECONNECT_MAX_DELAY = 60000 // 60 secondes
   private readonly RECONNECT_MAX_ATTEMPTS = 10
+  private readonly INCREMENTAL_SYNC_BATCH_SIZE = 100 // Max items per incremental sync batch
 
   // Notifier l'UI qu'une synchronisation a eu lieu
   private notifyDataSynced(type: 'product' | 'category' | 'all'): void {
@@ -438,6 +442,17 @@ class P2PSyncService {
         return
       }
 
+      // Gérer la synchronisation incrémentale
+      if (message.type === 'incremental-sync-request') {
+        this.handleIncrementalSyncRequest(message)
+        return
+      }
+
+      if (message.type === 'incremental-sync-response') {
+        this.handleIncrementalSyncResponse(message)
+        return
+      }
+
       // Gérer la synchronisation manuelle forcée
       if (message.type === 'manual-sync') {
         this.handleManualSync(message)
@@ -667,24 +682,251 @@ class P2PSyncService {
     this.broadcast(message)
   }
 
-  // Déclencher une synchronisation automatique (lors de la connexion initiale)
+  // Déclencher une synchronisation automatique incrémentale (lors de la connexion initiale)
   private triggerAutomaticSync(): void {
     try {
-      log.info('P2P: Triggering automatic bidirectional sync')
+      log.info('P2P: Triggering automatic incremental sync')
 
-      // Récupérer tous les produits et catégories locaux
+      // Request incremental sync from all connected peers
+      for (const [peerId] of this.connections.entries()) {
+        this.requestIncrementalSync(peerId)
+      }
+    } catch (error) {
+      log.error('P2P: Failed to trigger automatic sync:', error)
+    }
+  }
+
+  /**
+   * Request incremental sync from a peer - only changes since last sync
+   */
+  private requestIncrementalSync(peerId: string): void {
+    const lastSync = this.lastSyncTimestamps.get(peerId) || '1970-01-01T00:00:00.000Z'
+
+    log.info(`P2P: Requesting incremental sync from ${peerId} since ${lastSync}`)
+
+    const message: SyncMessage = {
+      id: uuidv4(),
+      type: 'incremental-sync-request',
+      action: 'sync',
+      data: {
+        since: lastSync,
+        requestedBy: this.getPosId(),
+      },
+      timestamp: new Date().toISOString(),
+      sourcePos: this.getPosId(),
+    }
+
+    this.sendToPeer(peerId, message)
+  }
+
+  /**
+   * Handle incremental sync request - send only items changed since timestamp
+   */
+  private handleIncrementalSyncRequest(message: SyncMessage): void {
+    const { since, requestedBy } = message.data
+
+    log.info(`P2P: Handling incremental sync request from ${requestedBy} since ${since}`)
+
+    try {
+      const db = DatabaseService.getInstance().getDatabase()
+
+      // Get products updated since timestamp with LIMIT for performance
+      const productsStmt = db.prepare(`
+        SELECT p.*, c.name as category_name
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.updated_at > ?
+        ORDER BY p.updated_at ASC
+        LIMIT ?
+      `)
+      const rawProducts = productsStmt.all(since, this.INCREMENTAL_SYNC_BATCH_SIZE) as any[]
+
+      // Map products from DB format
+      const products = rawProducts.map(row => ({
+        id: row.id,
+        sku: row.sku,
+        barcode: row.barcode,
+        name: row.name,
+        description: row.description,
+        categoryId: row.category_id,
+        price: row.price,
+        cost: row.cost,
+        discountRate: row.discount_rate,
+        stock: row.stock,
+        minStock: row.min_stock,
+        maxStock: row.max_stock,
+        unit: row.unit,
+        isActive: Boolean(row.is_active),
+        imageUrl: row.image_url,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }))
+
+      // Get categories updated since timestamp
+      const categoriesStmt = db.prepare(`
+        SELECT * FROM categories
+        WHERE updated_at > ?
+        ORDER BY updated_at ASC
+        LIMIT ?
+      `)
+      const rawCategories = categoriesStmt.all(since, this.INCREMENTAL_SYNC_BATCH_SIZE) as any[]
+
+      const categories = rawCategories.map(row => ({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        parentId: row.parent_id,
+        displayOrder: row.display_order,
+        isActive: Boolean(row.is_active),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }))
+
+      const hasMore = products.length >= this.INCREMENTAL_SYNC_BATCH_SIZE ||
+                      categories.length >= this.INCREMENTAL_SYNC_BATCH_SIZE
+
+      log.info(`P2P: Sending incremental sync response: ${categories.length} categories, ${products.length} products (hasMore: ${hasMore})`)
+
+      const responseMessage: SyncMessage = {
+        id: uuidv4(),
+        type: 'incremental-sync-response',
+        action: 'sync',
+        data: {
+          products,
+          categories,
+          since,
+          hasMore, // Indicates if there are more items to sync
+          syncedAt: new Date().toISOString(),
+        },
+        timestamp: new Date().toISOString(),
+        sourcePos: this.getPosId(),
+      }
+
+      this.sendToPeer(requestedBy, responseMessage)
+
+      // Also request incremental sync from the peer (bidirectional)
+      const lastSyncWithPeer = this.lastSyncTimestamps.get(requestedBy)
+      if (!lastSyncWithPeer) {
+        // First sync with this peer - request their changes too
+        setTimeout(() => {
+          this.requestIncrementalSync(requestedBy)
+        }, 1000)
+      }
+    } catch (error) {
+      log.error('P2P: Failed to handle incremental sync request:', error)
+    }
+  }
+
+  /**
+   * Handle incremental sync response - apply only the changed items
+   */
+  private handleIncrementalSyncResponse(message: SyncMessage): void {
+    const { products, categories, since, hasMore, syncedAt } = message.data
+    const peerId = message.sourcePos
+
+    log.info(`P2P: Handling incremental sync response from ${peerId}: ${categories?.length || 0} categories, ${products?.length || 0} products`)
+
+    try {
+      const ProductRepository = require('../database/repositories/ProductRepository').default
+      const CategoryRepository = require('../database/repositories/CategoryRepository').default
+
+      let categoriesUpdated = 0
+      let categoriesCreated = 0
+      let productsUpdated = 0
+      let productsCreated = 0
+
+      // Sync categories first
+      if (categories && Array.isArray(categories)) {
+        for (const category of categories) {
+          try {
+            const existing = CategoryRepository.findById(category.id)
+
+            if (existing) {
+              const localTime = new Date(existing.updatedAt).getTime()
+              const remoteTime = new Date(category.updatedAt).getTime()
+
+              if (remoteTime > localTime) {
+                CategoryRepository.updateFromSync(category)
+                categoriesUpdated++
+              }
+            } else {
+              CategoryRepository.createFromSync(category)
+              categoriesCreated++
+            }
+          } catch (error) {
+            log.error(`P2P: Failed to sync category ${category.name}:`, error)
+          }
+        }
+      }
+
+      // Sync products
+      if (products && Array.isArray(products)) {
+        for (const product of products) {
+          try {
+            const existing = ProductRepository.findById(product.id)
+
+            if (existing) {
+              const localTime = new Date(existing.updatedAt).getTime()
+              const remoteTime = new Date(product.updatedAt).getTime()
+
+              if (remoteTime > localTime) {
+                ProductRepository.updateFromSync(product)
+                productsUpdated++
+              }
+            } else {
+              ProductRepository.createFromSync(product)
+              productsCreated++
+            }
+          } catch (error) {
+            log.error(`P2P: Failed to sync product ${product.name}:`, error)
+          }
+        }
+      }
+
+      // Update last sync timestamp
+      this.lastSyncTimestamps.set(peerId, syncedAt)
+
+      log.info(`P2P: Incremental sync completed - Categories: ${categoriesUpdated} updated, ${categoriesCreated} created | Products: ${productsUpdated} updated, ${productsCreated} created`)
+
+      // Notify UI if anything changed
+      if (categoriesUpdated > 0 || categoriesCreated > 0 || productsUpdated > 0 || productsCreated > 0) {
+        this.notifyDataSynced('all')
+      }
+
+      // If there are more items, request next batch
+      if (hasMore) {
+        log.info(`P2P: More items available, requesting next batch from ${peerId}`)
+        setTimeout(() => {
+          this.requestIncrementalSync(peerId)
+        }, 500)
+      }
+    } catch (error) {
+      log.error('P2P: Failed to handle incremental sync response:', error)
+    }
+  }
+
+  /**
+   * Force a full sync (for manual trigger or first-time sync)
+   */
+  public forceFullSync(): void {
+    try {
+      log.info('P2P: Forcing full sync with all peers')
+
+      // Reset last sync timestamps to force full sync
+      this.lastSyncTimestamps.clear()
+
+      // Use the old manual sync approach for forced full sync
       const ProductRepository = require('../database/repositories/ProductRepository').default
       const CategoryRepository = require('../database/repositories/CategoryRepository').default
 
       const products = ProductRepository.findAll()
       const categories = CategoryRepository.findAll()
 
-      log.info(`P2P: Auto-sync will send ${categories.length} categories and ${products.length} products`)
+      log.info(`P2P: Full sync will send ${categories.length} categories and ${products.length} products`)
 
-      // Utiliser la même logique que la synchronisation manuelle
       this.manualSync({ products, categories })
     } catch (error) {
-      log.error('P2P: Failed to trigger automatic sync:', error)
+      log.error('P2P: Failed to force full sync:', error)
     }
   }
 

@@ -9,6 +9,10 @@ export interface CartItem {
   total: number
 }
 
+// Debounce utility for customer display updates
+let customerDisplayTimeout: ReturnType<typeof setTimeout> | null = null
+const CUSTOMER_DISPLAY_DEBOUNCE_MS = 150
+
 interface CartState {
   items: CartItem[]
   subtotal: number
@@ -109,18 +113,23 @@ export const useCartStore = create<CartState>((set, get) => ({
 
     set({ subtotal, discount, total })
 
-    // Notify customer display of cart changes
+    // Debounced notification to customer display
     if (window.electron?.ipcRenderer) {
-      const customerCart = items.map((item) => ({
-        nom: item.product.name,
-        quantite: item.quantity,
-        prix: item.product.price,
-        total: item.total,
-      }))
-      console.log('[CART STORE] Sending cart update to customer display:', customerCart)
-      window.electron.ipcRenderer.send('update-customer-display', customerCart)
-    } else {
-      console.log('[CART STORE] window.electron.ipcRenderer not available')
+      // Clear previous timeout to debounce rapid updates
+      if (customerDisplayTimeout) {
+        clearTimeout(customerDisplayTimeout)
+      }
+
+      customerDisplayTimeout = setTimeout(() => {
+        const customerCart = items.map((item) => ({
+          nom: item.product.name,
+          quantite: item.quantity,
+          prix: item.product.price,
+          total: item.total,
+        }))
+        window.electron.ipcRenderer.send('update-customer-display', customerCart)
+        customerDisplayTimeout = null
+      }, CUSTOMER_DISPLAY_DEBOUNCE_MS)
     }
   },
 }))

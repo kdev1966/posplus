@@ -37,11 +37,6 @@ export const POS: React.FC = () => {
     }, 100)
   }, [])
 
-  // Debug: Log categories when they change
-  useEffect(() => {
-    console.log('[POS] Categories:', categories)
-    console.log('[POS] Active categories:', categories.filter(c => c.isActive))
-  }, [categories])
 
   const handleProductClick = (product: Product) => {
     if (product.stock > 0) {
@@ -85,10 +80,6 @@ export const POS: React.FC = () => {
   const handlePaymentConfirm = async (payments: { method: string; amount: number }[]) => {
     if (!currentSession || !user) return
 
-    console.log('[POS] ====== RECEIVED FROM PAYMENT MODAL ======')
-    console.log('[POS] payments received:', JSON.stringify(payments))
-    console.log('[POS] ===========================================')
-
     try {
       // Create ticket
       const ticketData = {
@@ -106,17 +97,11 @@ export const POS: React.FC = () => {
         })),
       }
 
-      console.log('[POS] ticketData.payments:', JSON.stringify(ticketData.payments))
-
       const ticket = await window.api.createTicket(ticketData)
-      console.log('[POS] Ticket created successfully:', ticket.id, ticket.ticketNumber)
-      console.log('[POS] Ticket payments from DB:', JSON.stringify(ticket.payments))
 
       // Print ticket - check if preview is enabled
       let printSucceeded = true
       try {
-        console.log('[POS] Attempting to print ticket:', ticket.id)
-
         // Check if print preview is enabled
         const storeSettings = await window.api.getStoreSettings()
         if (storeSettings.printPreviewEnabled) {
@@ -131,12 +116,8 @@ export const POS: React.FC = () => {
         } else {
           // Print directly
           const printResult = await window.api.printTicket(ticket.id, currentLanguage)
-          console.log('[POS] Print result received:', printResult)
           if (!printResult) {
-            console.warn('[POS] Print command returned false for ticket:', ticket.id)
             printSucceeded = false
-          } else {
-            console.log('[POS] Print command succeeded for ticket:', ticket.id)
           }
         }
       } catch (printError) {
@@ -155,12 +136,10 @@ export const POS: React.FC = () => {
       setBarcode('')
       setSearchQuery('')
 
-      // Log result without showing toast to avoid interrupting cashier workflow
+      // Show toast notification
       if (printSucceeded) {
-        console.log(`[POS] Sale completed successfully - Ticket #${ticket.ticketNumber}`)
         toast.success(`${t('ticket')} #${ticket.ticketNumber} - ${t('saleCompleted')}`, 2000)
       } else {
-        console.warn(`[POS] Sale completed but print failed - Ticket #${ticket.ticketNumber}`)
         // Show warning if printing failed (cashier needs to know to reprint manually)
         toast.warning(`${t('ticket')} #${ticket.ticketNumber} - ${t('printFailed')}. ${t('canReprintFromHistory')}`, 6000)
       }
