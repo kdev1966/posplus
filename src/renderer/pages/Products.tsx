@@ -272,7 +272,9 @@ export const Products: React.FC = () => {
                         </div>
                       </td>
                       <td className="font-mono text-sm">{product.sku}</td>
-                      <td className="text-sm">{product.categoryId}</td>
+                      <td className="text-sm">
+                        {product.categoryName || categories.find(c => c.id === product.categoryId)?.name || '-'}
+                      </td>
                       <td className="font-semibold text-primary-300">{formatCurrency(product.price)}</td>
                       <td>
                         {product.discountRate > 0 ? (
@@ -427,13 +429,22 @@ export const Products: React.FC = () => {
                 onChange={handleInputChange}
                 required
               />
-              <Input
-                label={t('unit')}
-                name="unit"
-                value={formData.unit}
-                onChange={handleInputChange}
-                required
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  {t('unit')}
+                </label>
+                <select
+                  name="unit"
+                  value={formData.unit}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                >
+                  <option value="pcs">{t('unitPiece')}</option>
+                  <option value="kg">{t('unitKg')}</option>
+                  <option value="L">{t('unitLiter')}</option>
+                </select>
+              </div>
             </div>
           </form>
         </Modal>
@@ -553,13 +564,22 @@ export const Products: React.FC = () => {
                 onChange={handleEditInputChange}
                 required
               />
-              <Input
-                label={t('unit')}
-                name="unit"
-                value={editFormData.unit}
-                onChange={handleEditInputChange}
-                required
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  {t('unit')}
+                </label>
+                <select
+                  name="unit"
+                  value={editFormData.unit}
+                  onChange={handleEditInputChange}
+                  required
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                >
+                  <option value="pcs">{t('unitPiece')}</option>
+                  <option value="kg">{t('unitKg')}</option>
+                  <option value="L">{t('unitLiter')}</option>
+                </select>
+              </div>
             </div>
           </form>
         </Modal>
