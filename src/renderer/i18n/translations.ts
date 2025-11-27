@@ -403,6 +403,15 @@ export const translations = {
     customerAmountReceived: 'Montant reçu',
     customerChange: 'Rendu',
     customerThankYou: '✨ Merci pour votre visite ! ✨',
+
+    // About
+    aboutTitle: 'À propos de POS+',
+    aboutDeveloper: 'Développeur',
+    aboutEmail: 'Email',
+    aboutPhone: 'Téléphone',
+    aboutVersion: 'Version',
+    aboutDescription: 'Description',
+    aboutCopyright: 'Tous droits réservés',
   },
   ar: {
     // --- Added for type safety (missing keys for TS) ---
@@ -805,6 +814,15 @@ export const translations = {
     customerAmountReceived: 'المبلغ المستلم',
     customerChange: 'الباقي',
     customerThankYou: '✨ !شكراً لزيارتك ✨',
+
+    // About
+    aboutTitle: 'حول POS+',
+    aboutDeveloper: 'المطور',
+    aboutEmail: 'البريد الإلكتروني',
+    aboutPhone: 'الهاتف',
+    aboutVersion: 'الإصدار',
+    aboutDescription: 'الوصف',
+    aboutCopyright: 'جميع الحقوق محفوظة',
   },
 }
 

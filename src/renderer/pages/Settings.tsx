@@ -9,6 +9,7 @@ import { useAuthStore } from '../store/authStore'
 import { useLanguageStore } from '../store/languageStore'
 import { formatCurrency } from '../utils/currency'
 import { toast } from '../store/toastStore'
+import { APP_INFO } from '@shared/constants'
 
 export const Settings: React.FC = () => {
   const { user } = useAuthStore()
@@ -435,7 +436,7 @@ export const Settings: React.FC = () => {
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-gray-400">{t('appVersion')}</span>
-              <span className="text-white font-semibold">POSPlus v1.0.0</span>
+              <span className="text-white font-semibold">{APP_INFO.NAME} v{APP_INFO.VERSION}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">{t('currentUser')}</span>
@@ -452,6 +453,46 @@ export const Settings: React.FC = () => {
             <div className="flex justify-between">
               <span className="text-gray-400">{t('country')}</span>
               <span className="text-white font-semibold">{t('tunisia')}</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* About Section */}
+        <Card>
+          <h2 className="text-xl font-bold text-white mb-4">ℹ️ {t('aboutTitle')}</h2>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-400">{t('aboutVersion')}</span>
+                <span className="text-white font-semibold">{APP_INFO.NAME} v{APP_INFO.VERSION}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">{t('aboutDeveloper')}</span>
+                <span className="text-white font-semibold">{APP_INFO.DEVELOPER}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">{t('aboutEmail')}</span>
+                <a href={`mailto:${APP_INFO.EMAIL}`} className="text-primary-400 hover:text-primary-300 font-semibold">
+                  {APP_INFO.EMAIL}
+                </a>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">{t('aboutPhone')}</span>
+                <a href={`tel:${APP_INFO.PHONE}`} className="text-primary-400 hover:text-primary-300 font-semibold">
+                  {APP_INFO.PHONE}
+                </a>
+              </div>
+            </div>
+            <div className="pt-3 border-t border-gray-700">
+              <p className="text-sm text-gray-400 mb-1">{t('aboutDescription')}</p>
+              <p className="text-gray-300">
+                {currentLanguage === 'fr' ? APP_INFO.DESCRIPTION_FR : APP_INFO.DESCRIPTION_AR}
+              </p>
+            </div>
+            <div className="pt-3 border-t border-gray-700 text-center">
+              <p className="text-xs text-gray-500">
+                © {APP_INFO.COPYRIGHT_YEAR} {APP_INFO.DEVELOPER} - {t('aboutCopyright')}
+              </p>
             </div>
           </div>
         </Card>

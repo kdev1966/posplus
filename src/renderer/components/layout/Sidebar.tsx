@@ -4,6 +4,7 @@ import { useLanguageStore } from '../../store/languageStore'
 import { useSidebarStore } from '../../store/sidebarStore'
 import { TranslationKey } from '../../i18n/translations'
 import P2PStatus from '../P2PStatus'
+import { APP_INFO } from '@shared/constants'
 
 const menuItems: { path: string; icon: string; labelKey: TranslationKey }[] = [
   { path: '/dashboard', icon: '📊', labelKey: 'dashboard' },
@@ -93,7 +94,9 @@ export const Sidebar: React.FC = () => {
           {!isCollapsed && <span className="font-medium">{t('quit')}</span>}
         </button>
         {!isCollapsed && (
-          <div className="text-xs text-gray-500 text-center">v1.0.0 · POS+ © 2025</div>
+          <div className="text-xs text-gray-500 text-center">
+            v{APP_INFO.VERSION} · {APP_INFO.NAME} © {APP_INFO.COPYRIGHT_YEAR}
+          </div>
         )}
       </div>
     </aside>

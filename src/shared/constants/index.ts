@@ -9,6 +9,18 @@ export const APP_CONFIG = {
   LOG_FILE: 'posplus.log',
 } as const
 
+export const APP_INFO = {
+  NAME: 'POS+',
+  FULL_NAME: 'POS+ Point of Sale System',
+  VERSION: '1.0.0',
+  DEVELOPER: 'Kaabaoui Othman',
+  EMAIL: 'kaabaoui.othman@gmail.com',
+  PHONE: '58793683',
+  DESCRIPTION_FR: 'POS+ est un système de point de vente professionnel conçu pour les commerces de détail. Il offre une architecture offline-first garantissant un fonctionnement sans interruption, une synchronisation P2P entre plusieurs caisses, un support bilingue (Français/Arabe), une gestion complète des stocks, des rapports de ventes détaillés et une impression thermique optimisée.',
+  DESCRIPTION_AR: 'POS+ هو نظام نقاط بيع احترافي مصمم لمتاجر التجزئة. يوفر بنية تعمل بدون اتصال تضمن التشغيل المستمر، مزامنة P2P بين عدة صناديق، دعم ثنائي اللغة (فرنسي/عربي)، إدارة كاملة للمخزون، تقارير مبيعات مفصلة وطباعة حرارية محسنة.',
+  COPYRIGHT_YEAR: '2025',
+} as const
+
 export const PERMISSIONS = {
   // Users
   USER_CREATE: 'user:create',
