@@ -1,14 +1,144 @@
+import Database from 'better-sqlite3'
 import DatabaseService from '../db'
 import { Ticket, TicketLine, Payment, CreateTicketDTO, PartialRefundLineDTO } from '@shared/types'
 import log from 'electron-log'
 import StockRepository from './StockRepository'
 import P2PSyncService from '../../p2p/SyncService'
 
+/**
+ * TicketRepository with optimized batch loading to avoid N+1 queries.
+ * Uses cached prepared statements for optimal performance.
+ */
 export class TicketRepository {
+  // Cached prepared statements
+  private _stmtFindById: Database.Statement | null = null
+  private _stmtFindByTicketNumber: Database.Statement | null = null
+  private _stmtFindBySession: Database.Statement | null = null
+  private _stmtGetLines: Database.Statement | null = null
+  private _stmtGetPayments: Database.Statement | null = null
+  private _stmtGetLinesByTicketIds: Database.Statement | null = null
+  private _stmtGetPaymentsByTicketIds: Database.Statement | null = null
+  private _stmtInsertTicket: Database.Statement | null = null
+  private _stmtInsertLine: Database.Statement | null = null
+  private _stmtInsertPayment: Database.Statement | null = null
+  private _stmtGetProduct: Database.Statement | null = null
+  private _stmtCountTodayTickets: Database.Statement | null = null
+  private _stmtGetDailySales: Database.Statement | null = null
+  private _stmtGetDailySalesToday: Database.Statement | null = null
+  private _stmtGetTopProducts: Database.Statement | null = null
+
   private get db() {
     return DatabaseService.getInstance().getDatabase()
   }
 
+  // Lazy statement getters
+  private get stmtFindById(): Database.Statement {
+    if (!this._stmtFindById) {
+      this._stmtFindById = this.db.prepare('SELECT * FROM tickets WHERE id = ?')
+    }
+    return this._stmtFindById
+  }
+
+  private get stmtFindByTicketNumber(): Database.Statement {
+    if (!this._stmtFindByTicketNumber) {
+      this._stmtFindByTicketNumber = this.db.prepare('SELECT * FROM tickets WHERE ticket_number = ?')
+    }
+    return this._stmtFindByTicketNumber
+  }
+
+  private get stmtFindBySession(): Database.Statement {
+    if (!this._stmtFindBySession) {
+      this._stmtFindBySession = this.db.prepare('SELECT * FROM tickets WHERE session_id = ? ORDER BY created_at DESC')
+    }
+    return this._stmtFindBySession
+  }
+
+  private get stmtGetLines(): Database.Statement {
+    if (!this._stmtGetLines) {
+      this._stmtGetLines = this.db.prepare('SELECT * FROM ticket_lines WHERE ticket_id = ?')
+    }
+    return this._stmtGetLines
+  }
+
+  private get stmtGetPayments(): Database.Statement {
+    if (!this._stmtGetPayments) {
+      this._stmtGetPayments = this.db.prepare('SELECT * FROM payments WHERE ticket_id = ?')
+    }
+    return this._stmtGetPayments
+  }
+
+  private get stmtInsertTicket(): Database.Statement {
+    if (!this._stmtInsertTicket) {
+      this._stmtInsertTicket = this.db.prepare(`
+        INSERT INTO tickets (
+          ticket_number, user_id, customer_id, session_id,
+          subtotal, discount_amount, total_amount, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+    }
+    return this._stmtInsertTicket
+  }
+
+  private get stmtInsertLine(): Database.Statement {
+    if (!this._stmtInsertLine) {
+      this._stmtInsertLine = this.db.prepare(`
+        INSERT INTO ticket_lines (
+          ticket_id, product_id, product_name, product_sku,
+          quantity, unit_price, discount_amount, total_amount
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+    }
+    return this._stmtInsertLine
+  }
+
+  private get stmtInsertPayment(): Database.Statement {
+    if (!this._stmtInsertPayment) {
+      this._stmtInsertPayment = this.db.prepare(`
+        INSERT INTO payments (ticket_id, method, amount, reference)
+        VALUES (?, ?, ?, ?)
+      `)
+    }
+    return this._stmtInsertPayment
+  }
+
+  private get stmtGetProduct(): Database.Statement {
+    if (!this._stmtGetProduct) {
+      this._stmtGetProduct = this.db.prepare('SELECT name, sku, stock FROM products WHERE id = ?')
+    }
+    return this._stmtGetProduct
+  }
+
+  private get stmtCountTodayTickets(): Database.Statement {
+    if (!this._stmtCountTodayTickets) {
+      this._stmtCountTodayTickets = this.db.prepare(`
+        SELECT COUNT(*) as count FROM tickets WHERE DATE(created_at) = DATE('now')
+      `)
+    }
+    return this._stmtCountTodayTickets
+  }
+
+  private get stmtGetDailySales(): Database.Statement {
+    if (!this._stmtGetDailySales) {
+      this._stmtGetDailySales = this.db.prepare('SELECT * FROM v_daily_sales WHERE sale_date = ?')
+    }
+    return this._stmtGetDailySales
+  }
+
+  private get stmtGetDailySalesToday(): Database.Statement {
+    if (!this._stmtGetDailySalesToday) {
+      this._stmtGetDailySalesToday = this.db.prepare("SELECT * FROM v_daily_sales WHERE sale_date = DATE('now')")
+    }
+    return this._stmtGetDailySalesToday
+  }
+
+  private get stmtGetTopProducts(): Database.Statement {
+    if (!this._stmtGetTopProducts) {
+      this._stmtGetTopProducts = this.db.prepare('SELECT * FROM v_top_products LIMIT ?')
+    }
+    return this._stmtGetTopProducts
+  }
+
+  // Mapper functions
   private mapTicketFromDb(dbTicket: any): Ticket {
     return {
       id: dbTicket.id,
@@ -28,8 +158,7 @@ export class TicketRepository {
   }
 
   private convertUtcToLocal(utcDateStr: string): string {
-    // SQLite stores dates in UTC format: 'YYYY-MM-DD HH:MM:SS'
-    // Convert to local time by adding 'Z' to treat as UTC, then format as ISO
+    if (!utcDateStr) return ''
     const utcDate = new Date(utcDateStr + 'Z')
     return utcDate.toISOString()
   }
@@ -61,7 +190,75 @@ export class TicketRepository {
     }
   }
 
-  findAll(filters?: { startDate?: string; endDate?: string; status?: string }): Ticket[] {
+  /**
+   * Batch load lines and payments for multiple tickets to avoid N+1 queries.
+   * This is the key optimization - we load all related data in 2 queries instead of 2*N queries.
+   */
+  private loadTicketDetailsBatch(tickets: Ticket[]): Ticket[] {
+    if (tickets.length === 0) return tickets
+
+    const ticketIds = tickets.map(t => t.id)
+
+    // Build placeholders for IN clause
+    const placeholders = ticketIds.map(() => '?').join(',')
+
+    // Batch load all lines for all tickets in ONE query
+    const linesStmt = this.db.prepare(`
+      SELECT * FROM ticket_lines WHERE ticket_id IN (${placeholders}) ORDER BY ticket_id, id
+    `)
+    const allLines = linesStmt.all(...ticketIds) as any[]
+
+    // Batch load all payments for all tickets in ONE query
+    const paymentsStmt = this.db.prepare(`
+      SELECT * FROM payments WHERE ticket_id IN (${placeholders}) ORDER BY ticket_id, id
+    `)
+    const allPayments = paymentsStmt.all(...ticketIds) as any[]
+
+    // Group lines and payments by ticket_id using Map for O(1) lookup
+    const linesByTicketId = new Map<number, TicketLine[]>()
+    const paymentsByTicketId = new Map<number, Payment[]>()
+
+    for (const line of allLines) {
+      const ticketId = line.ticket_id
+      if (!linesByTicketId.has(ticketId)) {
+        linesByTicketId.set(ticketId, [])
+      }
+      linesByTicketId.get(ticketId)!.push(this.mapTicketLineFromDb(line))
+    }
+
+    for (const payment of allPayments) {
+      const ticketId = payment.ticket_id
+      if (!paymentsByTicketId.has(ticketId)) {
+        paymentsByTicketId.set(ticketId, [])
+      }
+      paymentsByTicketId.get(ticketId)!.push(this.mapPaymentFromDb(payment))
+    }
+
+    // Assign lines and payments to each ticket
+    for (const ticket of tickets) {
+      ticket.lines = linesByTicketId.get(ticket.id) || []
+      ticket.payments = paymentsByTicketId.get(ticket.id) || []
+    }
+
+    return tickets
+  }
+
+  /**
+   * Load details for a single ticket.
+   */
+  private loadTicketDetails(dbTicket: any): Ticket {
+    const ticket = this.mapTicketFromDb(dbTicket)
+
+    const dbLines = this.stmtGetLines.all(ticket.id) as any[]
+    ticket.lines = dbLines.map(line => this.mapTicketLineFromDb(line))
+
+    const dbPayments = this.stmtGetPayments.all(ticket.id) as any[]
+    ticket.payments = dbPayments.map(payment => this.mapPaymentFromDb(payment))
+
+    return ticket
+  }
+
+  findAll(filters?: { startDate?: string; endDate?: string; status?: string; limit?: number; offset?: number }): Ticket[] {
     try {
       let sql = 'SELECT * FROM tickets WHERE 1=1'
       const params: any[] = []
@@ -81,27 +278,61 @@ export class TicketRepository {
 
       sql += ' ORDER BY created_at DESC'
 
-      const stmt = this.db.prepare(sql)
-      const tickets = stmt.all(...params) as Ticket[]
+      // Add pagination if specified
+      if (filters?.limit !== undefined) {
+        sql += ' LIMIT ? OFFSET ?'
+        params.push(filters.limit, filters.offset || 0)
+      }
 
-      // Load lines and payments for each ticket
-      return tickets.map((ticket) => this.loadTicketDetails(ticket))
+      const stmt = this.db.prepare(sql)
+      const dbTickets = stmt.all(...params) as any[]
+
+      // Map to Ticket objects
+      const tickets = dbTickets.map(t => this.mapTicketFromDb(t))
+
+      // Batch load all lines and payments - eliminates N+1 queries
+      return this.loadTicketDetailsBatch(tickets)
     } catch (error) {
       log.error('TicketRepository.findAll failed:', error)
       throw error
     }
   }
 
-  findById(id: number): Ticket | null {
+  /**
+   * Get total count of tickets for pagination
+   */
+  count(filters?: { startDate?: string; endDate?: string; status?: string }): number {
     try {
-      const stmt = this.db.prepare('SELECT * FROM tickets WHERE id = ?')
-      const ticket = stmt.get(id) as Ticket | undefined
+      let sql = 'SELECT COUNT(*) as count FROM tickets WHERE 1=1'
+      const params: any[] = []
 
-      if (!ticket) {
-        return null
+      if (filters?.startDate) {
+        sql += ' AND DATE(created_at) >= DATE(?)'
+        params.push(filters.startDate)
+      }
+      if (filters?.endDate) {
+        sql += ' AND DATE(created_at) <= DATE(?)'
+        params.push(filters.endDate)
+      }
+      if (filters?.status) {
+        sql += ' AND status = ?'
+        params.push(filters.status)
       }
 
-      return this.loadTicketDetails(ticket)
+      const stmt = this.db.prepare(sql)
+      const result = stmt.get(...params) as { count: number }
+      return result.count
+    } catch (error) {
+      log.error('TicketRepository.count failed:', error)
+      throw error
+    }
+  }
+
+  findById(id: number): Ticket | null {
+    try {
+      const dbTicket = this.stmtFindById.get(id) as any
+      if (!dbTicket) return null
+      return this.loadTicketDetails(dbTicket)
     } catch (error) {
       log.error('TicketRepository.findById failed:', error)
       throw error
@@ -110,14 +341,9 @@ export class TicketRepository {
 
   findByTicketNumber(ticketNumber: string): Ticket | null {
     try {
-      const stmt = this.db.prepare('SELECT * FROM tickets WHERE ticket_number = ?')
-      const ticket = stmt.get(ticketNumber) as Ticket | undefined
-
-      if (!ticket) {
-        return null
-      }
-
-      return this.loadTicketDetails(ticket)
+      const dbTicket = this.stmtFindByTicketNumber.get(ticketNumber) as any
+      if (!dbTicket) return null
+      return this.loadTicketDetails(dbTicket)
     } catch (error) {
       log.error('TicketRepository.findByTicketNumber failed:', error)
       throw error
@@ -126,10 +352,9 @@ export class TicketRepository {
 
   findBySession(sessionId: number): Ticket[] {
     try {
-      const stmt = this.db.prepare('SELECT * FROM tickets WHERE session_id = ? ORDER BY created_at DESC')
-      const tickets = stmt.all(sessionId) as Ticket[]
-
-      return tickets.map((ticket) => this.loadTicketDetails(ticket))
+      const dbTickets = this.stmtFindBySession.all(sessionId) as any[]
+      const tickets = dbTickets.map(t => this.mapTicketFromDb(t))
+      return this.loadTicketDetailsBatch(tickets)
     } catch (error) {
       log.error('TicketRepository.findBySession failed:', error)
       throw error
@@ -139,32 +364,21 @@ export class TicketRepository {
   create(data: CreateTicketDTO): Ticket {
     const transaction = this.db.transaction(() => {
       try {
-        // Generate ticket number
         const ticketNumber = this.generateTicketNumber()
 
-        // Calculate totals - TTC pricing (tax included)
         let subtotal = 0
         let discountAmount = 0
 
         data.lines.forEach((line) => {
           const lineSubtotal = line.quantity * line.unitPrice
           const lineDiscount = line.discountAmount || 0
-
           subtotal += lineSubtotal
           discountAmount += lineDiscount
         })
 
         const totalAmount = subtotal - discountAmount
 
-        // Insert ticket
-        const ticketStmt = this.db.prepare(`
-          INSERT INTO tickets (
-            ticket_number, user_id, customer_id, session_id,
-            subtotal, discount_amount, total_amount, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `)
-
-        const ticketResult = ticketStmt.run(
+        const ticketResult = this.stmtInsertTicket.run(
           ticketNumber,
           data.userId,
           data.customerId || null,
@@ -177,24 +391,13 @@ export class TicketRepository {
 
         const ticketId = ticketResult.lastInsertRowid as number
 
-        // Insert ticket lines
-        const lineStmt = this.db.prepare(`
-          INSERT INTO ticket_lines (
-            ticket_id, product_id, product_name, product_sku,
-            quantity, unit_price, discount_amount, total_amount
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `)
-
         for (const line of data.lines) {
-          // Get product details including current stock
-          const productStmt = this.db.prepare('SELECT name, sku, stock FROM products WHERE id = ?')
-          const product = productStmt.get(line.productId) as any
+          const product = this.stmtGetProduct.get(line.productId) as any
 
           if (!product) {
             throw new Error(`Product not found: ${line.productId}`)
           }
 
-          // Check if sufficient stock is available
           if (product.stock < line.quantity) {
             throw new Error(
               `Insufficient stock for product "${product.name}". Available: ${product.stock}, Required: ${line.quantity}`
@@ -205,7 +408,7 @@ export class TicketRepository {
           const lineDiscount = line.discountAmount || 0
           const lineTotal = lineSubtotal - lineDiscount
 
-          lineStmt.run(
+          this.stmtInsertLine.run(
             ticketId,
             line.productId,
             product.name,
@@ -216,7 +419,6 @@ export class TicketRepository {
             lineTotal
           )
 
-          // Update product stock with audit trail using StockRepository
           StockRepository.adjust(
             line.productId,
             line.quantity,
@@ -227,14 +429,8 @@ export class TicketRepository {
           )
         }
 
-        // Insert payments
-        const paymentStmt = this.db.prepare(`
-          INSERT INTO payments (ticket_id, method, amount, reference)
-          VALUES (?, ?, ?, ?)
-        `)
-
         for (const payment of data.payments) {
-          paymentStmt.run(
+          this.stmtInsertPayment.run(
             ticketId,
             payment.method,
             payment.amount,
@@ -249,13 +445,11 @@ export class TicketRepository {
 
         log.info(`Ticket created: ${ticket.ticketNumber} (ID: ${ticket.id})`)
 
-        // Synchronize with P2P peers
         try {
           P2PSyncService.syncTicket(ticket)
           log.info(`P2P: Ticket ${ticket.ticketNumber} synchronized with peers`)
         } catch (error) {
           log.error('P2P: Failed to sync ticket:', error)
-          // Ne pas bloquer la création si la sync échoue
         }
 
         return ticket
@@ -268,13 +462,11 @@ export class TicketRepository {
     return transaction()
   }
 
-  // Méthode pour créer un ticket depuis sync P2P (pas de re-broadcast)
   createFromSync(ticketData: any): Ticket {
     const transaction = this.db.transaction(() => {
       try {
         log.info(`P2P: Creating ticket from sync: ${ticketData.ticketNumber}`)
 
-        // Insert ticket
         const ticketStmt = this.db.prepare(`
           INSERT INTO tickets (
             ticket_number, user_id, customer_id, session_id,
@@ -298,12 +490,10 @@ export class TicketRepository {
 
         const ticketId = ticketResult.lastInsertRowid as number
 
-        // Insert ticket lines
         const lineStmt = this.db.prepare(`
           INSERT INTO ticket_lines (
             ticket_id, product_id, product_name, product_sku,
-            quantity, unit_price, discount_amount, total_amount,
-            created_at
+            quantity, unit_price, discount_amount, total_amount, created_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
 
@@ -321,7 +511,6 @@ export class TicketRepository {
           )
         }
 
-        // Insert payments
         const paymentStmt = this.db.prepare(`
           INSERT INTO payments (ticket_id, method, amount, reference, created_at)
           VALUES (?, ?, ?, ?, ?)
@@ -365,7 +554,6 @@ export class TicketRepository {
           throw new Error('Only completed tickets can be cancelled')
         }
 
-        // Restore stock with audit trail
         for (const line of ticket.lines) {
           StockRepository.adjust(
             line.productId,
@@ -377,7 +565,6 @@ export class TicketRepository {
           )
         }
 
-        // Update ticket status
         const updateStmt = this.db.prepare('UPDATE tickets SET status = ?, notes = ? WHERE id = ?')
         const result = updateStmt.run('cancelled', reason, id)
 
@@ -404,7 +591,6 @@ export class TicketRepository {
           throw new Error('Only completed tickets can be refunded')
         }
 
-        // Restore stock with audit trail
         for (const line of ticket.lines) {
           StockRepository.adjust(
             line.productId,
@@ -416,7 +602,6 @@ export class TicketRepository {
           )
         }
 
-        // Update ticket status
         const updateStmt = this.db.prepare('UPDATE tickets SET status = ?, notes = ? WHERE id = ?')
         const result = updateStmt.run('refunded', reason, id)
 
@@ -443,7 +628,6 @@ export class TicketRepository {
           throw new Error('Only completed or partially refunded tickets can be refunded')
         }
 
-        // Validate and process each line to refund
         let totalRefundAmount = 0
         const lineUpdates: Array<{ lineId: number; newQuantity: number; refundAmount: number }> = []
 
@@ -457,11 +641,9 @@ export class TicketRepository {
             throw new Error(`Invalid refund quantity for line ${refundLine.lineId}`)
           }
 
-          // Calculate refund amount for this line (proportional)
           const lineRefundAmount = (originalLine.totalAmount / originalLine.quantity) * refundLine.quantity
           totalRefundAmount += lineRefundAmount
 
-          // Calculate new quantity
           const newQuantity = originalLine.quantity - refundLine.quantity
 
           lineUpdates.push({
@@ -470,7 +652,6 @@ export class TicketRepository {
             refundAmount: lineRefundAmount,
           })
 
-          // Restore stock with audit trail
           StockRepository.adjust(
             originalLine.productId,
             refundLine.quantity,
@@ -481,50 +662,35 @@ export class TicketRepository {
           )
         }
 
-        // Update or delete ticket lines based on remaining quantity
         const updateLineStmt = this.db.prepare(`
-          UPDATE ticket_lines
-          SET quantity = ?, total_amount = ?
-          WHERE id = ?
+          UPDATE ticket_lines SET quantity = ?, total_amount = ? WHERE id = ?
         `)
-
-        const deleteLineStmt = this.db.prepare(`
-          DELETE FROM ticket_lines
-          WHERE id = ?
-        `)
+        const deleteLineStmt = this.db.prepare('DELETE FROM ticket_lines WHERE id = ?')
 
         for (const update of lineUpdates) {
           const originalLine = ticket.lines.find((l) => l.id === update.lineId)!
 
           if (update.newQuantity === 0) {
-            // Delete the line if quantity becomes 0 (to avoid CHECK constraint violation)
             deleteLineStmt.run(update.lineId)
           } else {
-            // Update the line with new quantity and amount
             const newTotalAmount = (originalLine.totalAmount / originalLine.quantity) * update.newQuantity
             updateLineStmt.run(update.newQuantity, newTotalAmount, update.lineId)
           }
         }
 
-        // Recalculate ticket totals from REMAINING lines in database (not by subtraction)
         const recalcTotalsStmt = this.db.prepare(`
-          SELECT
-            COALESCE(SUM(total_amount), 0) as subtotal,
-            COUNT(*) as line_count
-          FROM ticket_lines
-          WHERE ticket_id = ?
+          SELECT COALESCE(SUM(total_amount), 0) as subtotal, COUNT(*) as line_count
+          FROM ticket_lines WHERE ticket_id = ?
         `)
         const totals = recalcTotalsStmt.get(id) as { subtotal: number; line_count: number }
 
         const newSubtotal = totals.subtotal
-        const newTotalAmount = totals.subtotal // No separate discount at ticket level in this system
+        const newTotalAmount = totals.subtotal
         const allLinesRefunded = totals.line_count === 0
         const newStatus = allLinesRefunded ? 'refunded' : 'partially_refunded'
 
         const updateStmt = this.db.prepare(`
-          UPDATE tickets
-          SET subtotal = ?, total_amount = ?, status = ?, notes = ?
-          WHERE id = ?
+          UPDATE tickets SET subtotal = ?, total_amount = ?, status = ?, notes = ? WHERE id = ?
         `)
         const result = updateStmt.run(newSubtotal, newTotalAmount, newStatus, reason, id)
 
@@ -553,34 +719,25 @@ export class TicketRepository {
           throw new Error('Only completed tickets can be updated')
         }
 
-        // Calculate the difference between old and new total amounts
         const oldTotalAmount = ticket.totalAmount
         const newTotalAmount = data.totalAmount
         const amountDifference = oldTotalAmount - newTotalAmount
 
-        // Update ticket totals
         const ticketStmt = this.db.prepare(`
-          UPDATE tickets
-          SET subtotal = ?, discount_amount = ?, total_amount = ?, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
+          UPDATE tickets SET subtotal = ?, discount_amount = ?, total_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
         `)
         ticketStmt.run(data.subtotal, data.discountAmount, data.totalAmount, id)
 
-        // Update ticket lines
         const lineStmt = this.db.prepare(`
-          UPDATE ticket_lines
-          SET quantity = ?, discount_rate = ?, discount_amount = ?, total_amount = ?
-          WHERE id = ?
+          UPDATE ticket_lines SET quantity = ?, discount_rate = ?, discount_amount = ?, total_amount = ? WHERE id = ?
         `)
 
         for (const line of data.lines) {
-          // Calculate stock difference
           const originalLine = ticket.lines.find(l => l.id === line.id)
           if (originalLine && originalLine.quantity !== line.quantity) {
             const quantityDiff = line.quantity - originalLine.quantity
 
             if (quantityDiff > 0) {
-              // More items sold - reduce stock
               StockRepository.adjust(
                 line.productId,
                 quantityDiff,
@@ -590,7 +747,6 @@ export class TicketRepository {
                 `Modification ticket ${ticket.ticketNumber} - augmentation quantité`
               )
             } else {
-              // Fewer items sold - restore stock
               StockRepository.adjust(
                 line.productId,
                 Math.abs(quantityDiff),
@@ -605,17 +761,9 @@ export class TicketRepository {
           lineStmt.run(line.quantity, line.discountRate, line.discountAmount, line.totalAmount, line.id)
         }
 
-        // Update payment amounts proportionally if total amount changed
         if (amountDifference > 0.001 && ticket.payments.length > 0) {
-          // Calculate the reduction ratio
           const reductionRatio = newTotalAmount / oldTotalAmount
-
-          // Update each payment proportionally
-          const paymentStmt = this.db.prepare(`
-            UPDATE payments
-            SET amount = ?
-            WHERE id = ?
-          `)
+          const paymentStmt = this.db.prepare('UPDATE payments SET amount = ? WHERE id = ?')
 
           for (const payment of ticket.payments) {
             const newPaymentAmount = payment.amount * reductionRatio
@@ -642,36 +790,13 @@ export class TicketRepository {
     return transaction()
   }
 
-  private loadTicketDetails(dbTicket: any): Ticket {
-    // Map the ticket from DB format to TypeScript format
-    const ticket = this.mapTicketFromDb(dbTicket)
-
-    // Load ticket lines
-    const linesStmt = this.db.prepare('SELECT * FROM ticket_lines WHERE ticket_id = ?')
-    const dbLines = linesStmt.all(ticket.id) as any[]
-    ticket.lines = dbLines.map((line) => this.mapTicketLineFromDb(line))
-
-    // Load payments
-    const paymentsStmt = this.db.prepare('SELECT * FROM payments WHERE ticket_id = ?')
-    const dbPayments = paymentsStmt.all(ticket.id) as any[]
-    ticket.payments = dbPayments.map((payment) => this.mapPaymentFromDb(payment))
-
-    return ticket
-  }
-
   private generateTicketNumber(): string {
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, '0')
     const day = String(now.getDate()).padStart(2, '0')
 
-    // Get today's ticket count
-    const stmt = this.db.prepare(`
-      SELECT COUNT(*) as count
-      FROM tickets
-      WHERE DATE(created_at) = DATE('now')
-    `)
-    const result = stmt.get() as { count: number }
+    const result = this.stmtCountTodayTickets.get() as { count: number }
     const sequence = String(result.count + 1).padStart(4, '0')
 
     return `T${year}${month}${day}-${sequence}`
@@ -679,11 +804,10 @@ export class TicketRepository {
 
   getDailySales(date?: string): any {
     try {
-      const stmt = this.db.prepare(`
-        SELECT * FROM v_daily_sales
-        WHERE ${date ? 'sale_date = ?' : "sale_date = DATE('now')"}
-      `)
-      return date ? stmt.get(date) : stmt.get()
+      if (date) {
+        return this.stmtGetDailySales.get(date)
+      }
+      return this.stmtGetDailySalesToday.get()
     } catch (error) {
       log.error('TicketRepository.getDailySales failed:', error)
       throw error
@@ -692,12 +816,29 @@ export class TicketRepository {
 
   getTopProducts(limit = 10): any[] {
     try {
-      const stmt = this.db.prepare('SELECT * FROM v_top_products LIMIT ?')
-      return stmt.all(limit) as any[]
+      return this.stmtGetTopProducts.all(limit) as any[]
     } catch (error) {
       log.error('TicketRepository.getTopProducts failed:', error)
       throw error
     }
+  }
+
+  clearStatementCache(): void {
+    this._stmtFindById = null
+    this._stmtFindByTicketNumber = null
+    this._stmtFindBySession = null
+    this._stmtGetLines = null
+    this._stmtGetPayments = null
+    this._stmtGetLinesByTicketIds = null
+    this._stmtGetPaymentsByTicketIds = null
+    this._stmtInsertTicket = null
+    this._stmtInsertLine = null
+    this._stmtInsertPayment = null
+    this._stmtGetProduct = null
+    this._stmtCountTodayTickets = null
+    this._stmtGetDailySales = null
+    this._stmtGetDailySalesToday = null
+    this._stmtGetTopProducts = null
   }
 }
 
@@ -714,10 +855,13 @@ export default {
   findByTicketNumber: function(ticketNumber: string) { return this.instance.findByTicketNumber(ticketNumber) },
   findBySession: function(sessionId: number) { return this.instance.findBySession(sessionId) },
   create: function(data: CreateTicketDTO) { return this.instance.create(data) },
+  createFromSync: function(data: any) { return this.instance.createFromSync(data) },
   update: function(id: number, data: { lines: TicketLine[]; subtotal: number; discountAmount: number; totalAmount: number }) { return this.instance.update(id, data) },
   cancel: function(id: number, reason: string, userId?: number) { return this.instance.cancel(id, reason, userId) },
   refund: function(id: number, reason: string, userId?: number) { return this.instance.refund(id, reason, userId) },
   partialRefund: function(id: number, lines: PartialRefundLineDTO[], reason: string, userId?: number) { return this.instance.partialRefund(id, lines, reason, userId) },
   getDailySales: function(date?: string) { return this.instance.getDailySales(date) },
-  getTopProducts: function(limit?: number) { return this.instance.getTopProducts(limit) }
+  getTopProducts: function(limit?: number) { return this.instance.getTopProducts(limit) },
+  count: function(filters?: any) { return this.instance.count(filters) },
+  clearStatementCache: function() { return this.instance.clearStatementCache() }
 }

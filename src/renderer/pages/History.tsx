@@ -61,15 +61,10 @@ export const History: React.FC = () => {
   const filteredTickets = tickets
   const totalSales = filteredTickets.reduce((sum, ticket) => {
     if (ticket.status === 'completed' || ticket.status === 'partially_refunded') {
-      console.log(`[TOTAL SALES] Ticket #${ticket.ticketNumber} - Status: ${ticket.status} - Amount: ${ticket.totalAmount} DT`)
       return sum + ticket.totalAmount
-    }
-    if (ticket.status === 'refunded' || ticket.status === 'cancelled') {
-      console.log(`[TOTAL SALES] Ticket #${ticket.ticketNumber} - Status: ${ticket.status} - EXCLUDED (amount was ${ticket.totalAmount} DT)`)
     }
     return sum
   }, 0)
-  console.log(`[TOTAL SALES] FINAL TOTAL: ${totalSales} DT`)
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleString('fr-FR', {
