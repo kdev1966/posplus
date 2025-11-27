@@ -263,16 +263,19 @@ class PrinterService {
     }
 
     // Compact ticket optimized for 80mm thermal printer (48 chars width)
+    // Print area ~72mm (80mm - margins), using percentage-based columns
     return `<!DOCTYPE html>
 <html dir="${isArabic ? 'rtl' : 'ltr'}">
 <head>
 <meta charset="UTF-8">
 <style>
-@page { size: 80mm auto; margin: 0; }
+@page { size: 72mm auto; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body {
-  width: 100%;
+  width: 72mm;
+  max-width: 72mm;
   margin: 0;
+  overflow: hidden;
 }
 body {
   font-family: ${isArabic ? "'Arial', 'Tahoma', sans-serif" : "'Courier New', monospace"};
@@ -293,11 +296,11 @@ body {
 .phone { font-size: 11px; font-weight: bold; text-align: center; }
 .big { font-size: 16px; font-weight: bold; }
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-td { padding: 1px 0; vertical-align: top; }
-.name { max-width: 38mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.qty { width: 8mm; text-align: center; }
-.price { width: 18mm; text-align: ${isArabic ? 'left' : 'right'}; }
-.info td { font-size: 11px; }
+td { padding: 1px 0; vertical-align: top; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name { width: 55%; }
+.qty { width: 15%; text-align: center; }
+.price { width: 30%; text-align: ${isArabic ? 'left' : 'right'}; }
+.info td { font-size: 11px; width: 50%; }
 .total-box { background: #000; color: #fff; padding: 4px; margin: 4px 0; font-weight: bold; text-align: center; }
 .small { font-size: 10px; color: #666; }
 .footer { font-size: 10px; font-weight: bold; text-align: center; }
@@ -357,11 +360,16 @@ ${ticketMessage || labels.thanks}
 <style>
 @page { size: 72mm auto; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 72mm;
+  max-width: 72mm;
+  margin: 0;
+  overflow: hidden;
+}
 body {
   font-family: 'Courier New', monospace;
   font-size: 12px;
   line-height: 1.2;
-  width: 72mm;
   padding: 2mm;
   color: #000;
 }
@@ -372,11 +380,11 @@ body {
 .dbl { border-top: 1px solid #000; margin: 3px 0; }
 .store { font-size: 14px; font-weight: bold; }
 .big { font-size: 16px; font-weight: bold; }
-table { width: 100%; border-collapse: collapse; }
-td { padding: 1px 0; vertical-align: top; }
-.name { max-width: 38mm; }
-.qty { width: 8mm; text-align: center; }
-.price { width: 18mm; text-align: right; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+td { padding: 1px 0; vertical-align: top; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name { width: 55%; }
+.qty { width: 15%; text-align: center; }
+.price { width: 30%; text-align: right; }
 .total-box { background: #000; color: #fff; padding: 4px; margin: 4px 0; }
 .small { font-size: 10px; color: #666; }
 .test-badge { font-size: 11px; font-weight: bold; border: 1px solid #000; padding: 2px 6px; display: inline-block; margin: 4px 0; }
