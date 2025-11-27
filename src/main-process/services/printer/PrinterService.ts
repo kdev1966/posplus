@@ -179,10 +179,16 @@ class PrinterService {
     const ticketMessage = isArabic ? storeSettings.ticketMessageAr : storeSettings.ticketMessageFr
 
     // Compact item lines - single row per item
+    // For RTL (Arabic), reverse column order: Price | Qty | Name
     const lines = ticket.lines
       .map(
-        (line: any) =>
-          `<tr>
+        (line: any) => isArabic
+          ? `<tr>
+            <td class="price">${line.totalAmount.toFixed(3)}</td>
+            <td class="qty">${line.quantity}</td>
+            <td class="name"><span dir="auto">${line.productName}</span></td>
+          </tr>`
+          : `<tr>
             <td class="name">${line.productName}</td>
             <td class="qty">${line.quantity}</td>
             <td class="price">${line.totalAmount.toFixed(3)}</td>
@@ -295,10 +301,10 @@ body {
 .store { font-size: 14px; font-weight: bold; text-align: center; }
 .phone { font-size: 11px; font-weight: bold; text-align: center; }
 .big { font-size: 16px; font-weight: bold; }
-table { width: 100%; border-collapse: collapse; table-layout: fixed; direction: ${isArabic ? 'rtl' : 'ltr'}; }
-td { padding: 1px 0; vertical-align: top; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; word-wrap: break-word; }
-.name { width: ${isArabic ? '50%' : '55%'}; text-align: ${isArabic ? 'right' : 'left'}; }
-.qty { width: ${isArabic ? '20%' : '15%'}; text-align: center; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+td { padding: 1px 0; vertical-align: top; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name { width: 50%; text-align: ${isArabic ? 'right' : 'left'}; direction: ltr; }
+.qty { width: 20%; text-align: center; }
 .price { width: 30%; text-align: ${isArabic ? 'left' : 'right'}; }
 .info td { font-size: 11px; width: 50%; }
 .total-box { background: #000; color: #fff; padding: 4px; margin: 4px 0; font-weight: bold; text-align: center; }
@@ -318,7 +324,9 @@ ${storeSettings.storePhone ? `<div class="phone">${storeSettings.storePhone}</di
 </table>
 <div class="line"></div>
 <table>
-<tr class="bold"><td>${labels.article}</td><td class="qty">${labels.qty}</td><td class="price">${labels.price}</td></tr>
+${isArabic
+  ? `<tr class="bold"><td class="price">${labels.price}</td><td class="qty">${labels.qty}</td><td class="name">${labels.article}</td></tr>`
+  : `<tr class="bold"><td class="name">${labels.article}</td><td class="qty">${labels.qty}</td><td class="price">${labels.price}</td></tr>`}
 </table>
 <div class="line"></div>
 <table>${lines}</table>
