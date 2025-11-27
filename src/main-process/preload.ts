@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC_CHANNELS, StockLog, CreateProductDTO, UpdateProductDTO, CreateTicketDTO, UpdateStoreSettingsDTO } from '@shared/types'
+import { IPC_CHANNELS, StockLog, CreateProductDTO, UpdateProductDTO, CreateTicketDTO, UpdateStoreSettingsDTO, LICENSE_IPC_CHANNELS } from '@shared/types'
 import type { IPCApi } from '@shared/types'
 
 // Expose protected methods via contextBridge
@@ -123,6 +123,15 @@ const api: IPCApi = {
   getStoreSettings: () => ipcRenderer.invoke(IPC_CHANNELS.STORE_SETTINGS_GET),
   updateStoreSettings: (data: UpdateStoreSettingsDTO) =>
     ipcRenderer.invoke(IPC_CHANNELS.STORE_SETTINGS_UPDATE, data),
+
+  // License
+  getHardwareId: () => ipcRenderer.invoke(LICENSE_IPC_CHANNELS.LICENSE_GET_HARDWARE_ID),
+  getHardwareInfo: () => ipcRenderer.invoke(LICENSE_IPC_CHANNELS.LICENSE_GET_HARDWARE_INFO),
+  validateLicense: () => ipcRenderer.invoke(LICENSE_IPC_CHANNELS.LICENSE_VALIDATE),
+  getLicenseInfo: () => ipcRenderer.invoke(LICENSE_IPC_CHANNELS.LICENSE_GET_INFO),
+  getLicenseStatus: () => ipcRenderer.invoke(LICENSE_IPC_CHANNELS.LICENSE_GET_STATUS),
+  importLicense: (filePath?: string) => ipcRenderer.invoke(LICENSE_IPC_CHANNELS.LICENSE_IMPORT, filePath),
+  removeLicense: () => ipcRenderer.invoke(LICENSE_IPC_CHANNELS.LICENSE_REMOVE),
 }
 
 // Expose API to window

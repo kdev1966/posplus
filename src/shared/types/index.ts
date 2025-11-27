@@ -2,6 +2,9 @@
 // SHARED TYPES - IPC Contracts
 // ============================================================================
 
+// Re-export license types
+export * from './license'
+
 // ---------- Base Types ----------
 export interface User {
   id: number
@@ -458,6 +461,15 @@ export interface IPCApi {
   // Store Settings
   getStoreSettings: () => Promise<StoreSettings>
   updateStoreSettings: (data: UpdateStoreSettingsDTO) => Promise<StoreSettings>
+
+  // License
+  getHardwareId: () => Promise<string>
+  getHardwareInfo: () => Promise<import('./license').HardwareInfo>
+  validateLicense: () => Promise<import('./license').LicenseValidationResult>
+  getLicenseInfo: () => Promise<import('./license').LicenseInfo>
+  getLicenseStatus: () => Promise<import('./license').LicenseValidationResult>
+  importLicense: (filePath?: string) => Promise<import('./license').LicenseValidationResult>
+  removeLicense: () => Promise<boolean>
 }
 
 // Expose API to window object

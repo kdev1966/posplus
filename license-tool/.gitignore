@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# RSA Keys - NEVER commit!
+keys/*.pem
+keys/keyinfo.json
+
+# License data
+data/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated licenses
+*.lic
+blacklist.json

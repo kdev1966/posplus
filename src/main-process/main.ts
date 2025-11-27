@@ -292,6 +292,7 @@ app.whenReady().then(() => {
   require('./handlers/appHandlers')
   require('./handlers/p2pHandlers')
   require('./handlers/storeSettingsHandlers')
+  require('./handlers/licenseHandlers')
   log.info('IPC handlers registered')
 
   // Setup IPC for customer display

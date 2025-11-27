@@ -1,0 +1,41 @@
+{
+  "name": "posplus-license",
+  "version": "1.0.0",
+  "description": "POSPlus License Generation and Management Tool",
+  "main": "dist/index.js",
+  "bin": {
+    "posplus-license": "./bin/posplus-license.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "generate-keys": "ts-node src/scripts/generateKeys.ts",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "posplus",
+    "license",
+    "cli",
+    "rsa"
+  ],
+  "author": "POS+ Team",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "inquirer": "^8.2.6",
+    "ora": "^5.4.1",
+    "table": "^6.8.1"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^8.2.10",
+    "@types/node": "^20.10.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
