@@ -869,8 +869,20 @@ td { padding: 1px 0; vertical-align: top; overflow: hidden; text-overflow: ellip
       })
     }
 
-    const expectedCash = session.openingCash + zReport.totalCash
-    const difference = (session.closingCash || 0) - expectedCash
+    // Ensure all values have defaults to prevent undefined errors
+    const totalCash = zReport.totalCash || 0
+    const totalCard = zReport.totalCard || 0
+    const totalTransfer = zReport.totalTransfer || 0
+    const totalCheck = zReport.totalCheck || 0
+    const totalOther = zReport.totalOther || 0
+    const totalSales = zReport.totalSales || 0
+    const totalDiscount = zReport.totalDiscount || 0
+    const ticketCount = zReport.ticketCount || 0
+    const openingCash = session.openingCash || 0
+    const closingCash = session.closingCash || 0
+
+    const expectedCash = openingCash + totalCash
+    const difference = closingCash - expectedCash
 
     return `<!DOCTYPE html>
 <html>
@@ -923,41 +935,41 @@ ${storeSettings.storePhone ? `<div>${storeSettings.storePhone}</div>` : ''}
 <tr><td>${labels.sessionId}</td><td class="right">${session.id}</td></tr>
 <tr><td>${labels.openedAt}</td><td class="right">${formatDate(session.startedAt)}</td></tr>
 <tr><td>${labels.closedAt}</td><td class="right">${session.endedAt ? formatDate(session.endedAt) : '-'}</td></tr>
-<tr><td>${labels.openingCash}</td><td class="right">${session.openingCash.toFixed(3)} DT</td></tr>
-<tr><td>${labels.closingCash}</td><td class="right">${(session.closingCash || 0).toFixed(3)} DT</td></tr>
+<tr><td>${labels.openingCash}</td><td class="right">${openingCash.toFixed(3)} DT</td></tr>
+<tr><td>${labels.closingCash}</td><td class="right">${closingCash.toFixed(3)} DT</td></tr>
 </table>
 </div>
 
 <div class="section">
 <div class="section-title">${labels.salesSummary}</div>
 <table>
-<tr><td>${labels.totalTickets}</td><td class="right">${zReport.ticketCount}</td></tr>
-<tr><td>${labels.totalSales}</td><td class="right bold">${zReport.totalSales.toFixed(3)} DT</td></tr>
-<tr><td>${labels.totalDiscount}</td><td class="right">-${zReport.totalDiscount.toFixed(3)} DT</td></tr>
+<tr><td>${labels.totalTickets}</td><td class="right">${ticketCount}</td></tr>
+<tr><td>${labels.totalSales}</td><td class="right bold">${totalSales.toFixed(3)} DT</td></tr>
+<tr><td>${labels.totalDiscount}</td><td class="right">-${totalDiscount.toFixed(3)} DT</td></tr>
 </table>
 </div>
 
 <div class="section">
 <div class="section-title">${labels.paymentMethods}</div>
 <table>
-${zReport.totalCash > 0 ? `<tr><td>${labels.cash}</td><td class="right">${zReport.totalCash.toFixed(3)} DT</td></tr>` : ''}
-${zReport.totalCard > 0 ? `<tr><td>${labels.card}</td><td class="right">${zReport.totalCard.toFixed(3)} DT</td></tr>` : ''}
-${(zReport.totalTransfer || 0) > 0 ? `<tr><td>${labels.transfer}</td><td class="right">${(zReport.totalTransfer || 0).toFixed(3)} DT</td></tr>` : ''}
-${(zReport.totalCheck || 0) > 0 ? `<tr><td>${labels.check}</td><td class="right">${(zReport.totalCheck || 0).toFixed(3)} DT</td></tr>` : ''}
-${zReport.totalOther > 0 ? `<tr><td>${labels.other}</td><td class="right">${zReport.totalOther.toFixed(3)} DT</td></tr>` : ''}
+${totalCash > 0 ? `<tr><td>${labels.cash}</td><td class="right">${totalCash.toFixed(3)} DT</td></tr>` : ''}
+${totalCard > 0 ? `<tr><td>${labels.card}</td><td class="right">${totalCard.toFixed(3)} DT</td></tr>` : ''}
+${totalTransfer > 0 ? `<tr><td>${labels.transfer}</td><td class="right">${totalTransfer.toFixed(3)} DT</td></tr>` : ''}
+${totalCheck > 0 ? `<tr><td>${labels.check}</td><td class="right">${totalCheck.toFixed(3)} DT</td></tr>` : ''}
+${totalOther > 0 ? `<tr><td>${labels.other}</td><td class="right">${totalOther.toFixed(3)} DT</td></tr>` : ''}
 </table>
 </div>
 
 <div class="section">
 <div class="section-title">${labels.cashReconciliation}</div>
 <table>
-<tr><td>${labels.openingCash}</td><td class="right">${session.openingCash.toFixed(3)} DT</td></tr>
-<tr><td>+ ${labels.cash}</td><td class="right">${zReport.totalCash.toFixed(3)} DT</td></tr>
+<tr><td>${labels.openingCash}</td><td class="right">${openingCash.toFixed(3)} DT</td></tr>
+<tr><td>+ ${labels.cash}</td><td class="right">${totalCash.toFixed(3)} DT</td></tr>
 <tr class="total-row"><td>= ${labels.expectedCash}</td><td class="right">${expectedCash.toFixed(3)} DT</td></tr>
 </table>
 <div class="line"></div>
 <table>
-<tr><td>${labels.actualCash}</td><td class="right">${(session.closingCash || 0).toFixed(3)} DT</td></tr>
+<tr><td>${labels.actualCash}</td><td class="right">${closingCash.toFixed(3)} DT</td></tr>
 <tr class="total-row"><td>${labels.difference}</td><td class="right ${difference >= 0 ? 'positive' : 'negative'}">${difference >= 0 ? '+' : ''}${difference.toFixed(3)} DT</td></tr>
 </table>
 </div>
