@@ -1,97 +1,104 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC_CHANNELS } from '@shared/types'
+import { IPC_CHANNELS, StockLog, CreateProductDTO, UpdateProductDTO, CreateTicketDTO, UpdateStoreSettingsDTO } from '@shared/types'
 import type { IPCApi } from '@shared/types'
 
 // Expose protected methods via contextBridge
 const api: IPCApi = {
   // Auth
-  login: (credentials) => ipcRenderer.invoke(IPC_CHANNELS.AUTH_LOGIN, credentials),
+  login: (credentials: { username: string; password: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.AUTH_LOGIN, credentials),
   logout: () => ipcRenderer.invoke(IPC_CHANNELS.AUTH_LOGOUT),
   checkAuth: () => ipcRenderer.invoke(IPC_CHANNELS.AUTH_CHECK),
-  changePassword: (oldPassword, newPassword) =>
+  changePassword: (oldPassword: string, newPassword: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.AUTH_CHANGE_PASSWORD, oldPassword, newPassword),
 
   // Users
   getAllUsers: () => ipcRenderer.invoke(IPC_CHANNELS.USER_GET_ALL),
-  getUserById: (id) => ipcRenderer.invoke(IPC_CHANNELS.USER_GET_BY_ID, id),
-  createUser: (data) => ipcRenderer.invoke(IPC_CHANNELS.USER_CREATE, data),
-  updateUser: (data) => ipcRenderer.invoke(IPC_CHANNELS.USER_UPDATE, data),
-  deleteUser: (id) => ipcRenderer.invoke(IPC_CHANNELS.USER_DELETE, id),
+  getUserById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.USER_GET_BY_ID, id),
+  createUser: (data: { username: string; password: string; roleId: number }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.USER_CREATE, data),
+  updateUser: (data: { id: number; username?: string; password?: string; roleId?: number }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.USER_UPDATE, data),
+  deleteUser: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.USER_DELETE, id),
 
   // Products
   getAllProducts: () => ipcRenderer.invoke(IPC_CHANNELS.PRODUCT_GET_ALL),
-  getProductById: (id) => ipcRenderer.invoke(IPC_CHANNELS.PRODUCT_GET_BY_ID, id),
-  getProductByBarcode: (barcode) =>
+  getProductById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.PRODUCT_GET_BY_ID, id),
+  getProductByBarcode: (barcode: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.PRODUCT_GET_BY_BARCODE, barcode),
-  searchProducts: (query) => ipcRenderer.invoke(IPC_CHANNELS.PRODUCT_SEARCH, query),
-  createProduct: (data) => ipcRenderer.invoke(IPC_CHANNELS.PRODUCT_CREATE, data),
-  updateProduct: (data) => ipcRenderer.invoke(IPC_CHANNELS.PRODUCT_UPDATE, data),
-  deleteProduct: (id) => ipcRenderer.invoke(IPC_CHANNELS.PRODUCT_DELETE, id),
+  searchProducts: (query: string) => ipcRenderer.invoke(IPC_CHANNELS.PRODUCT_SEARCH, query),
+  createProduct: (data: CreateProductDTO) => ipcRenderer.invoke(IPC_CHANNELS.PRODUCT_CREATE, data),
+  updateProduct: (data: UpdateProductDTO) => ipcRenderer.invoke(IPC_CHANNELS.PRODUCT_UPDATE, data),
+  deleteProduct: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.PRODUCT_DELETE, id),
 
   // Categories
   getAllCategories: () => ipcRenderer.invoke(IPC_CHANNELS.CATEGORY_GET_ALL),
-  getCategoryById: (id) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORY_GET_BY_ID, id),
-  createCategory: (data) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORY_CREATE, data),
-  updateCategory: (data) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORY_UPDATE, data),
-  deleteCategory: (id) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORY_DELETE, id),
+  getCategoryById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORY_GET_BY_ID, id),
+  createCategory: (data: { name: string; description?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CATEGORY_CREATE, data),
+  updateCategory: (data: { id: number; name?: string; description?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CATEGORY_UPDATE, data),
+  deleteCategory: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORY_DELETE, id),
 
   // Tickets
-  createTicket: (data) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_CREATE, data),
-  getTicketById: (id) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_GET_BY_ID, id),
-  getAllTickets: (filters) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_GET_ALL, filters),
-  getTicketsBySession: (sessionId) =>
+  createTicket: (data: CreateTicketDTO) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_CREATE, data),
+  getTicketById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_GET_BY_ID, id),
+  getAllTickets: (filters?: { startDate?: string; endDate?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.TICKET_GET_ALL, filters),
+  getTicketsBySession: (sessionId: number) =>
     ipcRenderer.invoke(IPC_CHANNELS.TICKET_GET_BY_SESSION, sessionId),
-  updateTicket: (id, data) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_UPDATE, id, data),
-  cancelTicket: (id, reason) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_CANCEL, id, reason),
-  refundTicket: (id, reason) => ipcRenderer.invoke(IPC_CHANNELS.TICKET_REFUND, id, reason),
-  partialRefundTicket: (id, lines, reason) =>
+  updateTicket: (id: number, data: Record<string, unknown>) =>
+    ipcRenderer.invoke(IPC_CHANNELS.TICKET_UPDATE, id, data),
+  cancelTicket: (id: number, reason: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.TICKET_CANCEL, id, reason),
+  refundTicket: (id: number, reason: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.TICKET_REFUND, id, reason),
+  partialRefundTicket: (id: number, lines: Array<{ lineId: number; quantity: number }>, reason: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.TICKET_PARTIAL_REFUND, id, lines, reason),
 
   // Cash Session
-  openSession: (userId, openingCash) =>
+  openSession: (userId: number, openingCash: number) =>
     ipcRenderer.invoke(IPC_CHANNELS.SESSION_OPEN, userId, openingCash),
-  closeSession: (sessionId, closingCash) =>
+  closeSession: (sessionId: number, closingCash: number) =>
     ipcRenderer.invoke(IPC_CHANNELS.SESSION_CLOSE, sessionId, closingCash),
   getCurrentSession: () => ipcRenderer.invoke(IPC_CHANNELS.SESSION_GET_CURRENT),
-  getSessionById: (id) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_GET_BY_ID, id),
-  getSessionStats: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_GET_STATS, sessionId),
+  getSessionById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_GET_BY_ID, id),
+  getSessionStats: (sessionId: number) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_GET_STATS, sessionId),
 
   // Reports
-  generateZReport: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.REPORT_Z, sessionId),
-  getSalesReport: (startDate, endDate) =>
+  generateZReport: (sessionId: number) => ipcRenderer.invoke(IPC_CHANNELS.REPORT_Z, sessionId),
+  getSalesReport: (startDate: string, endDate: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.REPORT_SALES, startDate, endDate),
   getStockReport: () => ipcRenderer.invoke(IPC_CHANNELS.REPORT_STOCK),
 
   // Stock
-  adjustStock: (productId, quantity, type, notes) =>
+  adjustStock: (productId: number, quantity: number, type: StockLog['type'], notes?: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.STOCK_ADJUST, productId, quantity, type, notes),
-  getStockLogs: (productId) => ipcRenderer.invoke(IPC_CHANNELS.STOCK_GET_LOGS, productId),
+  getStockLogs: (productId?: number) => ipcRenderer.invoke(IPC_CHANNELS.STOCK_GET_LOGS, productId),
 
   // Printer
-  printTicket: (ticketId, language) => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_PRINT_TICKET, ticketId, language),
+  printTicket: (ticketId: number, language?: 'fr' | 'ar') =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRINTER_PRINT_TICKET, ticketId, language),
   printTestTicket: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_PRINT_TEST),
   getTestTicketPreview: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_TEST_PREVIEW),
-  getTicketPreview: (ticketId, language) => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_TICKET_PREVIEW, ticketId, language),
+  getTicketPreview: (ticketId: number, language?: 'fr' | 'ar') =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_TICKET_PREVIEW, ticketId, language),
   openDrawer: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_OPEN_DRAWER),
   getPrinterStatus: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_STATUS),
   getPrinterConfig: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_CONFIG),
-  setPrinterConfig: (cfg) => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_SET_CONFIG, cfg),
+  setPrinterConfig: (cfg: { printerName: string; port: string; type?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRINTER_SET_CONFIG, cfg),
   reconnectPrinter: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_RECONNECT),
 
   // Sync
   startSync: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_START),
   getSyncStatus: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_GET_STATUS),
-  exportData: (startDate, endDate) =>
+  exportData: (startDate: string, endDate: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SYNC_EXPORT, startDate, endDate),
 
   // System
   getSystemInfo: () => ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_GET_INFO),
   getSystemLogs: () => ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_GET_LOGS),
-
-  // Maintenance
-  repairTicketPayments: (ticketId?: number) =>
-    ipcRenderer.invoke(IPC_CHANNELS.MAINTENANCE_REPAIR_PAYMENTS, ticketId),
-  checkTicketPayments: () => ipcRenderer.invoke(IPC_CHANNELS.MAINTENANCE_CHECK_PAYMENTS),
 
   // Backup & Restore
   createBackup: () => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_CREATE),
@@ -114,7 +121,8 @@ const api: IPCApi = {
 
   // Store Settings
   getStoreSettings: () => ipcRenderer.invoke(IPC_CHANNELS.STORE_SETTINGS_GET),
-  updateStoreSettings: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.STORE_SETTINGS_UPDATE, data),
+  updateStoreSettings: (data: UpdateStoreSettingsDTO) =>
+    ipcRenderer.invoke(IPC_CHANNELS.STORE_SETTINGS_UPDATE, data),
 }
 
 // Expose API to window

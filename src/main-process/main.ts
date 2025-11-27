@@ -287,7 +287,6 @@ app.whenReady().then(() => {
   require('./handlers/printerHandlers')
   require('./handlers/stockHandlers')
   require('./handlers/syncHandlers')
-  require('./handlers/maintenanceHandlers')
   require('./handlers/backupHandlers')
   require('./handlers/excelHandlers')
   require('./handlers/appHandlers')

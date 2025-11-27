@@ -622,8 +622,8 @@ export const createMockApi = (): IPCApi => ({
   getStockLogs: async () => [],
 
   // Printer handlers (mock)
-  printTicket: async (_ticketId: number, _language?: 'fr' | 'ar') => false,
-  printTestTicket: async () => false,
+  printTicket: async (_ticketId: number, _language?: 'fr' | 'ar') => ({ success: false, error: 'Mock API' }),
+  printTestTicket: async () => ({ success: false, error: 'Mock API' }),
   getTestTicketPreview: async () => '<html><body>Mock Preview</body></html>',
   getTicketPreview: async (_ticketId: number, _language?: 'fr' | 'ar') => '<html><body>Mock Ticket Preview</body></html>',
   openDrawer: async () => false,
@@ -640,16 +640,6 @@ export const createMockApi = (): IPCApi => ({
   // System handlers (mock)
   getSystemInfo: async () => ({}),
   getSystemLogs: async () => [],
-
-  // Maintenance handlers (mock)
-  repairTicketPayments: async (ticketId?: number) => {
-    console.log('[Mock API] Repairing ticket payments:', ticketId || 'all tickets')
-    return { fixed: 0, errors: [] }
-  },
-  checkTicketPayments: async () => {
-    console.log('[Mock API] Checking ticket payments')
-    return []
-  },
 
   // Backup & Restore handlers (mock)
   createBackup: async () => {

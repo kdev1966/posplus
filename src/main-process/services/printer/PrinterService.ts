@@ -266,12 +266,11 @@ class PrinterService {
 <head>
 <meta charset="UTF-8">
 <style>
-@page { size: 72mm auto; margin: 0; }
+@page { size: 80mm auto; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body {
-  width: 72mm;
-  max-width: 72mm;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
 }
 body {
   font-family: ${isArabic ? "'Arial', 'Tahoma', sans-serif" : "'Courier New', monospace"};

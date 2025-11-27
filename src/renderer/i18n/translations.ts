@@ -297,22 +297,6 @@ export const translations = {
     printerNotConnected: 'Imprimante non connectée',
     printerCheckFailed: 'Échec de vérification de l\'imprimante',
 
-    // Maintenance
-    maintenance: 'Maintenance',
-    maintenanceAdminOnly: 'Administrateur uniquement',
-    maintenanceWarning: 'Cette section modifie des données financières critiques',
-    repairTicketPayments: 'Réparer les paiements des tickets',
-    repairTicketPaymentsDescription: 'Corrige automatiquement les montants de paiement qui ne correspondent pas aux totaux des tickets (par exemple après un retour de produit ou une modification de quantité).',
-    repairPaymentsButton: 'Réparer les paiements',
-    repairingPayments: 'Réparation en cours...',
-    repairSuccess: 'Réparation terminée avec succès !',
-    ticketsRepaired: 'ticket(s) corrigé(s)',
-    paymentsRecalculated: 'Les montants de paiement ont été recalculés pour correspondre aux totaux des tickets.',
-    repairError: 'Erreur lors de la réparation',
-    repairConfirm: 'Voulez-vous réparer les paiements des tickets ? Cette opération corrigera automatiquement les montants de paiement qui ne correspondent pas aux totaux des tickets.',
-    noIssuesFound: 'Aucun problème détecté.',
-    allPaymentsMatch: 'Tous les paiements correspondent aux totaux des tickets.',
-
     // Backup & Restore
     backupRestore: 'Sauvegarde et restauration',
     backupRestoreAdminOnly: 'Administrateur uniquement',
@@ -708,22 +692,6 @@ export const translations = {
     printerConnected: 'الطابعة متصلة',
     printerNotConnected: 'الطابعة غير متصلة',
     printerCheckFailed: 'فشل التحقق من الطابعة',
-
-    // Maintenance
-    maintenance: 'الصيانة',
-    maintenanceAdminOnly: 'المدير فقط',
-    maintenanceWarning: 'هذا القسم يعدل البيانات المالية الحساسة',
-    repairTicketPayments: 'إصلاح مدفوعات التذاكر',
-    repairTicketPaymentsDescription: 'تصحيح تلقائي لمبالغ الدفع التي لا تتطابق مع إجماليات التذاكر (على سبيل المثال بعد إرجاع منتج أو تعديل الكمية).',
-    repairPaymentsButton: 'إصلاح المدفوعات',
-    repairingPayments: 'جاري الإصلاح...',
-    repairSuccess: 'تم الإصلاح بنجاح!',
-    ticketsRepaired: 'تذكرة تم إصلاحها',
-    paymentsRecalculated: 'تم إعادة حساب مبالغ الدفع لتتطابق مع إجماليات التذاكر.',
-    repairError: 'خطأ في الإصلاح',
-    repairConfirm: 'هل تريد إصلاح مدفوعات التذاكر؟ ستقوم هذه العملية بتصحيح مبالغ الدفع التي لا تتطابق مع إجماليات التذاكر تلقائياً.',
-    noIssuesFound: 'لم يتم اكتشاف أي مشكلة.',
-    allPaymentsMatch: 'جميع المدفوعات تتطابق مع إجماليات التذاكر.',
 
     // Backup & Restore
     backupRestore: 'النسخ الاحتياطي والاستعادة',

@@ -310,10 +310,6 @@ export const IPC_CHANNELS = {
   SYSTEM_GET_INFO: 'system:get-info',
   SYSTEM_GET_LOGS: 'system:get-logs',
 
-  // Maintenance
-  MAINTENANCE_REPAIR_PAYMENTS: 'maintenance:repair-payments',
-  MAINTENANCE_CHECK_PAYMENTS: 'maintenance:check-payments',
-
   // Backup & Restore
   BACKUP_CREATE: 'backup:create',
   BACKUP_RESTORE: 'backup:restore',
@@ -400,8 +396,8 @@ export interface IPCApi {
   getStockLogs: (productId?: number) => Promise<StockLog[]>
 
   // Printer
-  printTicket: (ticketId: number, language?: 'fr' | 'ar') => Promise<boolean>
-  printTestTicket: () => Promise<boolean>
+  printTicket: (ticketId: number, language?: 'fr' | 'ar') => Promise<{ success: boolean; error?: string | null }>
+  printTestTicket: () => Promise<{ success: boolean; error?: string | null }>
   getTestTicketPreview: () => Promise<string>
   getTicketPreview: (ticketId: number, language?: 'fr' | 'ar') => Promise<string>
   openDrawer: () => Promise<boolean>
@@ -418,16 +414,6 @@ export interface IPCApi {
   // System
   getSystemInfo: () => Promise<any>
   getSystemLogs: () => Promise<string[]>
-
-  // Maintenance
-  repairTicketPayments: (ticketId?: number) => Promise<{ fixed: number; errors: string[] }>
-  checkTicketPayments: () => Promise<Array<{
-    ticketId: number
-    ticketNumber: string
-    totalAmount: number
-    totalPaid: number
-    difference: number
-  }>>
 
   // Backup & Restore
   createBackup: () => Promise<{ success: boolean; filePath?: string; error?: string }>

@@ -22,7 +22,6 @@ export const Settings: React.FC = () => {
 
   const [openingCash, setOpeningCash] = useState('0.000')
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false)
-  const [isRepairing, setIsRepairing] = useState(false)
   const [isBackingUp, setIsBackingUp] = useState(false)
   const [isRestoring, setIsRestoring] = useState(false)
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false)
@@ -212,32 +211,7 @@ export const Settings: React.FC = () => {
     }
   }
 
-  const handleRepairPayments = async () => {
-    if (!confirm(t('repairConfirm'))) {
-      return
-    }
-
-    setIsRepairing(true)
-    try {
-      const result = await window.api.repairTicketPayments()
-
-      if (result.errors.length > 0) {
-        toast.error(`${t('repairError')}: ${result.errors.join(', ')}`)
-      } else if (result.fixed > 0) {
-        toast.success(`${t('repairSuccess')} - ${result.fixed} ${t('ticketsRepaired')}`)
-
-        // Refresh current session to update stats
-        await fetchCurrentSession()
-      } else {
-        toast.success(`${t('noIssuesFound')} - ${t('allPaymentsMatch')}`)
-      }
-    } catch (error: any) {
-      toast.error(`${t('error')}: ${error?.message || t('repairError')}`)
-      console.error('Error repairing payments:', error)
-    }
-    setIsRepairing(false)
-  }
-
+  
   const handleCreateBackup = async () => {
     if (!confirm(t('backupConfirm'))) {
       return
@@ -681,34 +655,6 @@ export const Settings: React.FC = () => {
             </div>
           </div>
         </Card>
-
-        {/* Maintenance Settings - ADMINISTRATOR ONLY */}
-        {user?.roleId === 1 && (
-          <Card>
-            <h2 className="text-xl font-bold text-white mb-4">🔧 {t('maintenance')}</h2>
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4">
-              <p className="text-red-400 text-sm flex items-center gap-2">
-                <span>⚠️</span>
-                <span><strong>{t('maintenanceAdminOnly')}</strong> - {t('maintenanceWarning')}</span>
-              </p>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-white font-semibold mb-2">{t('repairTicketPayments')}</h3>
-                <p className="text-gray-400 text-sm mb-3">
-                  {t('repairTicketPaymentsDescription')}
-                </p>
-                <Button
-                  variant="primary"
-                  onClick={handleRepairPayments}
-                  disabled={isRepairing}
-                >
-                  {isRepairing ? `⏳ ${t('repairingPayments')}` : `🔧 ${t('repairPaymentsButton')}`}
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
 
         {/* Backup & Restore - ADMINISTRATOR ONLY */}
         {user?.roleId === 1 && (

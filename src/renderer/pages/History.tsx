@@ -114,10 +114,8 @@ export const History: React.FC = () => {
   const handlePrintTicket = async (ticketId: number) => {
     try {
       const result = await window.api.printTicket(ticketId, currentLanguage)
-      // Ne pas afficher d'alert en cas de succès pour ne pas alourdir l'expérience utilisateur
-      // Afficher uniquement en cas d'échec
-      if (!result) {
-        toast.error(t('ticketPrintError') + ' - ' + t('checkPrinterConnection'), 6000)
+      if (!result?.success) {
+        toast.error(t('ticketPrintError') + ' - ' + (result?.error || t('checkPrinterConnection')), 6000)
       }
     } catch (error: any) {
       console.error('Failed to print ticket:', error)
