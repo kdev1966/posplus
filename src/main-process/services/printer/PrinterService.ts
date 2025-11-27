@@ -275,12 +275,12 @@ html, body {
   width: 72mm;
   max-width: 72mm;
   margin: 0;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 body {
-  font-family: ${isArabic ? "'Arial', 'Tahoma', sans-serif" : "'Courier New', monospace"};
-  font-size: 12px;
-  line-height: 1.2;
+  font-family: ${isArabic ? "'Arial', 'Tahoma', 'Simplified Arabic', sans-serif" : "'Courier New', monospace"};
+  font-size: ${isArabic ? '11px' : '12px'};
+  line-height: 1.3;
   padding: 2mm;
   color: #000;
   direction: ${isArabic ? 'rtl' : 'ltr'};
@@ -295,10 +295,10 @@ body {
 .store { font-size: 14px; font-weight: bold; text-align: center; }
 .phone { font-size: 11px; font-weight: bold; text-align: center; }
 .big { font-size: 16px; font-weight: bold; }
-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-td { padding: 1px 0; vertical-align: top; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.name { width: 55%; }
-.qty { width: 15%; text-align: center; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; direction: ${isArabic ? 'rtl' : 'ltr'}; }
+td { padding: 1px 0; vertical-align: top; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; word-wrap: break-word; }
+.name { width: ${isArabic ? '50%' : '55%'}; text-align: ${isArabic ? 'right' : 'left'}; }
+.qty { width: ${isArabic ? '20%' : '15%'}; text-align: center; }
 .price { width: 30%; text-align: ${isArabic ? 'left' : 'right'}; }
 .info td { font-size: 11px; width: 50%; }
 .total-box { background: #000; color: #fff; padding: 4px; margin: 4px 0; font-weight: bold; text-align: center; }
