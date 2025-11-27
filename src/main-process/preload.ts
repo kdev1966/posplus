@@ -83,6 +83,10 @@ const api: IPCApi = {
   getTestTicketPreview: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_TEST_PREVIEW),
   getTicketPreview: (ticketId: number, language?: 'fr' | 'ar') =>
     ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_TICKET_PREVIEW, ticketId, language),
+  getZReportPreview: (sessionId: number, language?: 'fr' | 'ar') =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_ZREPORT_PREVIEW, sessionId, language),
+  printZReport: (sessionId: number, language?: 'fr' | 'ar') =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRINTER_PRINT_ZREPORT, sessionId, language),
   openDrawer: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_OPEN_DRAWER),
   getPrinterStatus: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_STATUS),
   getPrinterConfig: () => ipcRenderer.invoke(IPC_CHANNELS.PRINTER_GET_CONFIG),

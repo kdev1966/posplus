@@ -52,10 +52,11 @@ export class ZReportRepository {
   generate(sessionId: number, userId: number): ZReport {
     const transaction = this.db.transaction(() => {
       try {
-        // Check if report already exists
+        // Check if report already exists - return it instead of throwing error
         const existing = this.findBySession(sessionId)
         if (existing) {
-          throw new Error('Z Report already exists for this session')
+          log.info(`Z Report already exists for session ${sessionId}, returning existing report`)
+          return existing
         }
 
         // Get session data

@@ -6,6 +6,7 @@ import { CashSession } from '@shared/types'
 import { useLanguageStore } from '../../store/languageStore'
 import { formatCurrency } from '../../utils/currency'
 import { toast } from '../../store/toastStore'
+import { usePrintPreviewStore } from '../../store/printPreviewStore'
 
 interface SessionCloseModalProps {
   isOpen: boolean
@@ -30,7 +31,8 @@ export const SessionCloseModal: React.FC<SessionCloseModalProps> = ({
   session,
   onConfirm
 }) => {
-  const { t } = useLanguageStore()
+  const { t, currentLanguage } = useLanguageStore()
+  const { openPreview } = usePrintPreviewStore()
   const [closingCash, setClosingCash] = useState('0.000')
   const [stats, setStats] = useState<SessionStats | null>(null)
   const [loading, setLoading] = useState(false)
@@ -60,7 +62,13 @@ export const SessionCloseModal: React.FC<SessionCloseModalProps> = ({
       return
     }
 
-    await onConfirm(amount)
+    try {
+      await onConfirm(amount)
+      toast.success(t('sessionClosedSuccess'))
+      onClose()
+    } catch (error) {
+      // Error is handled by parent component
+    }
   }
 
   const handlePrintAndClose = async () => {
@@ -74,21 +82,54 @@ export const SessionCloseModal: React.FC<SessionCloseModalProps> = ({
         return
       }
 
-      // IMPORTANT: Print report FIRST before closing session
-      // If printing fails, session remains open and can be retried
+      // 1. Close session FIRST (required before generating Z Report)
+      await onConfirm(amount)
+
+      // 2. Generate Z Report data AFTER session is closed
       try {
         await window.api.generateZReport(session.id)
-      } catch (printError) {
-        console.error('Failed to print Z report:', printError)
-        toast.error(t('printError') + ' - ' + t('sessionNotClosed'), 6000)
+      } catch (genError) {
+        console.error('Failed to generate Z report:', genError)
+        toast.warning(t('sessionClosedPrintFailed'), 6000)
+        onClose()
         setPrinting(false)
         return
       }
 
-      // Only close session after successful print
-      await onConfirm(amount)
-
-      toast.success(t('sessionClosedAndPrinted'))
+      // 3. Check if print preview is enabled
+      const storeSettings = await window.api.getStoreSettings()
+      if (storeSettings.printPreviewEnabled) {
+        // Show preview modal - close this modal first, then show preview
+        try {
+          const previewHtml = await window.api.getZReportPreview(session.id, currentLanguage)
+          if (previewHtml && previewHtml.length > 0) {
+            onClose()
+            openPreview(previewHtml, session.id, async () => {
+              const result = await window.api.printZReport(session.id, currentLanguage)
+              if (!result.success) throw new Error(result.error || 'Print failed')
+            })
+            toast.success(t('sessionClosedAndPrinted'))
+          } else {
+            console.error('Z Report preview HTML is empty')
+            toast.warning(t('sessionClosedPrintFailed'), 6000)
+            onClose()
+          }
+        } catch (previewError) {
+          console.error('Failed to get Z Report preview:', previewError)
+          toast.warning(t('sessionClosedPrintFailed'), 6000)
+          onClose()
+        }
+      } else {
+        // Print directly without preview
+        const result = await window.api.printZReport(session.id, currentLanguage)
+        if (result.success) {
+          toast.success(t('sessionClosedAndPrinted'))
+        } else {
+          console.error('Z Report print failed:', result.error)
+          toast.warning(t('sessionClosedPrintFailed'), 6000)
+        }
+        onClose()
+      }
     } catch (error) {
       console.error('Failed to close session:', error)
       toast.error(t('error'))
@@ -97,7 +138,7 @@ export const SessionCloseModal: React.FC<SessionCloseModalProps> = ({
   }
 
   const expectedCash = stats
-    ? session.openingCash + stats.total_cash
+    ? session.openingCash + stats.total_sales
     : session.openingCash
 
   const difference = parseFloat(closingCash) - expectedCash
@@ -237,8 +278,8 @@ export const SessionCloseModal: React.FC<SessionCloseModalProps> = ({
                     <span className="text-gray-300">{formatCurrency(session.openingCash)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">+ {t('cashReceived')}</span>
-                    <span className="text-green-300">{formatCurrency(stats.total_cash)}</span>
+                    <span className="text-gray-400">+ {t('totalSales')}</span>
+                    <span className="text-green-300">{formatCurrency(stats.total_sales)}</span>
                   </div>
                   <div className="flex justify-between border-t border-dark-500 pt-2 font-medium">
                     <span className="text-white">= {t('expectedCash')}</span>
@@ -246,14 +287,12 @@ export const SessionCloseModal: React.FC<SessionCloseModalProps> = ({
                   </div>
                 </div>
 
-                {/* Note explicative si ventes ≠ espèces */}
-                {Math.abs(stats.total_sales - stats.total_cash) > 0.01 && (
-                  <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3">
-                    <p className="text-xs text-blue-300">
-                      ℹ️ {t('salesVsCashNote')}: {formatCurrency(stats.total_sales - stats.total_cash)} {t('paidByOtherMethods')}
-                    </p>
-                  </div>
-                )}
+                {/* Note explicative sur le calcul */}
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3">
+                  <p className="text-xs text-blue-300">
+                    ℹ️ {t('expectedCashNote')}
+                  </p>
+                </div>
 
                 <div className="flex justify-between pt-2">
                   <span className="text-gray-400">{t('actualCash')}</span>
@@ -264,7 +303,7 @@ export const SessionCloseModal: React.FC<SessionCloseModalProps> = ({
                 <div className="flex justify-between border-t border-dark-600 pt-3">
                   <span className="text-white font-semibold">{t('difference')}</span>
                   <span className={`font-bold text-lg ${
-                    difference === 0
+                    Math.abs(difference) < 0.001
                       ? 'text-green-400'
                       : difference > 0
                       ? 'text-blue-400'

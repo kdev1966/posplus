@@ -111,3 +111,29 @@ ipcMain.handle(IPC_CHANNELS.PRINTER_RECONNECT, async () => {
     return false
   }
 })
+
+// Z Report printing handlers
+ipcMain.handle(IPC_CHANNELS.PRINTER_GET_ZREPORT_PREVIEW, async (_event, sessionId: number, language: 'fr' | 'ar' = 'fr') => {
+  log.info(`PRINTER_GET_ZREPORT_PREVIEW called: sessionId=${sessionId}, language=${language}`)
+  try {
+    requireAuth()
+    const html = PrinterService.getZReportHTML(sessionId, language)
+    log.info(`PRINTER_GET_ZREPORT_PREVIEW result: ${html ? `${html.length} chars` : 'null'}`)
+    return html || ''
+  } catch (error: any) {
+    log.error('PRINTER_GET_ZREPORT_PREVIEW handler error:', error)
+    return ''
+  }
+})
+
+ipcMain.handle(IPC_CHANNELS.PRINTER_PRINT_ZREPORT, async (_event, sessionId: number, language: 'fr' | 'ar' = 'fr') => {
+  try {
+    requireAuth()
+    const success = await PrinterService.printZReport(sessionId, language)
+    return { success, error: success ? null : 'Failed to print Z Report' }
+  } catch (error: any) {
+    log.error('PRINTER_PRINT_ZREPORT handler error:', error)
+    const errorMessage = error?.message || 'Z Report print error occurred'
+    return { success: false, error: errorMessage }
+  }
+})

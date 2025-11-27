@@ -296,6 +296,8 @@ export const IPC_CHANNELS = {
   PRINTER_PRINT_TEST: 'printer:print-test',
   PRINTER_GET_TEST_PREVIEW: 'printer:get-test-preview',
   PRINTER_GET_TICKET_PREVIEW: 'printer:get-ticket-preview',
+  PRINTER_GET_ZREPORT_PREVIEW: 'printer:get-zreport-preview',
+  PRINTER_PRINT_ZREPORT: 'printer:print-zreport',
   PRINTER_OPEN_DRAWER: 'printer:open-drawer',
   PRINTER_GET_CONFIG: 'printer:get-config',
   PRINTER_SET_CONFIG: 'printer:set-config',
@@ -401,6 +403,8 @@ export interface IPCApi {
   printTestTicket: () => Promise<{ success: boolean; error?: string | null }>
   getTestTicketPreview: () => Promise<string>
   getTicketPreview: (ticketId: number, language?: 'fr' | 'ar') => Promise<string>
+  getZReportPreview: (sessionId: number, language?: 'fr' | 'ar') => Promise<string>
+  printZReport: (sessionId: number, language?: 'fr' | 'ar') => Promise<{ success: boolean; error?: string | null }>
   openDrawer: () => Promise<boolean>
   getPrinterStatus: () => Promise<{ connected: boolean; ready: boolean; error?: string }>
   getPrinterConfig: () => Promise<{ printerName: string; port: string; type?: string }>

@@ -362,9 +362,11 @@ export const translations = {
     difference: 'Écart',
     salesVsCashNote: 'Différence ventes/espèces',
     paidByOtherMethods: 'payé par autres moyens',
+    expectedCashNote: 'Le montant attendu = Fond de caisse + Ventes totales',
     closeSessionOnly: 'Fermer seulement',
     closeAndPrint: 'Fermer et imprimer',
     sessionClosedAndPrinted: 'Session fermée et rapport imprimé',
+    sessionClosedPrintFailed: 'Session fermée mais l\'impression du rapport a échoué',
     printError: 'Erreur lors de l\'impression',
     printing: 'Impression...',
 
@@ -762,9 +764,11 @@ export const translations = {
     difference: 'الفرق',
     salesVsCashNote: 'الفرق بين المبيعات والنقد',
     paidByOtherMethods: 'مدفوع بطرق أخرى',
+    expectedCashNote: 'المبلغ المتوقع = رصيد الافتتاح + إجمالي المبيعات',
     closeSessionOnly: 'إغلاق فقط',
     closeAndPrint: 'إغلاق وطباعة',
     sessionClosedAndPrinted: 'تم إغلاق الجلسة وطباعة التقرير',
+    sessionClosedPrintFailed: 'تم إغلاق الجلسة لكن فشلت طباعة التقرير',
     printError: 'خطأ في الطباعة',
     printing: 'جاري الطباعة...',
 

@@ -111,8 +111,12 @@ export class TicketRepository {
 
   private get stmtCountTodayTickets(): Database.Statement {
     if (!this._stmtCountTodayTickets) {
+      // Use MAX sequence number instead of COUNT to avoid duplicates
+      // Extract the sequence part after the dash (e.g., T20251127-0001 -> 0001)
       this._stmtCountTodayTickets = this.db.prepare(`
-        SELECT COUNT(*) as count FROM tickets WHERE DATE(created_at) = DATE('now')
+        SELECT COALESCE(MAX(CAST(SUBSTR(ticket_number, -4) AS INTEGER)), 0) as count
+        FROM tickets
+        WHERE DATE(created_at) = DATE('now')
       `)
     }
     return this._stmtCountTodayTickets
@@ -363,104 +367,121 @@ export class TicketRepository {
   }
 
   create(data: CreateTicketDTO): Ticket {
-    const transaction = this.db.transaction(() => {
+    // Retry up to 3 times in case of ticket number collision
+    const maxRetries = 3
+    let lastError: Error | null = null
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const ticketNumber = this.generateTicketNumber()
+        const transaction = this.db.transaction(() => {
+          const ticketNumber = this.generateTicketNumber(attempt - 1)
 
-        let subtotal = 0
-        let discountAmount = 0
+          let subtotal = 0
+          let discountAmount = 0
 
-        data.lines.forEach((line) => {
-          const lineSubtotal = line.quantity * line.unitPrice
-          const lineDiscount = line.discountAmount || 0
-          subtotal += lineSubtotal
-          discountAmount += lineDiscount
-        })
+          data.lines.forEach((line) => {
+            const lineSubtotal = line.quantity * line.unitPrice
+            const lineDiscount = line.discountAmount || 0
+            subtotal += lineSubtotal
+            discountAmount += lineDiscount
+          })
 
-        const totalAmount = subtotal - discountAmount
+          const totalAmount = subtotal - discountAmount
 
-        const ticketResult = this.stmtInsertTicket.run(
-          ticketNumber,
-          data.userId,
-          data.customerId || null,
-          data.sessionId,
-          subtotal,
-          discountAmount,
-          totalAmount,
-          'completed'
-        )
+          const ticketResult = this.stmtInsertTicket.run(
+            ticketNumber,
+            data.userId,
+            data.customerId || null,
+            data.sessionId,
+            subtotal,
+            discountAmount,
+            totalAmount,
+            'completed'
+          )
 
-        const ticketId = ticketResult.lastInsertRowid as number
+          const ticketId = ticketResult.lastInsertRowid as number
 
-        for (const line of data.lines) {
-          const product = this.stmtGetProduct.get(line.productId) as any
+          for (const line of data.lines) {
+            const product = this.stmtGetProduct.get(line.productId) as any
 
-          if (!product) {
-            throw new Error(`Product not found: ${line.productId}`)
-          }
+            if (!product) {
+              throw new Error(`Product not found: ${line.productId}`)
+            }
 
-          if (product.stock < line.quantity) {
-            throw new Error(
-              `Insufficient stock for product "${product.name}". Available: ${product.stock}, Required: ${line.quantity}`
+            if (product.stock < line.quantity) {
+              throw new Error(
+                `Insufficient stock for product "${product.name}". Available: ${product.stock}, Required: ${line.quantity}`
+              )
+            }
+
+            const lineSubtotal = line.quantity * line.unitPrice
+            const lineDiscount = line.discountAmount || 0
+            const lineTotal = lineSubtotal - lineDiscount
+
+            this.stmtInsertLine.run(
+              ticketId,
+              line.productId,
+              product.name,
+              product.sku,
+              line.quantity,
+              line.unitPrice,
+              lineDiscount,
+              lineTotal
+            )
+
+            StockRepository.adjust(
+              line.productId,
+              line.quantity,
+              'sale',
+              data.userId,
+              ticketNumber,
+              `Vente ticket ${ticketNumber}`
             )
           }
 
-          const lineSubtotal = line.quantity * line.unitPrice
-          const lineDiscount = line.discountAmount || 0
-          const lineTotal = lineSubtotal - lineDiscount
+          for (const payment of data.payments) {
+            this.stmtInsertPayment.run(
+              ticketId,
+              payment.method,
+              payment.amount,
+              payment.reference || null
+            )
+          }
 
-          this.stmtInsertLine.run(
-            ticketId,
-            line.productId,
-            product.name,
-            product.sku,
-            line.quantity,
-            line.unitPrice,
-            lineDiscount,
-            lineTotal
-          )
+          const ticket = this.findById(ticketId)
+          if (!ticket) {
+            throw new Error('Failed to create ticket')
+          }
 
-          StockRepository.adjust(
-            line.productId,
-            line.quantity,
-            'sale',
-            data.userId,
-            ticketNumber,
-            `Vente ticket ${ticketNumber}`
-          )
+          log.info(`Ticket created: ${ticket.ticketNumber} (ID: ${ticket.id})`)
+
+          try {
+            P2PSyncService.syncTicket(ticket)
+            log.info(`P2P: Ticket ${ticket.ticketNumber} synchronized with peers`)
+          } catch (error) {
+            log.error('P2P: Failed to sync ticket:', error)
+          }
+
+          return ticket
+        })
+
+        return transaction()
+      } catch (error: any) {
+        lastError = error
+        // Check if it's a UNIQUE constraint error on ticket_number
+        if (error?.message?.includes('UNIQUE constraint failed: tickets.ticket_number')) {
+          log.warn(`Ticket number collision on attempt ${attempt}, retrying...`)
+          continue
         }
-
-        for (const payment of data.payments) {
-          this.stmtInsertPayment.run(
-            ticketId,
-            payment.method,
-            payment.amount,
-            payment.reference || null
-          )
-        }
-
-        const ticket = this.findById(ticketId)
-        if (!ticket) {
-          throw new Error('Failed to create ticket')
-        }
-
-        log.info(`Ticket created: ${ticket.ticketNumber} (ID: ${ticket.id})`)
-
-        try {
-          P2PSyncService.syncTicket(ticket)
-          log.info(`P2P: Ticket ${ticket.ticketNumber} synchronized with peers`)
-        } catch (error) {
-          log.error('P2P: Failed to sync ticket:', error)
-        }
-
-        return ticket
-      } catch (error) {
-        log.error('TicketRepository.create transaction failed:', error)
+        // For other errors, throw immediately
+        log.error('TicketRepository.create failed:', error)
         throw error
       }
-    })
+    }
 
-    return transaction()
+    // All retries failed
+    log.error('TicketRepository.create failed after all retries:', lastError)
+    throw lastError
   }
 
   createFromSync(ticketData: any): Ticket {
@@ -791,14 +812,14 @@ export class TicketRepository {
     return transaction()
   }
 
-  private generateTicketNumber(): string {
+  private generateTicketNumber(offset: number = 0): string {
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, '0')
     const day = String(now.getDate()).padStart(2, '0')
 
     const result = this.stmtCountTodayTickets.get() as { count: number }
-    const sequence = String(result.count + 1).padStart(4, '0')
+    const sequence = String(result.count + 1 + offset).padStart(4, '0')
 
     return `T${year}${month}${day}-${sequence}`
   }

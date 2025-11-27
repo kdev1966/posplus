@@ -626,6 +626,8 @@ export const createMockApi = (): IPCApi => ({
   printTestTicket: async () => ({ success: false, error: 'Mock API' }),
   getTestTicketPreview: async () => '<html><body>Mock Preview</body></html>',
   getTicketPreview: async (_ticketId: number, _language?: 'fr' | 'ar') => '<html><body>Mock Ticket Preview</body></html>',
+  getZReportPreview: async (_sessionId: number, _language?: 'fr' | 'ar') => '<html><body>Mock Z Report Preview</body></html>',
+  printZReport: async (_sessionId: number, _language?: 'fr' | 'ar') => ({ success: false, error: 'Mock API' }),
   openDrawer: async () => false,
   getPrinterStatus: async () => ({ connected: false, ready: false }),
   getPrinterConfig: async () => ({ printerName: 'POS80 Printer', port: 'CP001', type: 'EPSON' }),

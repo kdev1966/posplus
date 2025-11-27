@@ -1,5 +1,7 @@
 import TicketRepository from '../database/repositories/TicketRepository'
 import StoreSettingsRepository from '../database/repositories/StoreSettingsRepository'
+import ZReportRepository from '../database/repositories/ZReportRepository'
+import SessionRepository from '../database/repositories/SessionRepository'
 import log from 'electron-log'
 import { ThermalPrinter, PrinterTypes, CharacterSet } from 'node-thermal-printer'
 import { getPrinterConfig } from '../../utils/printerConfig'
@@ -789,6 +791,284 @@ td { padding: 1px 0; vertical-align: top; }
     await this.initPromise
 
     return this.isConnected
+  }
+
+  // ============================================================================
+  // Z REPORT PRINTING
+  // ============================================================================
+
+  private generateZReportHTML(zReport: any, session: any, language: 'fr' | 'ar' = 'fr'): string {
+    const storeSettings = StoreSettingsRepository.getSettings()
+    const isArabic = language === 'ar'
+    const storeName = isArabic ? storeSettings.storeNameAr : storeSettings.storeNameFr
+
+    const labels = isArabic ? {
+      title: 'تقرير Z - إغلاق الجلسة',
+      sessionInfo: 'معلومات الجلسة',
+      sessionId: 'رقم الجلسة',
+      openedAt: 'تاريخ الفتح',
+      closedAt: 'تاريخ الإغلاق',
+      openingCash: 'رصيد الافتتاح',
+      closingCash: 'رصيد الإغلاق',
+      salesSummary: 'ملخص المبيعات',
+      totalTickets: 'عدد التذاكر',
+      totalSales: 'إجمالي المبيعات',
+      totalDiscount: 'إجمالي الخصومات',
+      paymentMethods: 'طرق الدفع',
+      cash: 'نقدا',
+      card: 'بطاقة',
+      transfer: 'تحويل',
+      check: 'شيك',
+      other: 'أخرى',
+      cashReconciliation: 'مطابقة النقد',
+      expectedCash: 'النقد المتوقع',
+      actualCash: 'النقد الفعلي',
+      difference: 'الفرق',
+      generatedAt: 'تم إنشاء التقرير في'
+    } : {
+      title: 'RAPPORT Z - CLOTURE DE SESSION',
+      sessionInfo: 'Informations Session',
+      sessionId: 'Session N°',
+      openedAt: 'Ouverture',
+      closedAt: 'Fermeture',
+      openingCash: 'Fond de caisse',
+      closingCash: 'Caisse finale',
+      salesSummary: 'Résumé des Ventes',
+      totalTickets: 'Nombre de tickets',
+      totalSales: 'Total ventes',
+      totalDiscount: 'Total remises',
+      paymentMethods: 'Modes de Paiement',
+      cash: 'Espèces',
+      card: 'Carte',
+      transfer: 'Virement',
+      check: 'Chèque',
+      other: 'Autre',
+      cashReconciliation: 'Réconciliation Caisse',
+      expectedCash: 'Caisse attendue',
+      actualCash: 'Caisse réelle',
+      difference: 'Écart',
+      generatedAt: 'Rapport généré le'
+    }
+
+    const formatDate = (dateStr: string) => {
+      return new Date(dateStr).toLocaleString(isArabic ? 'ar-TN' : 'fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }
+
+    const expectedCash = session.openingCash + zReport.totalCash
+    const difference = (session.closingCash || 0) - expectedCash
+
+    return `<!DOCTYPE html>
+<html dir="${isArabic ? 'rtl' : 'ltr'}">
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  width: 80mm;
+  padding: 3mm;
+  direction: ${isArabic ? 'rtl' : 'ltr'};
+}
+.center { text-align: center; }
+.bold { font-weight: bold; }
+.big { font-size: 16px; }
+.line { border-top: 1px dashed #000; margin: 5px 0; }
+.double-line { border-top: 2px solid #000; margin: 5px 0; }
+table { width: 100%; border-collapse: collapse; }
+td { padding: 2px 0; }
+td.right { text-align: ${isArabic ? 'left' : 'right'}; }
+.section { margin: 8px 0; }
+.section-title { font-weight: bold; margin-bottom: 4px; background: #eee; padding: 2px 4px; }
+.total-row { font-weight: bold; font-size: 14px; }
+.positive { color: #006400; }
+.negative { color: #8B0000; }
+</style>
+</head>
+<body>
+<div class="center">
+<div class="bold big">${storeName || 'POS+'}</div>
+${storeSettings.storePhone ? `<div>${storeSettings.storePhone}</div>` : ''}
+</div>
+<div class="double-line"></div>
+<div class="center bold big">${labels.title}</div>
+<div class="line"></div>
+
+<div class="section">
+<div class="section-title">${labels.sessionInfo}</div>
+<table>
+<tr><td>${labels.sessionId}</td><td class="right">${session.id}</td></tr>
+<tr><td>${labels.openedAt}</td><td class="right">${formatDate(session.startedAt)}</td></tr>
+<tr><td>${labels.closedAt}</td><td class="right">${session.endedAt ? formatDate(session.endedAt) : '-'}</td></tr>
+<tr><td>${labels.openingCash}</td><td class="right">${session.openingCash.toFixed(3)} DT</td></tr>
+<tr><td>${labels.closingCash}</td><td class="right">${(session.closingCash || 0).toFixed(3)} DT</td></tr>
+</table>
+</div>
+
+<div class="section">
+<div class="section-title">${labels.salesSummary}</div>
+<table>
+<tr><td>${labels.totalTickets}</td><td class="right">${zReport.ticketCount}</td></tr>
+<tr><td>${labels.totalSales}</td><td class="right bold">${zReport.totalSales.toFixed(3)} DT</td></tr>
+<tr><td>${labels.totalDiscount}</td><td class="right">-${zReport.totalDiscount.toFixed(3)} DT</td></tr>
+</table>
+</div>
+
+<div class="section">
+<div class="section-title">${labels.paymentMethods}</div>
+<table>
+${zReport.totalCash > 0 ? `<tr><td>${labels.cash}</td><td class="right">${zReport.totalCash.toFixed(3)} DT</td></tr>` : ''}
+${zReport.totalCard > 0 ? `<tr><td>${labels.card}</td><td class="right">${zReport.totalCard.toFixed(3)} DT</td></tr>` : ''}
+${(zReport.totalTransfer || 0) > 0 ? `<tr><td>${labels.transfer}</td><td class="right">${(zReport.totalTransfer || 0).toFixed(3)} DT</td></tr>` : ''}
+${(zReport.totalCheck || 0) > 0 ? `<tr><td>${labels.check}</td><td class="right">${(zReport.totalCheck || 0).toFixed(3)} DT</td></tr>` : ''}
+${zReport.totalOther > 0 ? `<tr><td>${labels.other}</td><td class="right">${zReport.totalOther.toFixed(3)} DT</td></tr>` : ''}
+</table>
+</div>
+
+<div class="section">
+<div class="section-title">${labels.cashReconciliation}</div>
+<table>
+<tr><td>${labels.openingCash}</td><td class="right">${session.openingCash.toFixed(3)} DT</td></tr>
+<tr><td>+ ${labels.cash}</td><td class="right">${zReport.totalCash.toFixed(3)} DT</td></tr>
+<tr class="total-row"><td>= ${labels.expectedCash}</td><td class="right">${expectedCash.toFixed(3)} DT</td></tr>
+</table>
+<div class="line"></div>
+<table>
+<tr><td>${labels.actualCash}</td><td class="right">${(session.closingCash || 0).toFixed(3)} DT</td></tr>
+<tr class="total-row"><td>${labels.difference}</td><td class="right ${difference >= 0 ? 'positive' : 'negative'}">${difference >= 0 ? '+' : ''}${difference.toFixed(3)} DT</td></tr>
+</table>
+</div>
+
+<div class="double-line"></div>
+<div class="center">
+<div class="bold">${labels.generatedAt}</div>
+<div>${formatDate(zReport.createdAt)}</div>
+</div>
+<div class="line"></div>
+<div class="center">POS+ v1.0.0</div>
+</body>
+</html>`
+  }
+
+  getZReportHTML(sessionId: number, language: 'fr' | 'ar' = 'fr'): string | null {
+    try {
+      log.info(`getZReportHTML called for session: ${sessionId}, language: ${language}`)
+
+      const zReport = ZReportRepository.findBySession(sessionId)
+      log.info(`Z Report lookup result: ${zReport ? `found (ID: ${zReport.id})` : 'NOT FOUND'}`)
+
+      if (!zReport) {
+        log.error(`Z Report not found for session: ${sessionId}`)
+        return null
+      }
+
+      const session = SessionRepository.findById(sessionId)
+      log.info(`Session lookup result: ${session ? `found (ID: ${session.id})` : 'NOT FOUND'}`)
+
+      if (!session) {
+        log.error(`Session not found: ${sessionId}`)
+        return null
+      }
+
+      const html = this.generateZReportHTML(zReport, session, language)
+      log.info(`Generated HTML length: ${html?.length || 0}`)
+      return html
+    } catch (error) {
+      log.error('Failed to generate Z Report preview:', error)
+      return null
+    }
+  }
+
+  async printZReport(sessionId: number, language: 'fr' | 'ar' = 'fr'): Promise<boolean> {
+    await this.initPromise
+
+    if (!this.isConnected) {
+      log.error('❌ Printer not connected - Cannot print Z Report')
+      return false
+    }
+
+    try {
+      const zReport = ZReportRepository.findBySession(sessionId)
+      if (!zReport) {
+        log.error(`Z Report not found for session: ${sessionId}`)
+        return false
+      }
+
+      const session = SessionRepository.findById(sessionId)
+      if (!session) {
+        log.error(`Session not found: ${sessionId}`)
+        return false
+      }
+
+      log.info(`Printing Z Report for session: ${sessionId} (language: ${language})`)
+
+      // WINDOWS: Use Electron native printing
+      if (this.isWindows && this.windowsPrinterName) {
+        log.info(`🪟 Using Windows printer: ${this.windowsPrinterName}`)
+        const html = this.generateZReportHTML(zReport, session, language)
+        const success = await this.printWithWindowsPrinter(html)
+
+        if (success) {
+          log.info(`✅ Z Report printed successfully for session: ${sessionId}`)
+        } else {
+          log.error(`❌ Failed to print Z Report for session: ${sessionId}`)
+        }
+
+        return success
+      }
+
+      // NON-WINDOWS: Use node-thermal-printer
+      if (!this.printer) {
+        log.error('❌ Thermal printer not available')
+        return false
+      }
+
+      // For non-Windows, use HTML rendering via BrowserWindow
+      const html = this.generateZReportHTML(zReport, session, language)
+      return new Promise((resolve) => {
+        const printWindow = new BrowserWindow({
+          show: false,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+          },
+        })
+
+        printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+
+        printWindow.webContents.on('did-finish-load', () => {
+          printWindow.webContents.print(
+            {
+              silent: true,
+              printBackground: false,
+              margins: { marginType: 'none' },
+              pageSize: { width: 80000, height: 297000 },
+            },
+            (success, failureReason) => {
+              if (!success) {
+                log.error('Z Report print failed:', failureReason)
+                this.lastError = failureReason || 'Print failed'
+              } else {
+                log.info(`✅ Z Report printed successfully for session: ${sessionId}`)
+                this.lastError = null
+              }
+              printWindow.close()
+              resolve(success)
+            }
+          )
+        })
+      })
+    } catch (error) {
+      log.error('Failed to print Z Report:', error)
+      this.lastError = (error as any)?.message || String(error)
+      return false
+    }
   }
 }
 

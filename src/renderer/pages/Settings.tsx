@@ -188,8 +188,8 @@ export const Settings: React.FC = () => {
 
     try {
       await closeSession(currentSession.id, closingCash)
-      setIsCloseModalOpen(false)
-      toast.success(t('sessionClosedSuccess'))
+      // Don't close modal here - let SessionCloseModal handle it after printing
+      // Don't show success toast here - SessionCloseModal will show appropriate message
     } catch (error: any) {
       const errorMsg = error?.message || t('closeSessionFailed')
       toast.error(`${t('error')}: ${errorMsg}`)
