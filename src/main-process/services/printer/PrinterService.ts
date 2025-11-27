@@ -877,27 +877,35 @@ td { padding: 1px 0; vertical-align: top; overflow: hidden; text-overflow: ellip
 <head>
 <meta charset="UTF-8">
 <style>
+@page { size: 72mm auto; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 72mm;
+  max-width: 72mm;
+  margin: 0;
+  overflow-x: hidden;
+  direction: ltr;
+}
 body {
-  font-family: 'Courier New', monospace;
+  font-family: ${isArabic ? "'Arial', 'Tahoma', sans-serif" : "'Courier New', monospace"};
   font-size: 12px;
-  width: 80mm;
-  padding: 3mm;
-  direction: ${isArabic ? 'rtl' : 'ltr'};
+  padding: 2mm;
+  color: #000;
 }
 .center { text-align: center; }
 .bold { font-weight: bold; }
 .big { font-size: 16px; }
 .line { border-top: 1px dashed #000; margin: 5px 0; }
 .double-line { border-top: 2px solid #000; margin: 5px 0; }
-table { width: 100%; border-collapse: collapse; }
-td { padding: 2px 0; }
-td.right { text-align: ${isArabic ? 'left' : 'right'}; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+td { padding: 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.right { text-align: right; }
 .section { margin: 8px 0; }
 .section-title { font-weight: bold; margin-bottom: 4px; background: #eee; padding: 2px 4px; }
 .total-row { font-weight: bold; font-size: 14px; }
 .positive { color: #006400; }
 .negative { color: #8B0000; }
+${isArabic ? `.ar { direction: rtl; text-align: right; }` : ''}
 </style>
 </head>
 <body>
@@ -1032,13 +1040,8 @@ ${zReport.totalOther > 0 ? `<tr><td>${labels.other}</td><td class="right">${zRep
         return success
       }
 
-      // NON-WINDOWS: Use node-thermal-printer
-      if (!this.printer) {
-        log.error('❌ Thermal printer not available')
-        return false
-      }
-
-      // For non-Windows, use HTML rendering via BrowserWindow
+      // NON-WINDOWS: Use HTML rendering via BrowserWindow
+      log.info('🖨️ Using BrowserWindow for Z Report printing')
       const html = this.generateZReportHTML(zReport, session, language)
       return new Promise((resolve) => {
         const printWindow = new BrowserWindow({
@@ -1055,9 +1058,9 @@ ${zReport.totalOther > 0 ? `<tr><td>${labels.other}</td><td class="right">${zRep
           printWindow.webContents.print(
             {
               silent: true,
-              printBackground: false,
+              printBackground: true,
               margins: { marginType: 'none' },
-              pageSize: { width: 80000, height: 297000 },
+              pageSize: { width: 72000, height: 297000 },
             },
             (success, failureReason) => {
               if (!success) {
