@@ -1,6 +1,5 @@
 import TicketRepository from '../database/repositories/TicketRepository'
 import StoreSettingsRepository from '../database/repositories/StoreSettingsRepository'
-import ZReportRepository from '../database/repositories/ZReportRepository'
 import SessionRepository from '../database/repositories/SessionRepository'
 import log from 'electron-log'
 import { ThermalPrinter, PrinterTypes, CharacterSet } from 'node-thermal-printer'
@@ -852,11 +851,11 @@ td { padding: 1px 0; vertical-align: top; overflow: hidden; text-overflow: ellip
       transfer: 'Virement',
       check: 'Chèque',
       other: 'Autre',
-      cashReconciliation: 'Réconciliation Caisse',
-      expectedCash: 'Caisse attendue',
-      actualCash: 'Caisse réelle',
+      cashReconciliation: 'Réconciliation',
+      expectedCash: 'Attendu',
+      actualCash: 'Réel',
       difference: 'Écart',
-      generatedAt: 'Rapport généré le'
+      generatedAt: 'Généré le'
     }
 
     const formatDate = (dateStr: string) => {
@@ -909,9 +908,9 @@ body {
 .big { font-size: 16px; }
 .line { border-top: 1px dashed #000; margin: 5px 0; }
 .double-line { border-top: 2px solid #000; margin: 5px 0; }
-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-td { padding: 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-td.right { text-align: right; }
+table { width: 100%; border-collapse: collapse; }
+td { padding: 2px 0; vertical-align: top; }
+td.right { text-align: right; white-space: nowrap; }
 .section { margin: 8px 0; }
 .section-title { font-weight: bold; margin-bottom: 4px; background: #eee; padding: 2px 4px; }
 .total-row { font-weight: bold; font-size: 14px; }
@@ -977,7 +976,7 @@ ${totalOther > 0 ? `<tr><td>${labels.other}</td><td class="right">${totalOther.t
 <div class="double-line"></div>
 <div class="center">
 <div class="bold">${labels.generatedAt}</div>
-<div>${formatDate(zReport.createdAt)}</div>
+<div>${zReport.createdAt ? formatDate(zReport.createdAt) : formatDate(new Date().toISOString())}</div>
 </div>
 <div class="line"></div>
 <div class="center">POS+ v1.0.0</div>
@@ -989,20 +988,31 @@ ${totalOther > 0 ? `<tr><td>${labels.other}</td><td class="right">${totalOther.t
     try {
       log.info(`getZReportHTML called for session: ${sessionId}, language: ${language}`)
 
-      const zReport = ZReportRepository.findBySession(sessionId)
-      log.info(`Z Report lookup result: ${zReport ? `found (ID: ${zReport.id})` : 'NOT FOUND'}`)
-
-      if (!zReport) {
-        log.error(`Z Report not found for session: ${sessionId}`)
-        return null
-      }
-
       const session = SessionRepository.findById(sessionId)
       log.info(`Session lookup result: ${session ? `found (ID: ${session.id})` : 'NOT FOUND'}`)
 
       if (!session) {
         log.error(`Session not found: ${sessionId}`)
         return null
+      }
+
+      // Get real-time stats from session instead of stored Z Report
+      const stats = SessionRepository.getSessionStats(sessionId)
+      log.info(`Session stats: tickets=${stats?.ticket_count}, sales=${stats?.total_sales}, cash=${stats?.total_cash}`)
+
+      // Build zReport object from real-time stats
+      const zReport = {
+        id: 0,
+        sessionId: sessionId,
+        totalSales: stats?.total_sales || 0,
+        totalDiscount: 0, // Not tracked in session stats
+        totalCash: stats?.total_cash || 0,
+        totalCard: stats?.total_card || 0,
+        totalTransfer: stats?.total_transfer || 0,
+        totalCheck: stats?.total_check || 0,
+        totalOther: stats?.total_other || 0,
+        ticketCount: stats?.ticket_count || 0,
+        createdAt: new Date().toISOString()
       }
 
       const html = this.generateZReportHTML(zReport, session, language)
@@ -1023,16 +1033,29 @@ ${totalOther > 0 ? `<tr><td>${labels.other}</td><td class="right">${totalOther.t
     }
 
     try {
-      const zReport = ZReportRepository.findBySession(sessionId)
-      if (!zReport) {
-        log.error(`Z Report not found for session: ${sessionId}`)
-        return false
-      }
-
       const session = SessionRepository.findById(sessionId)
       if (!session) {
         log.error(`Session not found: ${sessionId}`)
         return false
+      }
+
+      // Get real-time stats from session
+      const stats = SessionRepository.getSessionStats(sessionId)
+      log.info(`Session stats for print: tickets=${stats?.ticket_count}, sales=${stats?.total_sales}, cash=${stats?.total_cash}`)
+
+      // Build zReport object from real-time stats
+      const zReport = {
+        id: 0,
+        sessionId: sessionId,
+        totalSales: stats?.total_sales || 0,
+        totalDiscount: 0,
+        totalCash: stats?.total_cash || 0,
+        totalCard: stats?.total_card || 0,
+        totalTransfer: stats?.total_transfer || 0,
+        totalCheck: stats?.total_check || 0,
+        totalOther: stats?.total_other || 0,
+        ticketCount: stats?.ticket_count || 0,
+        createdAt: new Date().toISOString()
       }
 
       log.info(`Printing Z Report for session: ${sessionId} (language: ${language})`)
