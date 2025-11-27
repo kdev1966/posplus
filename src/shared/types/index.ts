@@ -49,6 +49,7 @@ export interface Product {
   name: string
   description?: string
   categoryId: number
+  categoryName?: string
   price: number
   cost: number
   discountRate: number

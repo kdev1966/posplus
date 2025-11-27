@@ -127,7 +127,7 @@ export const useCartStore = create<CartState>((set, get) => ({
           prix: item.product.price,
           total: item.total,
         }))
-        window.electron.ipcRenderer.send('update-customer-display', customerCart)
+        window.electron?.ipcRenderer?.send('update-customer-display', customerCart)
         customerDisplayTimeout = null
       }, CUSTOMER_DISPLAY_DEBOUNCE_MS)
     }

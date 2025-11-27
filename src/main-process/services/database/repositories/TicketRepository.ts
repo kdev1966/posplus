@@ -16,8 +16,9 @@ export class TicketRepository {
   private _stmtFindBySession: Database.Statement | null = null
   private _stmtGetLines: Database.Statement | null = null
   private _stmtGetPayments: Database.Statement | null = null
-  private _stmtGetLinesByTicketIds: Database.Statement | null = null
-  private _stmtGetPaymentsByTicketIds: Database.Statement | null = null
+  // Reserved for batch loading optimization
+  // private _stmtGetLinesByTicketIds: Database.Statement | null = null
+  // private _stmtGetPaymentsByTicketIds: Database.Statement | null = null
   private _stmtInsertTicket: Database.Statement | null = null
   private _stmtInsertLine: Database.Statement | null = null
   private _stmtInsertPayment: Database.Statement | null = null
@@ -829,8 +830,8 @@ export class TicketRepository {
     this._stmtFindBySession = null
     this._stmtGetLines = null
     this._stmtGetPayments = null
-    this._stmtGetLinesByTicketIds = null
-    this._stmtGetPaymentsByTicketIds = null
+    // this._stmtGetLinesByTicketIds = null
+    // this._stmtGetPaymentsByTicketIds = null
     this._stmtInsertTicket = null
     this._stmtInsertLine = null
     this._stmtInsertPayment = null

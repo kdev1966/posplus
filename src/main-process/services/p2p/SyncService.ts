@@ -821,7 +821,7 @@ class P2PSyncService {
    * Handle incremental sync response - apply only the changed items
    */
   private handleIncrementalSyncResponse(message: SyncMessage): void {
-    const { products, categories, since, hasMore, syncedAt } = message.data
+    const { products, categories, since: _since, hasMore, syncedAt } = message.data
     const peerId = message.sourcePos
 
     log.info(`P2P: Handling incremental sync response from ${peerId}: ${categories?.length || 0} categories, ${products?.length || 0} products`)
